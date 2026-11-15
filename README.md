@@ -1,4 +1,6 @@
-# Arcade Masters
+# Group Project Intro-to-Programming
+
+## Arcade Masters
 
 A pixel-art arcade you walk around in. Sit at a table to play **UNO**, **checkers** or **Connect Four**
 against five bots, win coins, spend them on hair, shirts and name tags in the store, and unlock the
@@ -8,16 +10,8 @@ Team project for Introduction to Programming (Nova SBE, 2026/27).
 
 ## Deployed app
 
-**URL:** _add the public link here once the app is deployed_
-
-## Team
-
-| Name | Student number |
-|---|---|
-| _name_ | _number_ |
-| _name_ | _number_ |
-| _name_ | _number_ |
-| _name_ | _number_ |
+The presentation is a live demo of the app running at its deployed URL. The game is not online yet;
+the link goes here once it is.
 
 ## Run the app on your computer
 
