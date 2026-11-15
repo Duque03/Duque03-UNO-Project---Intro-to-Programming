@@ -1,0 +1,16 @@
+[project]
+name = "arcade-masters"
+version = "0.1.0"
+description = "A pixel-art arcade with UNO, checkers and Connect Four, built with Streamlit."
+requires-python = ">=3.11"
+dependencies = [
+    "streamlit==1.67.0",
+    "pillow==13.0.0",
+]
+
+[dependency-groups]
+dev = ["pytest==9.2.0"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

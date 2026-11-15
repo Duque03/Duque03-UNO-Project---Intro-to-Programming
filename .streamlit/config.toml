@@ -1,0 +1,19 @@
+[theme]
+base = "dark"
+primaryColor = "#ffcf3a"
+backgroundColor = "#0d0a1f"
+secondaryBackgroundColor = "#1c1642"
+textColor = "#f3ead2"
+font = "monospace"
+
+[client]
+toolbarMode = "minimal"
+
+[browser]
+gatherUsageStats = false
+
+[runner]
+# One click is handled at a time. With the default (true) a click that arrives
+# while the bots are still moving would start a second run next to the first
+# one, and both would move the bots.
+fastReruns = false
