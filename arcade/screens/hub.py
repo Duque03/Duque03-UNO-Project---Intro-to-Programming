@@ -6,7 +6,7 @@ import time
 
 import streamlit as st
 
-from arcade import hubmap, match, state, ui
+from arcade import hubmap, match, sound, state, ui
 from arcade.art import scenes
 from arcade.config import ANIMATIONS, FRAME_DELAY, GAMES, SCALE
 from arcade.logic import championship
@@ -103,8 +103,10 @@ def _walk_to(target, face=None) -> None:
 
 def _interact(near: str | None) -> None:
     if near in GAMES:
+        sound.play("table")
         match.begin_free_play(near)
     elif near == "store":
+        sound.play("coin")
         state.go("store")
     elif near == "champ" and championship.is_unlocked(S.player):
         if S.player["champ_intro_seen"]:
@@ -146,6 +148,7 @@ def render() -> None:
         pause = ui.button("Pause", "hub_pause", "Esc")
 
     if pause:
+        sound.play("pause")
         S.paused_from = "hub"
         state.go("pause")
         st.rerun()

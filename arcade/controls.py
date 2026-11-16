@@ -15,6 +15,7 @@ TABS = [
             ("E", "PLAY A TABLE OR ENTER THE STORE"),
             ("I", "CHAMPIONSHIP RULES (BY THE CUP)"),
             ("ESC", "PAUSE MENU AND WARDROBE"),
+            ("M", "MUSIC ON OR OFF"),
         ],
     },
     {
