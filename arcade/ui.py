@@ -205,9 +205,27 @@ def move() -> tuple[int, int] | None:
     return st.session_state.get("_move")
 
 
-def screen():
+class Slot:
+    """The place on the page where a picture goes. Use show() to put a picture in it.
+
+    The first picture goes straight into the container, and every later picture
+    in the same run replaces it in place. We do not use st.empty() here: an empty
+    placeholder makes the browser remove the old picture and wait for the new
+    one, so every timed redraw (idle bots, title animation) made the game blink.
+    """
+
+    def __init__(self, key: str):
+        self.key = key
+        self._place = None
+
+    def image(self, data: str, **kwargs) -> None:
+        where = st.container(key=self.key) if self._place is None else self._place
+        self._place = where.image(data, **kwargs)
+
+
+def screen(key: str = SCREEN_KEY) -> Slot:
     """The place where the game picture goes. Use show() to put a picture in it."""
-    return st.container(key=SCREEN_KEY).empty()
+    return Slot(key)
 
 
 def _inline(img) -> str:
