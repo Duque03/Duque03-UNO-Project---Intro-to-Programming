@@ -7,7 +7,7 @@ play, or points and the scoreboard in the championship.
 
 from __future__ import annotations
 
-from arcade import bots, catalog, hubmap, phrases, state, ui
+from arcade import bots, catalog, hubmap, phrases, sound, state, ui
 from arcade.config import (
     BOTS_PER_GAME, CHAMPIONSHIP_BOTS, COINS_PER_WIN, SIMULATED_TIE_CHANCE,
 )
@@ -93,6 +93,7 @@ def finish(winners: list[str], tied: bool = False) -> None:
     match = S.match
     me = S.player["name"]
     rng = state.rng()
+    sound.play("tie" if tied else "win" if me in winners else "lose")  # A7
     if match["mode"] == "free":
         won = not tied and me in winners
         if won:
