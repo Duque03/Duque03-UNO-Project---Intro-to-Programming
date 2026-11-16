@@ -83,7 +83,8 @@ changing these files, and change them in a small pull request of their own.
   directly: it turns pixel art into blurry JPEG and animation frames can go missing.
 - **Clicks made during a bot's turn are ignored** (see `bots_were_playing` in the table screens). Keep that
   when you change a table screen.
-- **The only JavaScript is `INPUT_JS` in `arcade/ui.py`.** It reports clicks and walking keys. Python checks
+- **The only JavaScript is `INPUT_JS` in `arcade/ui.py` and `SOUND_JS` in `arcade/sound.py`.** `INPUT_JS` reports
+  clicks and walking keys. `SOUND_JS` only plays sounds by name and never sends anything back. Python checks
   every value it receives before using it.
 
 ## Data and secrets

@@ -11,6 +11,7 @@ from arcade.art import scenes
 from arcade.config import ANIMATIONS, FRAME_DELAY, GAMES, IDLE_EVERY, SCALE
 from arcade.logic import championship
 from arcade.state import S
+from arcade import sound  # A7 (own line, so it merges cleanly with A4)
 
 _LABELS = {"uno": "Play UNO", "checkers": "Play checkers", "connect4": "Play Connect Four",
            "store": "Enter the store", "champ": "Start championship"}
@@ -108,8 +109,10 @@ def _walk_to(target, face=None) -> None:
 
 def _interact(near: str | None) -> None:
     if near in GAMES:
+        sound.play("table")
         match.begin_free_play(near)
     elif near == "store":
+        sound.play("coin")
         state.go("store")
     elif near == "champ" and championship.is_unlocked(S.player):
         if S.player["champ_intro_seen"]:
@@ -172,6 +175,7 @@ def render() -> None:
         pause = ui.button("Pause", "hub_pause", "Esc")
 
     if pause:
+        sound.play("pause")
         S.paused_from = "hub"
         state.go("pause")
         st.rerun()

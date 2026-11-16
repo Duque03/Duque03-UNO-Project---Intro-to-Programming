@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import streamlit as st
 
-from arcade import state, ui
+from arcade import sound, state, ui
 from arcade.art import scenes
 from arcade.config import NAME_MAX
 from arcade.player import InvalidName, clean_name
@@ -44,5 +44,6 @@ def render() -> None:
             is_new = state.start_session(name)
             S.naming = False
             ui.fade_next()  # into the arcade through black
+            sound.play("start")
             st.toast(f"Welcome, {name}!" if is_new else f"Welcome back, {name}!")
             st.rerun()
