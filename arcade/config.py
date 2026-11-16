@@ -47,5 +47,12 @@ BOT_DELAY = 0.7
 FADE_STEPS = 5
 FADE_DELAY = 0.035
 
+# Soft neon glow around bright colours on every picture (visual update, idea 2). Costs about 20 ms a picture.
+GLOW = True
+
+# Font for all text painted on the pictures (visual update, idea 4): a file in arcade/art/fonts/,
+# or None for the old built-in 5x7 font
+TEXT_FONT = "Jersey10-Regular.ttf"
+
 # Title screen animation (visual update, idea 5): seconds between two frames
 TITLE_EVERY = 0.4

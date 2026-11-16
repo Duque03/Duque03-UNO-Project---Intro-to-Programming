@@ -22,8 +22,8 @@ import time
 
 import streamlit as st
 
-from arcade.art import scenes
-from arcade.config import ANIMATIONS, FADE_DELAY, FADE_STEPS, FRAME_DELAY, GAME_TITLE, SCREEN_H, SCREEN_W
+from arcade.art import effects, scenes
+from arcade.config import ANIMATIONS, FADE_DELAY, FADE_STEPS, FRAME_DELAY, GAME_TITLE, GLOW, SCREEN_H, SCREEN_W
 
 SCREEN_KEY = "game_screen"
 
@@ -217,6 +217,8 @@ def _inline(img) -> str:
     separate file the browser has to fetch) is what keeps animations smooth:
     a frame can never arrive after it has already been replaced.
     """
+    if GLOW:  # every picture gets the soft neon glow just before it is sent
+        img = effects.neon_glow(img)
     buffer = io.BytesIO()
     img.save(buffer, format="PNG", compress_level=3)
     return "data:image/png;base64," + base64.b64encode(buffer.getvalue()).decode("ascii")
