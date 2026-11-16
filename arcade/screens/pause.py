@@ -6,12 +6,13 @@ import streamlit as st
 
 from arcade import state, ui
 from arcade.art import scenes
-from arcade.screens import hub
+from arcade.screens import howto, hub
 from arcade.state import S
 
 OPTIONS = [
     {"label": "RESUME", "action": "resume", "key": "ESC"},
     {"label": "CUSTOMIZE CHARACTER", "action": "wardrobe"},
+    {"label": "HOW TO PLAY", "action": "howto"},
     {"label": "LEAVE ARCADE", "action": "leave"},
 ]
 
@@ -21,12 +22,14 @@ def render() -> None:
     ui.show(ui.screen(), img)
     point = ui.click()
     action = ui.hit(regions, point)
-    bar = st.columns(3)
+    bar = st.columns(4)
     with bar[0]:
         resume = ui.button("Resume", "pause_resume", "Esc", type="primary")
     with bar[1]:
         wardrobe = ui.button("Customize character", "pause_wardrobe")
     with bar[2]:
+        how = ui.button("How to play", "pause_howto", "H")
+    with bar[3]:
         leave = ui.button("Leave arcade", "pause_leave")
 
     if resume or action == ("menu", "resume"):
@@ -35,6 +38,9 @@ def render() -> None:
     if wardrobe or action == ("menu", "wardrobe"):
         S.wardrobe_focus = None
         state.go("wardrobe")
+        st.rerun()
+    if how or action == ("menu", "howto"):
+        howto.open_from("pause")
         st.rerun()
     if leave or action == ("menu", "leave"):
         state.save()  # progress is kept for next time
