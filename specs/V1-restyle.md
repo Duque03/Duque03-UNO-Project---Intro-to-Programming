@@ -12,7 +12,7 @@ Only CSS in `arcade/ui.py` (`_CSS`):
 - buttons get rounded neon outlines that light up on hover; the main button of each screen is a pink-orange
   gradient;
 - the name field and the captions match;
-- the text uses Pixelify Sans, a pixel font under the SIL Open Font License, loaded from Google Fonts.
+- the text uses Jersey 10, a pixel font under the SIL Open Font License, loaded from Google Fonts (the same font as the pictures in V4).
 
 ## Out of scope
 - The pictures themselves (ideas 2 to 5).

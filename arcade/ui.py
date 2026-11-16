@@ -30,10 +30,10 @@ SCREEN_KEY = "game_screen"
 TITLE_KEY = "title_screen"
 
 # Look of everything around the game picture (idea 1 of the visual update).
-# The pixel font is Pixelify Sans (SIL Open Font License), loaded from Google Fonts.
+# The pixel font is Jersey 10 (SIL Open Font License), loaded from Google Fonts. The pictures use it too (V4).
 _CSS = f"""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Jersey+10&display=swap');
 :root {{
     --ink: #0d0a1f; --panel: #17123a; --line: #3a2f6b;
     --pink: #ff4fa3; --cyan: #3ad6ff; --yellow: #ffe94a; --text: #f3ead2;
@@ -47,7 +47,7 @@ _CSS = f"""
     background-attachment: fixed;
 }}
 .stApp, .stApp p, .stApp label, .stApp input, .stApp button, [data-testid="stToast"] {{
-    font-family: "Pixelify Sans", monospace !important;
+    font-family: "Jersey 10", monospace !important;
 }}
 .block-container {{ max-width: 992px; padding: 1.4rem 1rem 1rem 1rem; }}
 /* Streamlit's own header, menu and footer are not part of the game */
@@ -76,7 +76,7 @@ img {{ image-rendering: pixelated; }}
     box-shadow: 0 0 14px rgba(58, 214, 255, .45); transform: translateY(-1px);
 }}
 .stButton button:disabled {{ border-color: rgba(58, 47, 107, .8); background: rgba(23, 18, 58, .45); opacity: .55; }}
-.stButton button p, .stFormSubmitButton button p {{ font-size: 1.1rem; }}
+.stButton button p, .stFormSubmitButton button p {{ font-size: 1.3rem; letter-spacing: .04em; }}
 button[data-testid^="stBaseButton-primary"]:not(:disabled) {{
     border: 2px solid #ffd0e6; background: linear-gradient(135deg, var(--pink), #ff9f1a);
     box-shadow: 0 0 16px rgba(255, 79, 163, .45);
@@ -89,7 +89,7 @@ button[data-testid^="stBaseButton-primary"]:not(:disabled) * {{ color: #1a0f2e !
 
 /* the name field on the title screen */
 .stTextInput input {{
-    border-radius: 10px; background: rgba(23, 18, 58, .9); color: #ffffff; font-size: 1.2rem;
+    border-radius: 10px; background: rgba(23, 18, 58, .9); color: #ffffff; font-size: 1.5rem;
     border: 2px solid rgba(255, 79, 163, .6); letter-spacing: .08em;
 }}
 .stTextInput input:focus {{ border-color: var(--pink); box-shadow: 0 0 16px rgba(255, 79, 163, .45); }}
