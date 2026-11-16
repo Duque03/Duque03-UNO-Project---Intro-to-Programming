@@ -138,6 +138,71 @@ def _bunting(d, y=2):
         d.polygon([(x, y + 1), (x + 6, y + 1), (x + 3, y + 6)], fill=rgb(NEON[i % len(NEON)]))
 
 
+def _neon_sign(img, cx, y, text, colour) -> None:
+    """Glowing neon letters on a dark board, hung on the wall (A6)."""
+    tw, th = text_size(text, 1)
+    d = ImageDraw.Draw(img)
+    rect(d, cx - tw // 2 - 4, y - 3, tw + 8, th + 6, (22, 14, 50))
+    rect(d, cx - tw // 2 - 3, y - 2, tw + 6, 1, (60, 44, 110))
+    halo = mix(colour, (22, 14, 50), 0.55)
+    for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1)):
+        draw_text(img, (cx + dx, y + dy), text, 1, halo, "mt")
+    draw_text(img, (cx, y), text, 1, mix(colour, "#ffffff", 0.35), "mt")
+
+
+def _light_beams(img, beams) -> None:
+    """Soft cones of light from the ceiling. beams: (x at the top, x left and right at the bottom, bottom y)."""
+    light = Image.new("RGBA", img.size, (0, 0, 0, 0))
+    d = ImageDraw.Draw(light)
+    for top_x, left, right, bottom in beams:
+        d.polygon([(top_x - 2, 0), (top_x + 2, 0), (right, bottom), (left, bottom)], fill=(255, 236, 200, 16))
+        d.polygon([(top_x - 1, 0), (top_x + 1, 0), (right - 8, bottom), (left + 8, bottom)], fill=(255, 236, 200, 10))
+    img.paste(Image.alpha_composite(img.convert("RGBA"), light).convert("RGB"))
+
+
+def _light_pools(d) -> None:
+    """Lighter patches on the floor where the ceiling lamps shine (drawn before the rugs)."""
+    for cx, cy, rx, ry in ((120, 84, 40, 9), (224, 84, 40, 9)):
+        d.ellipse([cx - rx, cy - ry, cx + rx, cy + ry], fill=mix(FLOOR_A, "#9d8cff", 0.07))
+        d.ellipse([cx - rx + 10, cy - ry + 3, cx + rx - 10, cy + ry - 3], fill=mix(FLOOR_A, "#9d8cff", 0.12))
+
+
+DANCE_PAD = (104, 149)  # top-left corner of the dance pad on the floor (base canvas)
+DANCE_PAD_SIZE = 3 * 8 + 4
+
+
+def _dance_pad(d, x, y) -> None:
+    """A dance-game floor pad: a 3x3 grid with arrow tiles. Flat, so you can walk over it (A6)."""
+    size = 8
+    rect(d, x - 2, y - 2, size * 3 + 4, size * 3 + 4, (20, 14, 44))
+    arrows = {(1, 0): ("#ff4fa3", "up"), (0, 1): ("#3ad6ff", "left"), (2, 1): ("#7cff3a", "right"),
+              (1, 2): ("#ffe94a", "down")}
+    for gx in range(3):
+        for gy in range(3):
+            tx, ty = x + gx * size, y + gy * size
+            colour, direction = arrows.get((gx, gy), ("#3a2f6b", None))
+            rect(d, tx, ty, size - 1, size - 1, mix(colour, (20, 14, 44), 0.55) if direction else rgb(colour))
+            if direction:
+                cx, cy = tx + 3, ty + 3
+                ink = rgb(colour)
+                if direction in ("up", "down"):
+                    rect(d, cx, cy - 2, 1, 5, ink)
+                    tip = cy - 2 if direction == "up" else cy + 2
+                    side = 1 if direction == "up" else -1
+                    rect(d, cx - 1, tip + side, 3, 1, ink)
+                else:
+                    rect(d, cx - 2, cy, 5, 1, ink)
+                    tip = cx - 2 if direction == "left" else cx + 2
+                    side = 1 if direction == "left" else -1
+                    rect(d, tip + side, cy - 1, 1, 3, ink)
+
+
+def _floor_lane(d) -> None:
+    """Little glowing dashes leading from the door into the room."""
+    for y in range(150, 172, 6):
+        rect(d, 159, y, 2, 3, mix("#ffe94a", FLOOR_B, 0.55))
+
+
 def _trophy(d, cx, bottom):
     gold, dark, light = (255, 205, 60), (176, 120, 20), (255, 240, 170)
     rect(d, cx - 4, bottom - 2, 8, 2, dark)
@@ -222,11 +287,15 @@ def _room_shell(img) -> None:
             rect(d, tx, ty, 15, 15, FLOOR_A if ((tx + 5) // 15 + (ty - top) // 15) % 2 == 0 else FLOOR_B)
             rect(d, tx, ty, 15, 1, GROUT)
             rect(d, tx, ty, 1, 15, GROUT)
+    _light_pools(d)
     rng = random.Random(7)
     for _ in range(120):
         x, y = rng.randrange(8, BASE_W - 8), rng.randrange(top + 4, BASE_H - 2)
         colour = mix(rng.choice(NEON), FLOOR_B, 0.4)
         rect(d, x, y, 2 if rng.random() < 0.5 else 1, 1 if rng.random() < 0.5 else 2, colour)
+
+    _floor_lane(d)
+    _dance_pad(d, *DANCE_PAD)
 
     # a round rug under each game table, tinted with the table's colour
     for key in ("uno", "checkers", "connect4"):
@@ -306,6 +375,10 @@ def _hub_background() -> Image.Image:
     rect(d, 142, 175, 36, 3, (122, 84, 50))
     _lay(img, lighting.drop_shadow(props, (2, 3), 0.55))  # soft shadow of the furniture on wall and floor
     stamp(img, outlined(props))
+
+    # A6: neon signs and light from the ceiling
+    _neon_sign(img, 120, 9, "ARCADE", "#ff4fa3")
+    _light_beams(img, ((120, 72, 168, top + 30), (224, 176, 272, top + 30), (43, 20, 66, top + 30)))
     return img
 
 
