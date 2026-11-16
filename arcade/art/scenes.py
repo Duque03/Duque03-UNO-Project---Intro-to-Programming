@@ -691,3 +691,59 @@ def banner(title, coins=None, subtitle=None):
         coin(img, x0 + 10, 29, 3)
         draw_text(img, (x0 + 44, 42), label, 3, "#ffe94a", "lm")
     return img
+
+
+# ---------------------------------------------------------------- how to play (task A3)
+
+HOWTO_BOX = (90, 30, SCREEN_W - 90, SCREEN_H - 30)  # left, top, right, bottom of the panel
+_HOWTO_KEY_W = 200  # width of the column with the keys
+_HOWTO_MAX_ROWS = 7
+
+
+def howto_panel(img, tabs, current):
+    """The "How to play" panel on top of a dimmed picture. Returns (image, regions).
+
+    tabs: the list in arcade/controls.py. current: the key of the tab to show.
+    Text that would not fit inside the panel is refused (ValueError) instead of
+    being drawn over its edge.
+    """
+    chosen = next((tab for tab in tabs if tab["key"] == current), None)
+    if chosen is None:
+        raise ValueError(f"no such tab: {current}")
+    x0, y0, x1, y1 = HOWTO_BOX
+    text_x = x0 + 40 + _HOWTO_KEY_W + 20
+    if len(chosen["rows"]) > _HOWTO_MAX_ROWS:
+        raise ValueError("too many rows for the panel")
+    for key, what in chosen["rows"]:
+        if text_size(key, 2)[0] + 16 > _HOWTO_KEY_W:
+            raise ValueError(f"key label too long: {key}")
+        if text_x + text_size(what, 2)[0] > x1 - 30:
+            raise ValueError(f"line too long: {what}")
+    goal = wrap(chosen["goal"], 54)
+    if len(goal) > 2:
+        raise ValueError("the goal must fit on two lines")
+
+    out = darken(img, 0.6)
+    panel(out, HOWTO_BOX, LIGHT_BLUE, "#1b3a6b", bw=6)
+    draw_text(out, (SCREEN_W // 2, y0 + 22), "HOW TO PLAY", 4, "#1b3a6b", "mt")
+
+    regions = []
+    gap = 12
+    tab_w = (x1 - x0 - 60 - gap * (len(tabs) - 1)) // len(tabs)
+    for i, tab in enumerate(tabs):
+        left = x0 + 30 + i * (tab_w + gap)
+        box = (left, y0 + 66, left + tab_w, y0 + 106)
+        selected = tab["key"] == current
+        draw_button(out, box, tab["label"], 2, "#ffe94a" if selected else "#ffffff")
+        regions.append((box, ("tab", tab["key"])))
+
+    y = draw_lines(out, (SCREEN_W // 2, y0 + 128), goal, 2, "#1b3a6b", "mt", gap=4)
+    y += 14
+    for key, what in chosen["rows"]:
+        tw = text_size(key, 2)[0]
+        kx = x0 + 40 + _HOWTO_KEY_W - tw - 16  # keys are right-aligned against the descriptions
+        key_icon(out, kx, y, key, 2, "#ffffff")
+        draw_text(out, (text_x, y + 9), what, 2, INK, "lm")
+        y += 40
+    _footer_hint(out, SCREEN_W // 2, y1 - 44, "ESC", "BACK")
+    return out, regions
