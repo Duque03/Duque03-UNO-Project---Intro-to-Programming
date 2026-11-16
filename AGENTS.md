@@ -31,6 +31,18 @@ uv run pytest                    # run all tests
 Every picture is painted on a 320x180 canvas and scaled up 3 times to 960x540. Positions in
 `arcade/hubmap.py` are on the small canvas.
 
+## Streams have one owner
+
+Each stream owns its files. Nobody changes another stream's files without asking the owner first.
+The full task list is in the project plan (section 5).
+
+| Stream | Owns these files | Owner | Reviewed by |
+|---|---|---|---|
+| A. Room and movement | `arcade/screens/hub.py`, `title.py`; `arcade/hubmap.py`; `arcade/art/scenes.py` | Louis (`LouisBlondeau00`) | Owner of B |
+| B. Game tables | `arcade/logic/uno.py`, `checkers.py`, `connect4.py`; `arcade/screens/uno.py`, `checkers.py`, `connect4.py`, `common.py`; `arcade/art/cards.py`; `arcade/phrases.py` | _name_ | Owner of A |
+| C. Store and cosmetics | `arcade/logic/store.py`; `arcade/screens/store.py`, `wardrobe.py`, `pause.py`; `arcade/catalog.py`; `arcade/art/sprites.py` | _name_ | Owner of D |
+| D. Championship, saves, online | `arcade/logic/championship.py`; `arcade/screens/champ.py`; `arcade/match.py`, `state.py`, `db.py`, `player.py`; `app.py`; `README.md`; deployment | _name_ | Owner of C |
+
 ## Shared files have one owner
 
 Git does not notice when two branches change the meaning of the same data. Ask the owner before
