@@ -20,7 +20,7 @@ def _howto_button() -> None:
 
 
 def render() -> None:
-    ui.show(st.empty(), scenes.title_scene(0))  # show() (not picture()) so the fades start from this picture
+    ui.show(st.container(key=ui.TITLE_KEY).empty(), scenes.title_scene(0))  # show(), so the fades start from it
     _, middle, _ = st.columns([1, 1.4, 1])
     with middle:
         if not S.get("naming"):
