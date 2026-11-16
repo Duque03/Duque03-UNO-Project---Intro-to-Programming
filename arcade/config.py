@@ -47,5 +47,8 @@ BOT_DELAY = 0.7
 FADE_STEPS = 5
 FADE_DELAY = 0.035
 
+# Bots shuffle and turn while idle (task A4): seconds between two idle moments in the room
+IDLE_EVERY = 1.2
+
 # Soft neon glow around bright colours on every picture (visual update, idea 2). Costs about 20 ms a picture.
 GLOW = True
