@@ -12,7 +12,7 @@ from arcade.state import S
 
 
 def render() -> None:
-    ui.picture(scenes.title_scene(0))
+    ui.show(st.empty(), scenes.title_scene(0))  # show() (not picture()) so the fades start from this picture
     _, middle, _ = st.columns([1, 1.4, 1])
     with middle:
         if not S.get("naming"):
@@ -33,5 +33,6 @@ def render() -> None:
                 return
             is_new = state.start_session(name)
             S.naming = False
+            ui.fade_next()  # into the arcade through black
             st.toast(f"Welcome, {name}!" if is_new else f"Welcome back, {name}!")
             st.rerun()

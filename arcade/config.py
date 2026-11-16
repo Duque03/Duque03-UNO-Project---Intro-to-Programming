@@ -42,3 +42,7 @@ NAME_MIN, NAME_MAX = 1, 10
 ANIMATIONS = True
 FRAME_DELAY = 0.045
 BOT_DELAY = 0.7
+
+# Fade to black between screens (task A1): frames down to black (and the same back up), and the time per frame
+FADE_STEPS = 5
+FADE_DELAY = 0.035

@@ -406,6 +406,30 @@ def zoom(img: Image.Image, centre, factor: float) -> Image.Image:
     return crop.resize(img.size, Image.NEAREST)
 
 
+def fade(img: Image.Image, amount: float) -> Image.Image:
+    """A dimmed copy of the picture: 0 leaves it as it is, 1 is completely black."""
+    if not 0 <= amount <= 1:
+        raise ValueError("a fade goes from 0 (the picture) to 1 (black)")
+    img = img.convert("RGB")
+    return Image.blend(img, Image.new("RGB", img.size, (0, 0, 0)), amount)
+
+
+def fade_through_black(old: Image.Image, new: Image.Image, steps: int) -> list[Image.Image]:
+    """The frames between two screens: the old picture fades to black, then the new one fades in.
+
+    The old picture is already on screen and the new one is shown right after,
+    so neither is in the list. The middle frame is plain black.
+    """
+    if steps < 1:
+        raise ValueError("a fade needs at least one step")
+    old = old.convert("RGB")
+    if old.size != new.size:
+        old = old.resize(new.size, Image.NEAREST)
+    going = [fade(old, i / steps) for i in range(1, steps + 1)]
+    coming = [fade(new, 1 - i / steps) for i in range(1, steps)]
+    return going + coming
+
+
 # ---------------------------------------------------------------- title screen
 
 @lru_cache(maxsize=4)

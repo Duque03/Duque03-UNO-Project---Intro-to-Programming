@@ -72,6 +72,7 @@ def _animate_walk(slot) -> None:
                            0.06)
             time.sleep(0.12)
     if walk.get("then") == "start_game":
+        ui.fade_next()  # from the zoomed table to the game, through black
         match.start_game()
     st.rerun()
 

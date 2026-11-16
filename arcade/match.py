@@ -7,7 +7,7 @@ play, or points and the scoreboard in the championship.
 
 from __future__ import annotations
 
-from arcade import bots, catalog, hubmap, phrases, state
+from arcade import bots, catalog, hubmap, phrases, state, ui
 from arcade.config import (
     BOTS_PER_GAME, CHAMPIONSHIP_BOTS, COINS_PER_WIN, SIMULATED_TIE_CHANCE,
 )
@@ -52,6 +52,8 @@ def next_championship_round() -> None:
         pairs = championship.draw_pairs(champ, state.rng())
         opponents, others = [pairs[0][1]], list(pairs[1])
     S.match = {"game": game_key, "mode": "champ", "bots": opponents, "others": others}
+    if champ["round"] > 0:  # coming from the scoreboard: back into the room through black (A1)
+        ui.fade_next()
     _walk_to_table(game_key, opponents + others)
 
 
@@ -112,6 +114,7 @@ def finish(winners: list[str], tied: bool = False) -> None:
         results.append(([a, b], True) if winner is None else ([winner], False))
     championship.record_round(S.champ, results)
     S.score_animated = False
+    ui.fade_next()  # from the table to the scoreboard through black (A1)
     S.screen = "champ_score"
 
 
@@ -126,4 +129,5 @@ def back_to_hub(centre: bool = False) -> None:
     S.hub["walk"] = None
     S.match = S.game = S.result = None
     S.flash = ""
+    ui.fade_next()  # from the table back into the room through black (A1)
     S.screen = "hub"
