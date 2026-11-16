@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import streamlit as st
 
-from arcade import controls, state, ui
+from arcade import controls, sound, state, ui
 from arcade.art import scenes
 from arcade.screens import hub
 from arcade.state import S
@@ -40,6 +40,7 @@ def render() -> None:
         chosen = action[1]
     if chosen in controls.TAB_KEYS and chosen != tab:
         S.howto_tab = chosen
+        sound.play("blip")
         st.rerun()
     if back:
         state.go(back_to if back_to in ("title", "pause") else "title")

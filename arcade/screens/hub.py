@@ -6,11 +6,12 @@ import time
 
 import streamlit as st
 
-from arcade import hubmap, match, state, ui
+from arcade import bots, hubmap, idle, match, state, ui
 from arcade.art import scenes
-from arcade.config import ANIMATIONS, FRAME_DELAY, GAMES, SCALE
+from arcade.config import ANIMATIONS, FRAME_DELAY, GAMES, IDLE_EVERY, SCALE
 from arcade.logic import championship
 from arcade.state import S
+from arcade import sound  # A7 (own line, so it merges cleanly with A4)
 
 _LABELS = {"uno": "Play UNO", "checkers": "Play checkers", "connect4": "Play Connect Four",
            "store": "Enter the store", "champ": "Start championship"}
@@ -78,14 +79,19 @@ def _animate_walk(slot) -> None:
     st.rerun()
 
 
+def _bot_spots() -> list:
+    """Where the bots stand: the player cannot walk through them (A5)."""
+    return [bot["pos"] for bot in S.hub["bots"].values()]
+
+
 def _step(slot, dx: int, dy: int) -> None:
     """One press of W, A, S or D: turn that way and take a step (with a quick half-way frame)."""
     hub = S.hub
     start = hub["pos"]
     direction = hubmap.facing(start, (start[0] + dx, start[1] + dy))
-    target = hubmap.step_from(start, dx, dy, _STEP)
+    target = hubmap.step_from(start, dx, dy, _STEP, _bot_spots())
     hub["stride"] = 2 if hub.get("stride") == 1 else 1  # alternate legs
-    if ANIMATIONS and target != start:
+    if ANIMATIONS and slot is not None and target != start:
         halfway = ((start[0] + target[0]) // 2, (start[1] + target[1]) // 2)
         overrides = {S.player["name"]: (halfway, direction, hub["stride"])}
         ui.show(slot, picture(overrides=overrides, hint=False)[0])
@@ -95,7 +101,7 @@ def _step(slot, dx: int, dy: int) -> None:
 
 def _walk_to(target, face=None) -> None:
     hub = S.hub
-    target = hubmap.clamp(*target)
+    target = hubmap.walk_line(hub["pos"], hubmap.clamp(*target), _bot_spots())  # stops before a bot or table
     if hubmap.distance(hub["pos"], target) < 2:
         return
     final = face or hubmap.facing(hub["pos"], target)
@@ -104,8 +110,10 @@ def _walk_to(target, face=None) -> None:
 
 def _interact(near: str | None) -> None:
     if near in GAMES:
+        sound.play("table")
         match.begin_free_play(near)
     elif near == "store":
+        sound.play("coin")
         state.go("store")
     elif near == "champ" and championship.is_unlocked(S.player):
         if S.player["champ_intro_seen"]:
@@ -115,21 +123,42 @@ def _interact(near: str | None) -> None:
             state.go("champ_intro")
 
 
-def render() -> None:
+@st.fragment(run_every=IDLE_EVERY if ANIMATIONS else None)
+def _room_view() -> None:
+    """The room picture. It also redraws itself every IDLE_EVERY seconds so the bots can shuffle (A4).
+
+    A run of the whole page (a click or a key) walks the player first. A timed
+    run of only this part does nothing but move the idle bots and redraw.
+    """
+    if S.screen != "hub":
+        return
     hub = S.hub
+    whole_page = S.pop("_hub_page_run", False)
     slot = ui.screen()
-    if hub.get("walk"):
-        _animate_walk(slot)
-    step = ui.move()
-    if step:  # a walking key is held down: take the step first, then draw the room as usual
-        _step(slot, *step)
+    if whole_page:
+        if hub.get("walk"):
+            _animate_walk(slot)
+        step = ui.move()
+        if step:  # a walking key is held down: take the step first, then draw the room as usual
+            _step(slot, *step)
+    elif not hub.get("walk"):
+        homes = {bot["name"]: bot["home"] for bot in bots.BOTS}
+        hub["bots"] = idle.idle_tick(hub["bots"], homes, hub["pos"], state.rng())
 
     near = hubmap.near_spot(hub["pos"])
-    locked = not championship.is_unlocked(S.player)
     img, regions = picture(_prompts(near), near if near in GAMES else None)
     ui.show(slot, img)
+    S["_hub_regions"] = regions
+
+
+def render() -> None:
+    hub = S.hub
+    S._hub_page_run = True
+    _room_view()
+    near = hubmap.near_spot(hub["pos"])
+    locked = not championship.is_unlocked(S.player)
     point = ui.click()
-    action = ui.hit(regions, point)
+    action = ui.hit(S.get("_hub_regions", []), point)
 
     can_use = near is not None and not (near == "champ" and locked)
     can_read_rules = near == "champ" and not locked and S.player["champ_intro_seen"]
@@ -147,6 +176,7 @@ def render() -> None:
         pause = ui.button("Pause", "hub_pause", "Esc")
 
     if pause:
+        sound.play("pause")
         S.paused_from = "hub"
         state.go("pause")
         st.rerun()
@@ -158,7 +188,7 @@ def render() -> None:
         st.rerun()
     for (dx, dy), pressed in arrows.items():
         if pressed:
-            _step(slot, dx, dy)
+            _step(None, dx, dy)  # no half-way frame here: the next run draws the room
             st.rerun()
     if point is not None and action is None:
         base = hubmap.to_base(*point)
