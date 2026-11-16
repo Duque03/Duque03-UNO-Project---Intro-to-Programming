@@ -25,7 +25,7 @@ def _title_picture() -> None:
     if S.screen != "title":
         return
     S["_title_frame"] = (S.get("_title_frame", -1) + 1) % scenes.TITLE_FRAMES
-    ui.show(st.container(key=ui.TITLE_KEY).empty(), scenes.title_scene(S["_title_frame"]))  # show(), for the fades
+    ui.show(ui.screen(ui.TITLE_KEY), scenes.title_scene(S["_title_frame"]))  # show(), for the fades
 
 
 def render() -> None:
