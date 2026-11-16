@@ -46,3 +46,6 @@ BOT_DELAY = 0.7
 # Fade to black between screens (task A1): frames down to black (and the same back up), and the time per frame
 FADE_STEPS = 5
 FADE_DELAY = 0.035
+
+# Bots shuffle and turn while idle (task A4): seconds between two idle moments in the room
+IDLE_EVERY = 1.2
