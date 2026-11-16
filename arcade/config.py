@@ -46,3 +46,6 @@ BOT_DELAY = 0.7
 # Fade to black between screens (task A1): frames down to black (and the same back up), and the time per frame
 FADE_STEPS = 5
 FADE_DELAY = 0.035
+
+# Title screen animation (visual update, idea 5): seconds between two frames
+TITLE_EVERY = 0.4
