@@ -22,7 +22,8 @@ import time
 
 import streamlit as st
 
-from arcade.config import ANIMATIONS, FRAME_DELAY, GAME_TITLE, SCREEN_H, SCREEN_W
+from arcade.art import scenes
+from arcade.config import ANIMATIONS, FADE_DELAY, FADE_STEPS, FRAME_DELAY, GAME_TITLE, SCREEN_H, SCREEN_W
 
 SCREEN_KEY = "game_screen"
 
@@ -172,8 +173,23 @@ def _inline(img) -> str:
 
 
 def show(slot, img) -> None:
-    """Put a picture in a slot made by screen()."""
+    """Put a picture in a slot made by screen().
+
+    After fade_next(), the picture shown before fades to black first and this
+    one fades in from black (task A1).
+    """
+    previous = st.session_state.get("_last_frame")
+    if st.session_state.pop("_fade_next", False) and ANIMATIONS and previous is not None:
+        for frame in scenes.fade_through_black(previous, img, FADE_STEPS):
+            slot.image(_inline(frame), width="stretch")
+            time.sleep(FADE_DELAY)
     slot.image(_inline(img), width="stretch")
+    st.session_state["_last_frame"] = img
+
+
+def fade_next() -> None:
+    """Call just before changing screen: the next picture arrives through black instead of with a cut."""
+    st.session_state["_fade_next"] = True
 
 
 def picture(img) -> None:

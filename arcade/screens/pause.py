@@ -40,5 +40,6 @@ def render() -> None:
         state.save()  # progress is kept for next time
         S.match = S.game = S.result = S.champ = None
         S.naming = False
+        ui.fade_next()  # back to the title screen through black (A1)
         state.go("title")
         st.rerun()
