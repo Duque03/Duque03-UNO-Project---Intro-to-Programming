@@ -77,12 +77,17 @@ def _animate_walk(slot) -> None:
     st.rerun()
 
 
+def _bot_spots() -> list:
+    """Where the bots stand: the player cannot walk through them (A5)."""
+    return [bot["pos"] for bot in S.hub["bots"].values()]
+
+
 def _step(slot, dx: int, dy: int) -> None:
     """One press of W, A, S or D: turn that way and take a step (with a quick half-way frame)."""
     hub = S.hub
     start = hub["pos"]
     direction = hubmap.facing(start, (start[0] + dx, start[1] + dy))
-    target = hubmap.step_from(start, dx, dy, _STEP)
+    target = hubmap.step_from(start, dx, dy, _STEP, _bot_spots())
     hub["stride"] = 2 if hub.get("stride") == 1 else 1  # alternate legs
     if ANIMATIONS and target != start:
         halfway = ((start[0] + target[0]) // 2, (start[1] + target[1]) // 2)
@@ -94,7 +99,7 @@ def _step(slot, dx: int, dy: int) -> None:
 
 def _walk_to(target, face=None) -> None:
     hub = S.hub
-    target = hubmap.clamp(*target)
+    target = hubmap.walk_line(hub["pos"], hubmap.clamp(*target), _bot_spots())  # stops before a bot or table
     if hubmap.distance(hub["pos"], target) < 2:
         return
     final = face or hubmap.facing(hub["pos"], target)

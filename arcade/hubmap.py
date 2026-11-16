@@ -41,6 +41,8 @@ CLICK_BOXES = {
 TABLE_REACH = (40, 30)  # half-width and half-height of the zone around a table
 COUNTER_REACH = (30, 88)  # half-width, and how far down the floor the zone goes
 TABLE_BODY = (25, 9)  # the part of a table you cannot walk through (half-width, half-height)
+BOT_BODY = (8, 7)  # the part of a bot you cannot walk through, around its feet (half-width, half-height)
+COUNTER_BODY = (172, FLOOR_TOP, 276, 76)  # the strip of floor right in front of the store counter
 
 
 def clamp(x: float, y: float) -> tuple[int, int]:
@@ -73,9 +75,17 @@ def near_spot(pos) -> str | None:
     return best
 
 
-def blocked(pos) -> bool:
-    """True when the spot is inside a table (feet cannot go there)."""
-    return table_at(pos) is not None
+def blocked(pos, others=()) -> bool:
+    """True when feet cannot go there: inside a table, at the store counter, or on a bot.
+
+    others: the positions of the bots (their feet).
+    """
+    if table_at(pos) is not None:
+        return True
+    left, top, right, bottom = COUNTER_BODY
+    if left <= pos[0] <= right and top <= pos[1] <= bottom:
+        return True
+    return any(_inside_oval(pos, other, *BOT_BODY) for other in others)
 
 
 def table_at(pos) -> str | None:
@@ -88,10 +98,25 @@ def table_at(pos) -> str | None:
     return None
 
 
-def step_from(pos, dx: int, dy: int, size: int) -> tuple[int, int]:
-    """Where one WASD step ends: stays on the floor and never ends inside a table."""
+def step_from(pos, dx: int, dy: int, size: int, others=()) -> tuple[int, int]:
+    """Where one WASD step ends: stays on the floor and never ends inside a table, the counter or a bot."""
     target = clamp(pos[0] + dx * size, pos[1] + dy * size)
-    return pos if blocked(target) else target
+    return pos if blocked(target, others) else target
+
+
+def walk_line(start, end, others=()) -> tuple[int, int]:
+    """Where a clicked walk ends: along the straight line, stopping just before the first thing in the way."""
+    if blocked(start, others):  # already stuck (should not happen): do not stop the walk
+        return end
+    count = int(max(abs(end[0] - start[0]), abs(end[1] - start[1])))
+    last = tuple(start)
+    for i in range(1, count + 1):
+        t = i / count
+        point = (round(start[0] + (end[0] - start[0]) * t), round(start[1] + (end[1] - start[1]) * t))
+        if blocked(point, others):
+            break
+        last = point
+    return last
 
 
 def spot_at(base_x: float, base_y: float) -> str | None:
