@@ -46,3 +46,7 @@ BOT_DELAY = 0.7
 # Fade to black between screens (task A1): frames down to black (and the same back up), and the time per frame
 FADE_STEPS = 5
 FADE_DELAY = 0.035
+
+# Font for all text painted on the pictures (visual update, idea 4): a file in arcade/art/fonts/,
+# or None for the old built-in 5x7 font
+TEXT_FONT = "Jersey10-Regular.ttf"
