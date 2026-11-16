@@ -6,11 +6,12 @@ import time
 
 import streamlit as st
 
-from arcade import hubmap, match, sound, state, ui
+from arcade import hubmap, match, state, ui
 from arcade.art import scenes
 from arcade.config import ANIMATIONS, FRAME_DELAY, GAMES, SCALE
 from arcade.logic import championship
 from arcade.state import S
+from arcade import sound  # A7 (own line, so it merges cleanly with A4)
 
 _LABELS = {"uno": "Play UNO", "checkers": "Play checkers", "connect4": "Play Connect Four",
            "store": "Enter the store", "champ": "Start championship"}
