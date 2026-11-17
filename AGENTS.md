@@ -6,7 +6,8 @@ Change this file through a pull request, like any other file.
 ## Stack
 
 - Python 3.11 or newer, managed with `uv`.
-- Streamlit for the interface, Pillow to paint the pixel art, SQLite for saved players, pytest for tests.
+- Streamlit for the interface, Pillow to paint the pixel art, SQLite (laptop) or a hosted PostgreSQL database
+  through psycopg (online) for saved players, pytest for tests.
 - No other libraries without agreeing as a team first. Keep versions pinned in `pyproject.toml`
   and keep `requirements.txt` (used by the host) identical to it.
 
