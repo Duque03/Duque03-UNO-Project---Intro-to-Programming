@@ -66,3 +66,15 @@ def test_every_picture_the_scene_uses_is_known():
     used += [a["sheet"] for a in data["actors"]] + [k for a in data["actors"] for k in a["tags"]]
     used += [b["img"] for items in data["bubbles"].values() for b in items]
     assert set(used) <= sent
+
+
+def test_each_key_press_is_handled_once():
+    assert room.new_press({"x": 1, "y": 2, "n": 4}, last=3) == 4
+    assert room.new_press({"x": 1, "y": 2, "n": 4}, last=4) is None  # sent again by the browser: ignored
+    assert room.new_press({"x": 1, "y": 2, "n": 2}, last=4) is None
+
+
+def test_a_press_without_a_number_is_ignored():
+    assert room.new_press({"x": 1, "y": 2}, last=0) is None
+    assert room.new_press({"n": "abc"}, last=0) is None
+    assert room.new_press(None, last=0) is None

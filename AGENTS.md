@@ -90,11 +90,15 @@ changing these files, and change them in a small pull request of their own.
   To move the player from Python, change `S.hub["pos"]`: the browser jumps there on the next run.
 - **Clicks made during a bot's turn are ignored** (see `bots_were_playing` in the table screens). Keep that
   when you change a table screen.
-- **The only JavaScript is `INPUT_JS` in `arcade/ui.py`, `SOUND_JS` in `arcade/sound.py`, `ROOM_JS` in
-  `arcade/room.py` and `JS` in `arcade/tiles.py`.** `INPUT_JS` reports clicks on the game picture. `SOUND_JS` only
-  plays sounds by name and never sends anything back. `ROOM_JS` moves and draws the room. The `tiles.py` script draws
+- **The only JavaScript is `INPUT_JS` and `FULLSCREEN_JS` in `arcade/ui.py`, `SOUND_JS` in `arcade/sound.py`,
+  `ROOM_JS` in `arcade/room.py` and `JS` in `arcade/tiles.py`.** `INPUT_JS` reports clicks on the game picture.
+  `FULLSCREEN_JS` is the FULL SCREEN button (and the F key) and sends nothing back. `SOUND_JS` only plays sounds by
+  name and never sends anything back. `ROOM_JS` moves and draws the room; it numbers every press of E, I and Esc and
+  sends it again until Python has handled it (`room.new_press`), so a press is never lost. The `tiles.py` script draws
   the item grid of the store and the wardrobe and reports which item was clicked. Python checks every value it
   receives before using it (`tiles.grid` only accepts ids that exist in `catalog.py`).
+- **Every screen is drawn inside one container, `game_frame`** (app.py), which `ui.py` styles as the glowing frame
+  with the buttons at the bottom. A new screen gets the frame for free.
 - **Streamlit fades the page while the script runs** (`data-stale`). `ui.py` switches that off, because in a game
   it looks like the screen going dark.
 

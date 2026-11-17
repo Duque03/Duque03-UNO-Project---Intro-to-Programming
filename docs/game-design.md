@@ -3,10 +3,19 @@
 What the game must do. Tests and reviews are checked against this document.
 Numbers live in `arcade/config.py`.
 
+## 0. The game screen
+
+- Every screen sits inside one glowing frame: the picture on top, its buttons as a strip at the bottom of the
+  frame. The frame is as big as the window allows without scrolling (checked at 1280x720, 1366x768, 1920x1080).
+- Every button also has a key. **FULL SCREEN (F)** (top right) shows only the game, like a normal game.
+
 ## 1. Title screen
 
-- Shows the background and the name of the game in big letters.
-- A big **Insert name** button opens a name field. **Play** enters the arcade.
+- Shows the animated background, the name of the game in big letters and the five bots dancing under spotlights.
+- **PLAY** (Enter) or **HOW TO PLAY** (H). PLAY asks **NEW PLAYER** (N) or **I HAVE AN ACCOUNT** (L).
+- New player: a name and a PIN of 4 to 8 digits, typed twice. A name that is already taken is refused.
+- I have an account: the name and its PIN. A name that has never played is refused, and so is a wrong PIN
+  (5 wrong PINs lock the name for a minute). A PIN cannot be recovered.
 - Names: 1 to 10 characters, letters, numbers, spaces, `-` and `_`. Stored in capitals. Anything else is rejected with a message.
 - A name that has played before continues with its saved coins, cosmetics, wins and championship status.
 
@@ -14,7 +23,8 @@ Numbers live in `arcade/config.py`.
 
 - Pixel-art room seen from above. The player appears at the bottom, by the door, wearing the default clothes, with the name in a tag above the head.
 - The player walks with W A S D (or arrow keys, or by clicking) and has four looks: down, up, left, right.
-- Five bots, each with a unique name and look: PIXEL, TURBO, GLITCH, JOY, BYTE.
+- Five bots, each with a unique name, look and level: PIXEL and JOY (easy), TURBO (medium), BYTE (hard),
+  GLITCH (expert).
 - Three game tables stand out from the scenery: UNO (left), checkers (top middle), Connect Four (right).
 - The store is at the top right. The championship cabinet is at the top left.
 - A coin counter is shown at the top right of the room. It is not shown at the game tables.
@@ -22,7 +32,13 @@ Numbers live in `arcade/config.py`.
 
 ## 3. Playing a table (free play)
 
-- Pressing E picks the bots at random: 3 of the 5 for UNO, 1 of the 5 for checkers and for Connect Four.
+- Pressing E opens **CHOOSE YOUR OPPONENT**: the five bots with their level, its stars and its coins.
+  Checkers and Connect Four: pick 1. UNO: pick 3 (each plays at its own level). Click a card or press 1-5;
+  clicking a picked bot takes it back. **PLAY** (Enter) starts once enough bots are picked; Esc goes back.
+- Levels: **easy** (anyone who thinks a little wins), **medium** (a bit of strategy is enough), **hard** (you must
+  know what you are doing), **expert** (only the best win). Settings per level in `config.py`. In simulated games a
+  fair player won against easy / medium / hard / expert: UNO 63 / 43 / 24 / 21 %, checkers 81 / 62 / 19 / 0 %,
+  Connect Four 90 / 80 / 23 / 20 %.
 - The player and the chosen bots walk to the table. When everyone has arrived the view zooms in and the game starts.
 - At the table the player sees the opponents sitting across it.
 - A bot thinks for a random 1 to 3 seconds before each move (in checkers, the extra jumps of a chain follow quickly).
@@ -31,11 +47,9 @@ Numbers live in `arcade/config.py`.
   passes; in checkers and Connect Four a random legal move is played (every jump of a chain). Drawing a card in UNO
   or jumping again in checkers starts a fresh 15 seconds. Pausing or opening the rules stops the clock; it starts
   again from 15 on return.
-- UNO bots do not play perfectly: they play all their matching cards at once only sometimes, answer a +2 / +4 with
-  their own only half the time, sometimes play a weaker card, and forget to say UNO a quarter of the time.
-  (Settings in `config.py`. In 400 simulated games a careful player wins about half the time against them.)
 - When the game ends a box appears:
-  - win: "Congratulations!! You won!" and **+5 coins**;
+  - win: "Congratulations!! You won!" and the coins of the bot's level: **easy 5, medium 15, hard 25, expert 40**.
+    In UNO, the average of the three bots' coins, rounded (easy + medium + hard = 15);
   - loss: one of 20 sentences, picked at random;
   - tie (Connect Four only): a tie message and no coins.
 - Enter closes the box and returns to the room.
@@ -87,7 +101,7 @@ Numbers live in `arcade/config.py`.
 
 ## 5. Pause menu and wardrobe
 
-- Esc opens a light-blue menu: **Resume**, **Customize character**, **Leave arcade**.
+- Esc opens a light-blue menu: **Resume**, **Wardrobe**, **How to play**, **Leave arcade** (and **Leave table** at a table).
 - The wardrobe has the same three tabs and shows only owned items, with the character shown large on the right.
 - Clicking an item previews it. **E** equips it and the item gets a green pixel tick. **U** takes it off and the default look returns.
 - **Leave arcade** returns to the title screen. Progress is kept.

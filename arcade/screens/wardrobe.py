@@ -1,4 +1,4 @@
-"""Customize character: try on what you own, then press E to equip or U to take it off.
+"""Wardrobe: try on what you own, then press E to equip or U to take it off.
 
 The items you are wearing have a green pixel tick.
 """

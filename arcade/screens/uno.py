@@ -16,10 +16,10 @@ import time
 import streamlit as st
 from PIL import ImageDraw
 
-from arcade import match, sound, ui
+from arcade import bots, match, sound, ui
 from arcade.art import cards, scenes
 from arcade.art.pixel import darken, draw_text, key_icon, panel, rgb
-from arcade.config import SCALE, SCREEN_W, UNO_BOT_FORGET, UNO_BOT_SMART, UNO_BOT_STACK, UNO_BOT_TWINS
+from arcade.config import SCALE, SCREEN_W, UNO_LEVELS
 from arcade.logic.uno import COLOURS, NUMBERS, WILD, IllegalMove, card_name
 from arcade.screens import common
 from arcade.state import S
@@ -194,9 +194,9 @@ def render() -> None:
 
     while not uno_open and game.winner is None and game.current != me:  # the bots play, one visible move at a time
         common.show(slot, draw(game, me, opponents)[0], "uno")
-        common.bot_pause()
-        game.bot_turn(game.current, forget_uno=UNO_BOT_FORGET, twins=UNO_BOT_TWINS, stack=UNO_BOT_STACK,
-                      smart=UNO_BOT_SMART)
+        started = time.time()
+        game.bot_turn(game.current, **UNO_LEVELS[bots.level(game.current)])  # each bot plays at its own level
+        common.bot_pause(since=started)
 
     if game.winner and S.result is None:
         if S.match["mode"] == "champ":

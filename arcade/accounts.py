@@ -100,3 +100,36 @@ def sign_in(raw_name, raw_pin, path=None, now: float | None = None) -> tuple[dic
         player["failed_pins"], player["locked_until"] = 0, 0
         db.save_player(player, path)
     return player, False
+
+
+class NameTaken(ValueError):
+    """NEW PLAYER with a name somebody already uses."""
+
+
+class UnknownName(ValueError):
+    """I HAVE AN ACCOUNT with a name that has never played."""
+
+
+def sign_up(raw_name, raw_pin, raw_pin_again, path=None) -> dict:
+    """NEW PLAYER: create the name with this PIN (typed twice). Raises InvalidName, InvalidPin or NameTaken."""
+    name = clean_name(raw_name)
+    pin = clean_pin(raw_pin)
+    if (raw_pin_again or "").strip() != pin:
+        raise InvalidPin("The two PINs are not the same.")
+    if db.load_player(name, path) is not None:
+        raise NameTaken(f"{name} is taken. Pick another name, or log in if it is yours.")
+    player = new_player(name)
+    player["pin"] = pin_record(pin)
+    db.save_player(player, path)
+    return player
+
+
+def log_in(raw_name, raw_pin, path=None, now: float | None = None) -> dict:
+    """I HAVE AN ACCOUNT: an existing name and its PIN. Raises InvalidName, InvalidPin, UnknownName, WrongPin
+    or Locked. (A save from before PINs existed takes this PIN, like in sign_in.)"""
+    name = clean_name(raw_name)
+    clean_pin(raw_pin)
+    if db.load_player(name, path) is None:
+        raise UnknownName(f"Nobody called {name} has played yet. Choose NEW PLAYER.")
+    player, _ = sign_in(raw_name, raw_pin, path, now)
+    return player

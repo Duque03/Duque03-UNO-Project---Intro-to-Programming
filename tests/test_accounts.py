@@ -89,3 +89,36 @@ def test_a_save_from_before_pins_gets_the_first_pin_used(path):
 def test_check_pin_survives_a_broken_record():
     assert accounts.check_pin("1234", {}) is False
     assert accounts.check_pin("1234", {"salt": "not-hex", "hash": "x"}) is False
+
+
+# ---- NEW PLAYER and I HAVE AN ACCOUNT
+
+def test_new_player_is_created_with_its_pin(path):
+    player = accounts.sign_up("Miguel", "1234", "1234", path)
+    assert player["name"] == "MIGUEL"
+    assert accounts.log_in("miguel", "1234", path)["name"] == "MIGUEL"
+
+
+def test_new_player_with_a_taken_name_is_refused(path):
+    accounts.sign_up("Miguel", "1234", "1234", path)
+    with pytest.raises(accounts.NameTaken):
+        accounts.sign_up("MIGUEL", "9999", "9999", path)
+    assert accounts.log_in("Miguel", "1234", path)  # the first player still has their PIN
+
+
+def test_new_player_must_type_the_same_pin_twice(path):
+    with pytest.raises(accounts.InvalidPin):
+        accounts.sign_up("Miguel", "1234", "1243", path)
+    with pytest.raises(accounts.UnknownName):
+        accounts.log_in("Miguel", "1234", path)  # nothing was saved
+
+
+def test_log_in_with_an_unknown_name_is_refused(path):
+    with pytest.raises(accounts.UnknownName):
+        accounts.log_in("Nobody", "1234", path)
+
+
+def test_log_in_with_a_wrong_pin_is_refused(path):
+    accounts.sign_up("Miguel", "1234", "1234", path)
+    with pytest.raises(accounts.WrongPin):
+        accounts.log_in("Miguel", "4321", path)

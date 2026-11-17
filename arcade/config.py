@@ -11,7 +11,6 @@ BASE_W, BASE_H, SCALE = 320, 180, 3
 SCREEN_W, SCREEN_H = BASE_W * SCALE, BASE_H * SCALE
 
 # Rewards
-COINS_PER_WIN = 5
 CHAMPIONSHIP_PRIZE = 50
 POINTS_WIN = 2
 POINTS_TIE = 1
@@ -28,11 +27,21 @@ GAME_LABELS = {"uno": "UNO", "checkers": "CHECKERS", "connect4": "CONNECT FOUR"}
 BOTS_PER_GAME = {"uno": 3, "checkers": 1, "connect4": 1}
 CHAMPIONSHIP_BOTS = 3
 
-# How strong the bots are. Lower depth and higher blunder = easier to beat.
-CHECKERS_DEPTH = 2
-CHECKERS_BLUNDER = 0.3
-CONNECT4_DEPTH = 4
-CONNECT4_BLUNDER = 0.08
+# Bot levels. Each bot has one (see bots.py). Beating a bot pays its level's coins; in UNO, where you play
+# three bots, you get the average of their three levels.
+LEVELS = ["easy", "medium", "hard", "expert"]
+LEVEL_COINS = {"easy": 5, "medium": 15, "hard": 25, "expert": 40}
+
+# How each level plays. UNO: chances between 0 and 1 (see UnoGame.bot_turn).
+UNO_LEVELS = {
+    "easy": {"twins": 0.1, "stack": 0.15, "smart": 0.15, "forget_uno": 0.5},
+    "medium": {"twins": 0.35, "stack": 0.5, "smart": 0.6, "forget_uno": 0.25},
+    "hard": {"twins": 0.75, "stack": 0.85, "smart": 0.9, "forget_uno": 0.1},
+    "expert": {"twins": 1.0, "stack": 1.0, "smart": 1.0, "forget_uno": 0.0},
+}
+# Checkers and Connect Four: (how many moves the bot looks ahead, chance of a random move)
+CHECKERS_LEVELS = {"easy": (1, 0.5), "medium": (2, 0.25), "hard": (3, 0.08), "expert": (5, 0.0)}
+CONNECT4_LEVELS = {"easy": (1, 0.5), "medium": (2, 0.2), "hard": (4, 0.08), "expert": (5, 0.0)}
 SIMULATED_TIE_CHANCE = 0.1  # bot-versus-bot Connect Four in the championship
 
 # Player name rules
@@ -47,12 +56,6 @@ BOT_THINK = (1.0, 3.0)
 # The player has this many seconds for each turn at every table. When time runs out the game plays
 # for them: in UNO they draw and the turn passes, in checkers and Connect Four a random move is made.
 TURN_SECONDS = 15
-
-# How well the UNO bots play (1.0 = as well as they can, 0.0 = never)
-UNO_BOT_TWINS = 0.35  # chance a bot plays all its matching cards at once (otherwise just one)
-UNO_BOT_STACK = 0.5  # chance a bot answers a +2 / +4 with its own (otherwise it takes the cards)
-UNO_BOT_SMART = 0.6  # chance a bot picks its best card (otherwise any card it can play)
-UNO_BOT_FORGET = 0.25  # chance a bot forgets to say UNO (and draws 2)
 
 # Fade to black between screens (task A1): frames down to black (and the same back up), and the time per frame
 FADE_STEPS = 5

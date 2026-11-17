@@ -75,8 +75,11 @@ def _remember_still(glow=None) -> None:
 
 def _interact(near: str | None) -> None:
     if near in GAMES:
-        sound.play("table")
-        match.begin_free_play(near)  # starts the walk to the table (see _cutscene)
+        from arcade.screens import versus  # (imported here: versus is a screen like this one)
+
+        sound.play("blip")
+        _remember_still(glow=near)
+        versus.open_for(near)  # choose the opponents first; Play starts the walk to the table
     elif near == "store":
         sound.play("coin")
         _remember_still()
@@ -133,6 +136,7 @@ def _scene_data() -> dict:
         player=_player_target(),
         cutscene=_cutscene(),
         fade=S.get("_room_fade", 0),
+        ack=S.hub.get("pressed", 0),
     )
 
 
@@ -184,6 +188,10 @@ def _room_view() -> None:
         value = getattr(events, name)
         if value is None:
             continue
+        number = room.new_press(value, hub.get("pressed", 0))
+        if number is None:  # the browser sent this press again, but it was already handled
+            continue
+        hub["pressed"] = number
         _accept(value)
         near = hubmap.near_spot(hub["pos"])
         if name == "pause":

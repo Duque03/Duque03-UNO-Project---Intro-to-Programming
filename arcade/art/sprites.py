@@ -343,14 +343,21 @@ def portrait(look, name=None, tag_item=None, scale=8, direction="down", t=0, bac
     return img
 
 
-def showcase(look, name, tag_item=None, t=0, scale=6, background="#231a4d"):
-    """The big preview in the store and the wardrobe: the character from the front, the side and the back."""
+def showcase(look, name, tag_item=None, t=0, scale=6, background="#231a4d", glow="#3ad6ff"):
+    """The big preview in the store and the wardrobe: the character from the front, the side and the back,
+    on a stage lit in `glow` (the rarity colour of the item being looked at)."""
     gap = 18
     w = 3 * SPR_W * scale + 2 * gap + 40
     h = SPR_H * scale + 96
     img = Image.new("RGB", (w, h), rgb(background))
     d = ImageDraw.Draw(img)
-    d.rectangle([0, h - 22, w, h], fill=shade(background, 0.7))  # floor
+    for y in range(h):  # darker at the top, lit from below
+        d.line([(0, y), (w, y)], fill=mix("#0d0a1f", background, y / h))
+    for k in range(12, 0, -1):  # a soft round spotlight behind the character
+        d.ellipse([w // 2 - k * 26, h // 2 - k * 13, w // 2 + k * 26, h // 2 + k * 13],
+                  fill=mix(background, glow, 0.35 * (1 - k / 12)))
+    d.ellipse([30, h - 40, w - 30, h - 4], fill=shade(glow, 0.35))  # the stage
+    d.ellipse([46, h - 34, w - 46, h - 10], fill=shade(glow, 0.55))
     for k, direction in enumerate(("down", "left", "up")):
         cx = 20 + SPR_W * scale // 2 + k * (SPR_W * scale + gap)
         draw_character(img, cx, h - 14, look, direction, 0, t, scale)

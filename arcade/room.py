@@ -76,7 +76,7 @@ def _tag_key(spec) -> str | None:
     return json.dumps(spec, sort_keys=True) if spec else None
 
 
-def scene(sent: set, *, actors, coins, champ_locked, bubbles, player, cutscene=None, fade=0) -> dict:
+def scene(sent: set, *, actors, coins, champ_locked, bubbles, player, cutscene=None, fade=0, ack=0) -> dict:
     """Everything the browser needs for the room (data for ROOM_JS).
 
     actors   the six characters (state.hub_actors()); the player has player=True
@@ -137,8 +137,22 @@ def scene(sent: set, *, actors, coins, champ_locked, bubbles, player, cutscene=N
     data["boxes"] = [{"box": list(box), "stand": list(hubmap.SPOTS[spot]["stand"])}
                      for spot, box in hubmap.CLICK_BOXES.items()]
     data["cutscene"] = cutscene
+    data["ack"] = ack  # the number of the last key press (E, I, Esc) Python has handled
     data["assets"] = s.assets
     return data
+
+
+def new_press(value, last: int) -> int | None:
+    """The number of a key press sent by the browser, if Python has not handled it yet (None otherwise).
+
+    The browser numbers every press of E, I and Esc and sends it again until Python says it was handled,
+    so a press is never lost. Python handles each number once.
+    """
+    try:
+        number = int(value["n"])
+    except (TypeError, KeyError, ValueError):
+        return None
+    return number if number > last else None
 
 
 def read_pos(value) -> tuple[tuple[int, int], str] | None:
@@ -156,8 +170,7 @@ def read_pos(value) -> tuple[tuple[int, int], str] | None:
 ROOM_CSS = """
 canvas.arcade-room {
     display: block; width: 100%; height: auto; aspect-ratio: 16 / 9;
-    image-rendering: pixelated; cursor: pointer; border-radius: 14px;
-    box-shadow: 0 0 0 2px rgba(58, 214, 255, .55), 0 0 24px rgba(58, 214, 255, .35), 0 0 60px rgba(255, 79, 163, .25);
+    image-rendering: pixelated; cursor: pointer; border-radius: 10px;  /* the frame around it glows (ui.py) */
     outline: none;
 }
 """
@@ -247,6 +260,14 @@ export default function (component) {
         return t && (t.isContentEditable || ["input", "textarea", "select"].includes((t.tagName || "").toLowerCase()));
     };
     const here = () => ({ x: Math.round(G.x), y: Math.round(G.y), dir: G.dir });
+    // Key presses are numbered and sent again until Python says it handled them (data.ack), so none is lost.
+    G.pressN = Math.max(G.pressN || 0, data.ack || 0);
+    if (G.press && (data.ack || 0) >= G.press.n) G.press = null;
+    const act = (kind) => {
+        G.pressN += 1;
+        G.press = { kind, value: { ...here(), n: G.pressN }, t: performance.now(), tries: 1 };
+        G.send(kind, G.press.value);
+    };
     const onKeyDown = (event) => {
         if (!canvas.isConnected || typing(event) || event.ctrlKey || event.metaKey || event.altKey) return;
         const key = (event.key || "").toLowerCase();
@@ -256,11 +277,11 @@ export default function (component) {
             if (!G.keys.includes(key)) G.keys.push(key);
             G.target = null;
         } else if (key === "e" && !event.repeat) {
-            if (G.zone) setTriggerValue("interact", here());
+            if (G.zone) act("interact");
         } else if (key === "i" && !event.repeat) {
-            if (G.zone === 5) setTriggerValue("rules", here());
+            if (G.zone === 5) act("rules");
         } else if (key === "escape" && !event.repeat) {
-            setTriggerValue("pause", here());
+            act("pause");
         }
     };
     const onKeyUp = (event) => {
@@ -274,7 +295,7 @@ export default function (component) {
         const sx = (event.clientX - box.left) * 960 / box.width, sy = (event.clientY - box.top) * 540 / box.height;
         for (const hit of G.hits || []) {
             if (sx >= hit[0] && sx <= hit[2] && sy >= hit[1] && sy <= hit[3]) {
-                setTriggerValue(hit[4] === "rules" ? "rules" : "interact", here());
+                act(hit[4] === "rules" ? "rules" : "interact");
                 return;
             }
         }
@@ -371,6 +392,11 @@ export default function (component) {
             if (!moved && G.target) G.target = null;  // something is in the way: stop there
         }
         G.walkClock = moved ? (G.walkClock || 0) + dt : 0;
+        if (G.press && performance.now() - G.press.t > 700 && G.press.tries < 4) {  // not handled yet: again
+            G.press.t = performance.now();
+            G.press.tries += 1;
+            G.send(G.press.kind, G.press.value);
+        }
         const zone = zoneAt(G.x, G.y);
         if (zone !== G.zone && G.zone !== null) G.send("pos", here());
         if (G.moving && !moved && zone === G.zone) G.send("pos", here());

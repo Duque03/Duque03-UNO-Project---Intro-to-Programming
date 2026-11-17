@@ -9,9 +9,9 @@ from __future__ import annotations
 
 from arcade import bots, catalog, hubmap, phrases, sound, state, ui
 from arcade.config import (
-    BOTS_PER_GAME, CHAMPIONSHIP_BOTS, COINS_PER_WIN, SIMULATED_TIE_CHANCE,
+    CHAMPIONSHIP_BOTS, SIMULATED_TIE_CHANCE,
 )
-from arcade.logic import championship
+from arcade.logic import championship, levels
 from arcade.logic.checkers import CheckersGame
 from arcade.logic.connect4 import Connect4Game
 from arcade.logic.uno import UnoGame
@@ -30,10 +30,16 @@ def _walk_to_table(game_key: str, seated: list[str]) -> None:
     S.screen = "hub"
 
 
-def begin_free_play(game_key: str) -> None:
-    names = state.rng().sample(bots.BOT_NAMES, BOTS_PER_GAME[game_key])
-    S.match = {"game": game_key, "mode": "free", "bots": names, "others": []}
+def begin_free_play(game_key: str, names: list[str]) -> None:
+    """Free play against the bots the player picked (screens/versus.py)."""
+    levels.check_pick(game_key, names, bots.BOT_NAMES)
+    S.match = {"game": game_key, "mode": "free", "bots": list(names), "others": []}
     _walk_to_table(game_key, names)
+
+
+def prize() -> int:
+    """What winning this free-play game pays: the level of the bot, or the average of the three in UNO."""
+    return levels.win_coins([bots.level(name) for name in S.match["bots"]])
 
 
 def begin_championship() -> None:
@@ -99,10 +105,11 @@ def finish(winners: list[str], tied: bool = False) -> None:
     if match["mode"] == "free":
         won = not tied and me in winners
         if won:
-            S.player["coins"] += COINS_PER_WIN
+            coins = prize()
+            S.player["coins"] += coins
             S.player["wins"][match["game"]] += 1
             state.save()
-            S.result = {"title": "VICTORY!", "line": rng.choice(phrases.WIN_LINES), "coins": COINS_PER_WIN}
+            S.result = {"title": "VICTORY!", "line": rng.choice(phrases.WIN_LINES), "coins": coins}
         elif tied:
             S.result = {"title": "TIE!", "line": rng.choice(phrases.TIE_LINES), "coins": 0}
         else:
