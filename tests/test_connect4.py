@@ -117,3 +117,25 @@ def test_random_move_is_refused_when_the_game_is_over():
     play(game, [0, 1, 0, 1, 0, 1, 0])  # red wins in column 0
     with pytest.raises(IllegalMove):
         game.random_move(random.Random(1))
+
+
+def test_bot_blocks_two_in_a_row_with_open_ends_before_it_becomes_a_double_threat():
+    """Miguel's trap: red X X in the middle of the bottom row; if yellow does not block now, red plays a third
+    disc and has two winning squares at once."""
+    game = Connect4Game()
+    play(game, [3, 3, 2])  # red 3, yellow on top of it, red 2: red has _ _ X X _ _ _ ; yellow to play
+    for seed in range(10):
+        assert game.clone().bot_move(random.Random(seed), depth=4, blunder=0.0) in (1, 4)
+
+
+def test_the_middle_and_sides_trap_never_beats_a_careful_bot():
+    for seed in range(8):
+        game = Connect4Game()
+        rng = random.Random(seed)
+        while not game.winner:
+            if game.turn == RED:  # always add a disc on the bottom row, from the middle outwards
+                col = next((c for c in (3, 2, 4, 1, 5, 0, 6) if game.board[ROWS - 1][c] is None), None)
+                game.drop(col if col is not None else rng.choice(game.legal_columns()))
+            else:
+                game.bot_move(rng, depth=4, blunder=0.0)
+        assert game.winner != RED

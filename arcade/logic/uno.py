@@ -93,6 +93,7 @@ class UnoGame:
         self.pending = 0  # cards waiting for the current player (stacked Draw Two / Wild Draw Four)
         self.pending_value: str | None = None  # "draw2" or "wild4": what can be stacked on them
         self.uno_due: str | None = None  # a player who is down to one card and has not said UNO yet
+        self.held: tuple[str, Card] | None = None  # (player, last card) waiting for that player to say UNO
         self.last_event = "Game on!"
 
     # ----- reading the state
@@ -152,6 +153,10 @@ class UnoGame:
             raise IllegalMove("The first card must match the colour or the symbol.")
         if cards[-1][0] == WILD and colour not in COLOURS:
             raise IllegalMove("Choose a colour for the wild card.")
+        held = None
+        if len(cards) > 1 and not hand:  # house rule: you cannot go out with several cards at once.
+            held = cards.pop()  # The last one waits: say UNO first, then it goes down by itself.
+            hand.append(held)
 
         self.hands[player] = hand
         self.discard.extend(cards)
@@ -168,6 +173,9 @@ class UnoGame:
             return
         if len(self.hands[player]) == 1:
             self.uno_due = player
+        if held is not None:
+            self.held = (player, held)
+            self.last_event += ": say UNO to play the last one!"
 
         count, value = len(cards), cards[0][1]
         steps = 1
@@ -228,6 +236,15 @@ class UnoGame:
             return False
         self.uno_due = None
         self.last_event = f"{player}: UNO!"
+        if self.held and self.held[0] == player:  # the card that was waiting goes down: they are out
+            card = self.held[1]
+            self.held = None
+            self.hands[player].remove(card)
+            self.discard.append(card)
+            if card[0] != WILD:
+                self.colour = card[0]
+            self.winner = player
+            self.last_event = f"{player}: UNO! ...and the last {card_name(card)}. Out of cards!"
         return True
 
     def miss_uno(self, player: str) -> None:
@@ -235,6 +252,8 @@ class UnoGame:
         if self.uno_due != player:
             return
         self.uno_due = None
+        if self.held and self.held[0] == player:
+            self.held = None  # the waiting card stays in their hand
         self._give(player, UNO_PENALTY)
         self.last_event = f"{player} forgot to say UNO! +{UNO_PENALTY}"
 

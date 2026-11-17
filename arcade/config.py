@@ -31,8 +31,8 @@ CHAMPIONSHIP_BOTS = 3
 # How strong the bots are. Lower depth and higher blunder = easier to beat.
 CHECKERS_DEPTH = 2
 CHECKERS_BLUNDER = 0.3
-CONNECT4_DEPTH = 2
-CONNECT4_BLUNDER = 0.2
+CONNECT4_DEPTH = 4
+CONNECT4_BLUNDER = 0.08
 SIMULATED_TIE_CHANCE = 0.1  # bot-versus-bot Connect Four in the championship
 
 # Player name rules

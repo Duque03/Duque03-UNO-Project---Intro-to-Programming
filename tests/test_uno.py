@@ -308,11 +308,14 @@ def test_playing_several_cards_down_to_one_also_needs_uno():
     assert game.uno_due == "ME"
 
 
-def test_winning_with_the_last_card_needs_no_uno():
+def test_going_out_with_several_cards_needs_uno_first():
+    """House rule (docs/game-design.md, going out): the last card waits for UNO."""
     game = make_game()
     set_up(game, [("red", "4"), ("green", "4")], ("red", "9"))
     game.play("ME", [("red", "4"), ("green", "4")])
-    assert (game.winner, game.uno_due) == ("ME", None)
+    assert (game.winner, game.uno_due) == (None, "ME")
+    game.call_uno("ME")
+    assert game.winner == "ME"
 
 
 # ---- rejected actions
@@ -508,3 +511,60 @@ def test_time_out_is_refused_when_it_is_not_your_turn():
     game.turn = 1
     with pytest.raises(IllegalMove):
         game.auto_turn("ME")
+
+
+# ---- going out with equal cards (house rule): play all but one, say UNO, then the last one goes down
+
+def test_last_two_equal_cards_wait_for_uno():
+    game = make_game()
+    set_up(game, [("red", "1"), ("blue", "1")], ("red", "9"))
+    game.play("ME", [("red", "1"), ("blue", "1")])
+    assert game.hands["ME"] == [("blue", "1")]
+    assert game.top == ("red", "1")
+    assert game.uno_due == "ME" and game.held == ("ME", ("blue", "1"))
+    assert game.winner is None
+
+
+def test_saying_uno_plays_the_waiting_card_and_wins():
+    game = make_game()
+    set_up(game, [("red", "1"), ("blue", "1")], ("red", "9"))
+    game.play("ME", [("red", "1"), ("blue", "1")])
+    assert game.call_uno("ME")
+    assert game.winner == "ME"
+    assert game.hands["ME"] == [] and game.top == ("blue", "1") and game.held is None
+
+
+def test_missing_uno_keeps_the_waiting_card_and_draws_two():
+    game = make_game()
+    set_up(game, [("red", "1"), ("blue", "1")], ("red", "9"))
+    game.play("ME", [("red", "1"), ("blue", "1")])
+    game.miss_uno("ME")
+    assert game.winner is None and game.held is None
+    assert ("blue", "1") in game.hands["ME"] and len(game.hands["ME"]) == 3
+
+
+def test_three_equal_cards_as_the_whole_hand_also_wait_for_uno():
+    game = make_game()
+    set_up(game, [("red", "4"), ("blue", "4"), ("green", "4")], ("red", "9"))
+    game.play("ME", [("red", "4"), ("blue", "4"), ("green", "4")])
+    assert game.hands["ME"] == [("green", "4")] and game.top == ("blue", "4")
+    game.call_uno("ME")
+    assert game.winner == "ME"
+
+
+def test_a_single_last_card_still_wins_straight_away():
+    game = make_game()
+    set_up(game, [("red", "1")], ("red", "9"))
+    game.play("ME", ("red", "1"))
+    assert game.winner == "ME" and game.held is None
+
+
+def test_a_bot_with_two_equal_last_cards_also_says_uno_first():
+    game = make_game()
+    _bot_to_play(game, [("red", "1"), ("blue", "1")], ("red", "9"))
+    game.bot_turn("A", forget_uno=0.0, twins=1.0)
+    assert game.winner == "A"
+    game = make_game()
+    _bot_to_play(game, [("red", "1"), ("blue", "1")], ("red", "9"))
+    game.bot_turn("A", forget_uno=1.0, twins=1.0)
+    assert game.winner is None and len(game.hands["A"]) == 3

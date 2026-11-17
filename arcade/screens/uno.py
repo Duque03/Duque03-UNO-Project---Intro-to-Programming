@@ -169,6 +169,8 @@ def _play(game, me, chosen, colour=None) -> None:
         return
     game.play(me, chosen, colour)
     S.uno_pick, S.pending_wild, S.flash = [], None, ""
+    if game.held and game.held[0] == me:
+        S.flash = "Press UNO! and your last card goes down"
     if game.uno_due == me:
         S.uno_deadline = time.time() + UNO_SECONDS
 
