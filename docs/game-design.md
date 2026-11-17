@@ -5,14 +5,20 @@ Numbers live in `arcade/config.py`.
 
 ## 0. The game screen
 
-- Every screen sits inside one glowing frame: the picture on top, its buttons as a strip at the bottom of the
+- Every screen sits inside one glowing frame. The title screen and the arcade room are only the game picture,
+  with no buttons around it, like a real game. The other screens have their buttons as a strip at the bottom of the
   frame. The frame is as big as the window allows without scrolling (checked at 1280x720, 1366x768, 1920x1080).
 - Every button also has a key. **FULL SCREEN (F)** (top right) shows only the game, like a normal game.
+- Changing screen fades in from black, smoothly (the browser does the fade).
 
 ## 1. Title screen
 
-- Shows the animated background, the name of the game in big letters and the five bots dancing under spotlights.
-- **PLAY** (Enter) or **HOW TO PLAY** (H). PLAY asks **NEW PLAYER** (N) or **I HAVE AN ACCOUNT** (L).
+- Animated smoothly: twinkling stars, the neon floor grid sliding towards you, the five bots dancing under
+  spotlights, the name of the game in big letters.
+- The menu is drawn in the picture, like a real game: **PLAY** or **HOW TO PLAY** (arrow keys or W S to choose,
+  Enter to confirm, Esc to go back, or the mouse). PLAY asks **NEW PLAYER** or **I HAVE AN ACCOUNT** (or BACK).
+- Then a panel with the boxes to type in: name and PIN (dots instead of digits). Arrow keys or Tab move between the
+  boxes and the CREATE / LOG IN and BACK buttons. A refusal is written in red in the panel and the PIN boxes empty.
 - New player: a name and a PIN of 4 to 8 digits, typed twice. A name that is already taken is refused.
 - I have an account: the name and its PIN. A name that has never played is refused, and so is a wrong PIN
   (5 wrong PINs lock the name for a minute). A PIN cannot be recovered.
@@ -28,7 +34,9 @@ Numbers live in `arcade/config.py`.
 - Three game tables stand out from the scenery: UNO (left), checkers (top middle), Connect Four (right).
 - The store is at the top right. The championship cabinet is at the top left.
 - A coin counter is shown at the top right of the room. It is not shown at the game tables.
-- Near a table the prompt **PLAY [E]** appears. Near the store: **SHOP [E]**.
+- Near a table the prompt **PLAY [E]** appears. Near the store: **SHOP [E]**. Clicking a prompt does the same.
+- No buttons under the room. A small pause button in the bottom-left corner opens the pause menu (like Esc).
+- Starting a game: everyone walks to the table, the view zooms in and fades to black, and the table fades in.
 
 ## 3. Playing a table (free play)
 
@@ -41,7 +49,8 @@ Numbers live in `arcade/config.py`.
   Connect Four 90 / 80 / 23 / 20 %.
 - The player and the chosen bots walk to the table. When everyone has arrived the view zooms in and the game starts.
 - At the table the player sees the opponents sitting across it.
-- A bot thinks for a random 1 to 3 seconds before each move (in checkers, the extra jumps of a chain follow quickly).
+- A bot thinks for a random 1 to 3 seconds before each move, with a "..." speech bubble next to it (in checkers, the
+  extra jumps of a chain follow quickly).
 - The player has **15 seconds** for each turn, shown by a countdown bar under the table (red for the last 5 seconds).
   When time runs out the game plays for the player: in UNO they draw (or take the +2 / +4 cards) and their turn
   passes; in checkers and Connect Four a random legal move is played (every jump of a chain). Drawing a card in UNO

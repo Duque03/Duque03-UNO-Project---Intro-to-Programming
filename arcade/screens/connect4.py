@@ -73,11 +73,6 @@ def draw(game, opponent, flash="", falling=None):
     return img, regions
 
 
-def _animate_drop(slot, game, opponent) -> None:
-    row, col = game.last
-    ui.play_frames(slot, (draw(game, opponent, falling=(r, col))[0] for r in range(row)), 0.05)
-
-
 def render() -> None:
     game = S.game
     me = S.player["name"]
@@ -87,18 +82,14 @@ def render() -> None:
     if common.run_clock(game.winner is None and game.turn == RED):
         game.random_move(state.rng())  # 15 seconds went by: a random column for the player
         common.restart_clock()
-        S.flash, S.drop_pending = "Time's up! A random move was played", True
+        S.flash = "Time's up! A random move was played"
         st.rerun()
 
-    if S.get("drop_pending"):  # show my own disc falling
-        S.drop_pending = False
-        _animate_drop(slot, game, opponent)
     if game.winner is None and game.turn == YELLOW:
-        common.show(slot, draw(game, opponent)[0], "connect4")
+        common.show(slot, common.thinking(draw(game, opponent)[0], 0, 1), "connect4")
         started = time.time()
         game.bot_move(state.rng(), *CONNECT4_LEVELS[bots.level(opponent["name"])])
         common.bot_pause(since=started)
-        _animate_drop(slot, game, opponent)
 
     if game.winner and S.result is None:
         if S.match["mode"] == "champ":
@@ -129,7 +120,6 @@ def render() -> None:
         try:
             game.drop(action[1])
             S.flash = ""
-            S.drop_pending = True
         except IllegalMove as problem:
             S.flash = str(problem)
         st.rerun()

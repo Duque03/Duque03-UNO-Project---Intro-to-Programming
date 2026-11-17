@@ -14,14 +14,11 @@ import streamlit as st
 
 from arcade import bots, hubmap, idle, match, room, state, ui
 from arcade.art import scenes
-from arcade.config import ANIMATIONS, GAMES, IDLE_EVERY, SCALE
+from arcade.config import ANIMATIONS, GAMES, IDLE_EVERY
 from arcade.logic import championship
 from arcade.state import S
 from arcade import sound  # A7 (own line, so it merges cleanly with A4)
 
-_LABELS = {"uno": "Play UNO (E)", "checkers": "Play checkers (E)", "connect4": "Play Connect Four (E)",
-           "store": "Enter the store (E)", "champ": "Start championship (E)"}
-_STEP = 8  # how far one press of an arrow button moves you
 
 
 def _prompts(near: str | None) -> list[dict]:
@@ -50,14 +47,6 @@ def picture(prompts=(), glow=None, overrides=None, hint=True):
 def _bot_spots() -> list:
     """Where the bots stand: the player cannot walk through them (A5)."""
     return [bot["pos"] for bot in S.hub["bots"].values()]
-
-
-def _step(dx: int, dy: int) -> None:
-    """One press of an arrow button (for mouse and touch screens): turn that way and take a step."""
-    hub = S.hub
-    start = hub["pos"]
-    hub["dir"] = hubmap.facing(start, (start[0] + dx, start[1] + dy))
-    hub["pos"] = hubmap.step_from(start, dx, dy, _STEP, _bot_spots())
 
 
 def _can_use(near: str | None) -> bool:
@@ -160,9 +149,7 @@ def _finish_walk() -> None:
         else:
             hub["bots"][name] = {"pos": end, "dir": face}
     hub["walk"] = None
-    if walk.get("zoom"):
-        cx, cy = hubmap.SPOTS[walk["zoom"]]["center"]
-        S["_last_frame"] = scenes.zoom(picture(glow=walk["zoom"], hint=False)[0], (cx * SCALE, cy * SCALE), 3.0)
+    # The browser zoomed in and faded to black itself; the table then fades in from black (ui.show).
     if walk.get("then") == "start_game":
         ui.fade_next()  # from the zoomed table to the game, through black
         match.start_game()
@@ -202,11 +189,8 @@ def _room_view() -> None:
         elif name == "interact" and _can_use(near):
             _interact(near)
         st.rerun()
-    if events.pos is not None:
-        before = hubmap.near_spot(hub["pos"])
+    if events.pos is not None:  # the player stopped or walked into another zone: just remember where
         _accept(events.pos)
-        if hubmap.near_spot(hub["pos"]) != before:
-            st.rerun()  # the buttons under the room change
         return
 
     if not whole_page and not hub.get("walk"):  # a timed run: the bots shuffle (shown on the next one)
@@ -215,35 +199,7 @@ def _room_view() -> None:
 
 
 def render() -> None:
-    hub = S.hub
     S._hub_page_run = True
     _room_view()
-    near = hubmap.near_spot(hub["pos"])
-
-    bar = st.columns([2.3, 1.1, 0.5, 0.5, 0.5, 0.5, 1.3])
-    with bar[0]:  # E, I and Esc are handled by the room itself (arcade/room.py), so these have no shortcut
-        use = ui.button(_LABELS.get(near, "Walk up to a table"), "hub_use", type="primary", disabled=not _can_use(near))
-    with bar[1]:
-        rules = ui.button("Rules (I)", "hub_rules", disabled=not _can_read_rules(near))
-    arrows = {}
-    for column, (label, name, delta) in zip(bar[2:6], (("↑", "up", (0, -1)), ("←", "left", (-1, 0)),
-                                                        ("↓", "down", (0, 1)), ("→", "right", (1, 0)))):
-        with column:  # for mouse and touch screens; on a keyboard use W A S D or the arrow keys
-            arrows[delta] = ui.button(label, f"hub_step_{name}")
-    with bar[6]:
-        pause = ui.button("Pause (Esc)", "hub_pause")
-
-    if pause:
-        _pause()
-        st.rerun()
-    if use and _can_use(near):
-        _interact(near)
-        st.rerun()
-    if rules and _can_read_rules(near):
-        _remember_still()
-        state.go("champ_rules")
-        st.rerun()
-    for (dx, dy), pressed in arrows.items():
-        if pressed:
-            _step(dx, dy)
-            st.rerun()
+    # No buttons under the room: E, I and Esc (or a click on a bubble, a table, or the pause button drawn in
+    # the corner) are handled by the room itself (arcade/room.py), like in a normal game.

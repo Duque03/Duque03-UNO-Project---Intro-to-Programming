@@ -23,6 +23,21 @@ def bot_pause(since: float) -> None:
     time.sleep(max(0.0, random.uniform(*BOT_THINK) - (time.time() - since)))
 
 
+def thinking(img, seat: int, seats: int):
+    """A "..." speech bubble next to the bot whose turn it is (seat 0, 1 or 2 across the table)."""
+    x = scenes.seat_positions(seats)[seat] * 3 + 34
+    d = ImageDraw.Draw(img)
+    d.polygon([(x + 4, 118), (x + 16, 106), (x + 22, 106)], fill=(22, 18, 43))  # the tail
+    d.rectangle([x, 74, x + 66, 108], fill=(22, 18, 43))
+    d.rectangle([x + 3, 77, x + 63, 105], fill=(255, 246, 218))
+    d.polygon([(x + 7, 113), (x + 16, 104), (x + 20, 104)], fill=(255, 246, 218))
+    phase = int(time.time() * 3) % 3  # one dot is lifted, so it looks alive between two pictures
+    for i in range(3):
+        y = 86 - (3 if i == phase else 0)
+        d.rectangle([x + 12 + i * 16, y, x + 21 + i * 16, y + 9], fill=(22, 18, 43))
+    return img
+
+
 def show(slot, img, screen: str) -> None:
     """Show the table picture. The first time in a run, the turn clock goes right under it."""
     ui.show(slot, img)

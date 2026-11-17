@@ -90,8 +90,14 @@ changing these files, and change them in a small pull request of their own.
   To move the player from Python, change `S.hub["pos"]`: the browser jumps there on the next run.
 - **Clicks made during a bot's turn are ignored** (see `bots_were_playing` in the table screens). Keep that
   when you change a table screen.
+- **The title screen is drawn in the browser too** (`arcade/title_view.py`): Python paints the pieces once
+  (`arcade/art/title_layers.py`, including a sheet of the pixel font's letters) and the browser animates them and draws
+  the menu and the name and PIN boxes. It sends `howto` or `submit` (name, PIN) with a number; `screens/title.py`
+  checks them with `accounts.sign_up` / `accounts.log_in` and sends back the number it handled and any error message.
+- **Screens fade in with a browser animation** (`ui._fade_style`), never with pictures sent one by one: those
+  stutter. Do not add animations made of several pictures to the table screens.
 - **The only JavaScript is `INPUT_JS` and `FULLSCREEN_JS` in `arcade/ui.py`, `SOUND_JS` in `arcade/sound.py`,
-  `ROOM_JS` in `arcade/room.py` and `JS` in `arcade/tiles.py`.** `INPUT_JS` reports clicks on the game picture.
+  `ROOM_JS` in `arcade/room.py`, `TITLE_JS` in `arcade/title_view.py` and `JS` in `arcade/tiles.py`.** `INPUT_JS` reports clicks on the game picture.
   `FULLSCREEN_JS` is the FULL SCREEN button (and the F key) and sends nothing back. `SOUND_JS` only plays sounds by
   name and never sends anything back. `ROOM_JS` moves and draws the room; it numbers every press of E, I and Esc and
   sends it again until Python has handled it (`room.new_press`), so a press is never lost. The `tiles.py` script draws
@@ -109,7 +115,7 @@ changing these files, and change them in a small pull request of their own.
 - A player is stored as one JSON text per name. New fields get their default from `player.new_player()`.
 - Tests use a temporary SQLite file (`tmp_path`), never `data/arcade.db` and never the real online database.
   `tests/test_db_online.py` only runs with `TEST_DATABASE_URL` set to a database that may be wiped.
-- Sign-in goes through `accounts.sign_in` (name + PIN). PINs are stored only as salted PBKDF2 hashes; never log,
+- Sign-in goes through `accounts.sign_up` (new player) and `accounts.log_in` (name + PIN). PINs are stored only as salted PBKDF2 hashes; never log,
   print or show them.
 - No keys, passwords or connection strings in the repository. Secrets go in the host's settings and in
   `.streamlit/secrets.toml`, which is in `.gitignore`.
