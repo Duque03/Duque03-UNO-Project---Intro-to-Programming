@@ -30,7 +30,7 @@ def test_items_of_a_tab_all_look_different():
             shirt = item["id"] if slot == "shirt" else None
             front, back = _sprite(hair, shirt, "down"), _sprite(hair, shirt, "up")
             pictures.add(front.tobytes() + back.tobytes())
-        assert len(pictures) == 26, slot
+        assert len(pictures) == len(catalog.by_slot(slot)) == 14, slot
 
 
 def test_kits_have_their_number_on_the_back_only():

@@ -27,7 +27,6 @@ _BASE = {
     "back": [(4, 1, 8, 7, 0), (3, 2, 1, 5, 0), (12, 2, 1, 5, 0)],
     "side": [(4, 1, 8, 3, 0), (8, 2, 4, 6, 0), (12, 3, 1, 4, 0)],
 }
-_SPIKES = [(4, -1, 2, 2, 1), (7, -2, 2, 3, 1), (10, -1, 2, 2, 1)]
 _LONG = {
     "front": [(3, 6, 1, 7, 0), (12, 6, 1, 7, 0), (2, 5, 1, 7, 0), (13, 5, 1, 7, 0)],
     "back": [(3, 1, 10, 12, 0), (2, 5, 12, 7, 0)],
@@ -36,27 +35,11 @@ _LONG = {
 # Styles drawn on top of the basic cap of hair (_BASE).
 _HAIR = {
     "short": {"front": [], "back": [], "side": []},
-    "spiky": {"front": _SPIKES, "back": _SPIKES, "side": _SPIKES},
     "long": _LONG,
-    "bob": {
-        "front": [(3, 6, 1, 3, 0), (12, 6, 1, 3, 0), (2, 4, 1, 4, 0), (13, 4, 1, 4, 0), (4, 4, 2, 1, 0)],
-        "back": [(3, 1, 10, 8, 0), (2, 4, 12, 4, 0)],
-        "side": [(7, 2, 6, 7, 0), (4, 4, 2, 1, 0)],
-    },
     "ponytail": {
         "front": [(13, 2, 2, 2, 0), (14, 4, 1, 5, 0)],
         "back": [(7, 7, 2, 6, 0)],
         "side": [(12, 2, 2, 2, 0), (13, 4, 1, 6, 0)],
-    },
-    "twintails": {
-        "front": [(1, 3, 2, 7, 0), (13, 3, 2, 7, 0), (2, 3, 1, 1, 1), (13, 3, 1, 1, 1)],
-        "back": [(1, 3, 2, 7, 0), (13, 3, 2, 7, 0), (2, 3, 1, 1, 1), (13, 3, 1, 1, 1)],
-        "side": [(11, 3, 2, 8, 0), (11, 3, 2, 1, 1)],
-    },
-    "bun": {
-        "front": [(6, -2, 4, 3, 0), (9, -1, 1, 1, 1)],
-        "back": [(6, -2, 4, 3, 0), (9, -1, 1, 1, 1)],
-        "side": [(9, -2, 4, 3, 0), (12, -1, 1, 1, 1)],
     },
     "quiff": {  # a raised front, combed up
         "front": [(5, 0, 6, 1, 0), (6, -1, 5, 1, 0), (7, -2, 3, 1, 4), (6, 0, 4, 1, 4)],
@@ -80,12 +63,6 @@ _FULL = {
         "front": [(7, -4, 2, 8, 0), (6, -3, 1, 6, 1), (9, -3, 1, 6, 1)],
         "back": [(7, -4, 2, 13, 0), (6, -3, 1, 10, 1), (9, -3, 1, 10, 1)],
         "side": [(4, -4, 8, 3, 0), (3, -3, 10, 1, 1), (5, -1, 7, 4, 0)],
-    },
-    "afro": {
-        "front": [(4, -4, 8, 1, 0), (3, -3, 10, 1, 0), (2, -2, 12, 6, 0), (2, 4, 2, 2, 0), (12, 4, 2, 2, 0),
-                  (5, -2, 1, 1, 1), (10, 0, 1, 1, 1), (3, 1, 1, 1, 1)],
-        "back": [(4, -4, 8, 1, 0), (3, -3, 10, 1, 0), (2, -2, 12, 11, 0), (5, -2, 1, 1, 1), (10, 3, 1, 1, 1)],
-        "side": [(4, -4, 8, 1, 0), (3, -3, 10, 1, 0), (2, -2, 12, 6, 0), (8, 4, 6, 4, 0), (6, -1, 1, 1, 1)],
     },
     "buzz": {
         "front": [(4, 1, 8, 2, 0), (3, 2, 1, 2, 0), (12, 2, 1, 2, 0)],
@@ -111,13 +88,6 @@ _FULL = {
                  (5, 13, 1, 1, 1), (8, 13, 1, 1, 1), (12, 13, 1, 1, 1), (6, 2, 1, 6, 3), (9, 2, 1, 6, 3)],
         "side": [(4, 0, 8, 4, 0), (8, 2, 5, 7, 0), (13, 3, 1, 7, 0), (9, 9, 1, 4, 0), (11, 9, 1, 5, 0),
                  (13, 10, 1, 1, 1), (9, 13, 1, 1, 1), (10, 2, 1, 6, 3)],
-    },
-    "cornrows": {  # tight braids running from the forehead to the back
-        "front": [(4, 1, 8, 2, 0), (3, 2, 1, 2, 0), (12, 2, 1, 2, 0),
-                  (5, 1, 1, 2, 3), (7, 1, 1, 2, 3), (9, 1, 1, 2, 3), (11, 1, 1, 1, 3)],
-        "back": [(4, 1, 8, 7, 0), (3, 2, 1, 5, 0), (12, 2, 1, 5, 0),
-                 (5, 1, 1, 7, 3), (7, 1, 1, 7, 3), (9, 1, 1, 7, 3), (11, 1, 1, 6, 3)],
-        "side": [(4, 1, 8, 2, 0), (9, 2, 3, 5, 0), (4, 2, 8, 1, 3), (9, 4, 3, 1, 3)],
     },
     "cap": {  # c1 cap, c2 peak, c3 hair underneath
         "front": [(3, 2, 1, 4, 2), (12, 2, 1, 4, 2), (4, 0, 8, 1, 0), (3, 1, 10, 2, 0), (3, 3, 10, 1, 1),
@@ -190,17 +160,7 @@ _DIGITS = {
 }
 _CAMO = ["..AA.BB.", ".AAA..B.", "B..A.AA.", "BB...AA.", ".B.AA..B", "..AAA.BB", "A..A..B."]
 _AZULEJO = ["B..B", ".LL.", ".LL.", "B..B"]
-_ROOSTER = [  # Barcelos rooster across the chest, facing left: K body, R comb and tail, Y beak and legs, W eye
-    "..RR....",
-    ".RKK...R",
-    "YKWK..RK",
-    "..KKKKKR",
-    "..KRKYK.",
-    "...Y.Y..",
-]
-_ROOSTER_COLOURS = {"K": "#1d1a22", "R": "#d83a3a", "Y": "#f2c21b", "W": "#ffffff"}
-SHIRT_STYLES = ["solid", "kit", "stripes", "vstripe", "hoops", "hstripe", "sailor", "halves", "sash", "check",
-                "camo", "plaid", "azulejo", "flag", "rooster", "vest", "knight", "emblem", "hoodie", "gold"]
+SHIRT_STYLES = ["solid", "kit", "stripes", "hoops", "halves", "sash", "camo", "plaid", "azulejo", "flag", "vest", "gold"]
 
 
 def _number_pixel(number: str, x: int, y: int) -> bool:
@@ -230,20 +190,14 @@ def _shirt_colour(spec: dict, x: int, y: int, t: int, view: str = "front", arm: 
             colour = c2
     elif style == "stripes":
         colour = c2 if not arm and x in (5, 6, 9, 10) else c2 if cuff else c1
-    elif style == "vstripe":
-        colour = c1 if x % 2 == 0 else c2
-    elif style in ("hoops", "hstripe"):
+    elif style == "hoops":
         colour = c1 if ((y - 10) // 2) % 2 == 0 else c2
-    elif style == "sailor":
-        colour = c2 if y % 2 == 1 else c1
     elif style == "halves":
         left = x <= 7 if not arm else x > 7
         colour = c1 if left != back else c2
     elif style == "sash":
         on_band = (x + y) in (20, 21) if back else (x - y) in (-6, -5)
         colour = c2 if on_band and not arm else c1
-    elif style == "check":
-        colour = c1 if ((x // 2) + (y // 2)) % 2 == 0 else c2
     elif style == "camo":
         cell = _CAMO[(y - 10) % len(_CAMO)][x % 8]
         colour = {"A": c2, "B": c3}.get(cell, c1)
@@ -264,10 +218,6 @@ def _shirt_colour(spec: dict, x: int, y: int, t: int, view: str = "front", arm: 
             colour = "#ffffff" if (x, y) == (7, 12) else c3
         if y == 10 and not arm:
             colour = c3
-    elif style == "rooster":
-        if front and not arm and 4 <= x <= 11 and 10 <= y <= 15:
-            cell = _ROOSTER[y - 10][x - 4]
-            colour = _ROOSTER_COLOURS.get(cell, c1)
     elif style == "vest":
         if arm:
             colour = c3
@@ -277,20 +227,6 @@ def _shirt_colour(spec: dict, x: int, y: int, t: int, view: str = "front", arm: 
             colour = shade(c1, 0.7)  # straps
         elif front and x in (7, 8) and y == 12:
             colour = c2
-    elif style == "knight":  # shiny armour with a red cross on the chest
-        colour = shade(c1, 1.25) if x <= 5 else shade(c1, 0.8) if x >= 10 else c1
-        if y == 13 or (arm and y % 2 == 0):
-            colour = shade(c1, 0.72)
-        if front and not arm and ((x in (7, 8) and 11 <= y <= 15) or (y == 12 and 5 <= x <= 10)):
-            colour = c2
-    elif style == "emblem":
-        star = (x in (7, 8) and 11 <= y <= 14) or (y in (12, 13) and 6 <= x <= 9)
-        colour = c2 if star and front else c1
-    elif style == "hoodie":
-        if front and x in (6, 9) and y in (10, 11, 12):
-            colour = c2  # drawstrings
-        elif front and 6 <= x <= 9 and y in (14, 15):
-            colour = shade(c1, 0.7)  # pocket
     elif style == "gold":
         colour = mix(c1, "#c98a12", (y - 10) / 8)
         if (x * 7 + y * 13 + t * 5) % 11 == 0:
@@ -450,12 +386,7 @@ def _noise(i: int, t: int) -> int:
 
 # Little pictures stamped at both ends of a tag: one letter per colour.
 _STAMPS = {
-    "stars": ([".#.", "###", ".#."], {"#": "#ffe94a"}),
-    "hearts": (["#.#", "###", ".#."], {"#": "#ff4f8b"}),
-    "bolt": ([".##", "##.", ".##", "##."], {"#": "#ffe94a"}),
     "storm": ([".##", "##.", ".##", "##."], {"#": "#ff8af0"}),
-    "azulejo": (["BWWWB", "WWBWW", "WBLBW", "WWBWW", "BWWWB"],
-                {"B": "#1d4fa8", "W": "#f3f6ff", "L": "#6fa8ff"}),
     "arraial": (["..DDDDD.D", ".DEDDDDDD", "SSSSSSSSS", ".SSSSSS.S"],  # sardines
                 {"D": "#2f5f9a", "S": "#d3dbe8", "E": "#16122b"}),
     "pitch": ([".WW.", "WKWW", "WWKW", ".WW."], {"W": "#ffffff", "K": "#16122b"}),
@@ -496,8 +427,8 @@ def draw_name_tag(img, cx, bottom, name, spec=None, t=0, scale=2):
                 if _noise(k + side_x, t) > 1:
                     d.rectangle([side_x, y1 - (k + 1) * u, side_x + u - 1, y1 - k * u - 1],
                                 fill=rgb(flames[min(3, k // 2)]))
-    elif fx in ("glow", "storm"):
-        pulse = 1.0 if fx == "glow" else 0.75 + 0.25 * ((t % 4) in (1, 2))
+    elif fx == "storm":  # a purple glow that pulses
+        pulse = 0.75 + 0.25 * ((t % 4) in (1, 2))
         for grow, strength in ((3 * u, 0.25), (2 * u, 0.5), (u, 0.8)):
             d.rectangle([x0 - grow, y0 - grow, x1 + grow, y1 + grow],
                         fill=mix("#16122b", border, strength * pulse))
@@ -519,17 +450,10 @@ def draw_name_tag(img, cx, bottom, name, spec=None, t=0, scale=2):
             block(x, y0, colours[k % 2], min(2 * u, x1 + 1 - x), u)
             block(x, y1 - u + 1, colours[(k + 1) % 2], min(2 * u, x1 + 1 - x), u)
     d.rectangle([x0 + u, y0 + u, x1 - u, y1 - u], fill=rgb(bg))
-    if fx == "gold":
-        d.rectangle([x0 + u, y0 + u, x1 - u, y0 + 2 * u], fill=rgb("#fff3a8"))
-        d.rectangle([x0 + u, y1 - 2 * u, x1 - u, y1 - u], fill=rgb("#d9a520"))
-    elif fx == "pitch":  # mowed stripes, like the grass of a football pitch
+    if fx == "pitch":  # mowed stripes, like the grass of a football pitch
         for k, x in enumerate(range(x0 + u, x1 - u + 1, 2 * u)):
             if k % 2:
                 block(x, y0 + u, shade(bg, 1.15), min(2 * u, x1 - u + 1 - x), y1 - y0 - 2 * u + 1)
-    elif fx == "led":  # dim dots, like the bulbs of a stadium scoreboard
-        for y in range(y0 + u + 1, y1 - u, 2):
-            for x in range(x0 + u + 1, x1 - u, 2):
-                d.point((x, y), fill=mix(bg, fg, 0.18))
     draw_text(img, (cx, (y0 + y1) // 2 + 1), name, scale, fg, "mm")
 
     stamp = _STAMPS.get(fx)

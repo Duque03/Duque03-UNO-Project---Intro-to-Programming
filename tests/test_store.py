@@ -6,16 +6,16 @@ from arcade.logic import store
 from arcade.logic.store import StoreError
 
 
-def test_catalogue_has_20_common_5_rare_1_legendary_per_tab():
+def test_catalogue_has_10_common_3_rare_1_legendary_per_tab():
     for slot in ("hair", "shirt", "name"):
-        assert len(catalog.by_slot(slot, "common")) == 20
-        assert len(catalog.by_slot(slot, "rare")) == 5
+        assert len(catalog.by_slot(slot, "common")) == 10
+        assert len(catalog.by_slot(slot, "rare")) == 3
         assert len(catalog.by_slot(slot, "legendary")) == 1
 
 
 def test_item_ids_and_names_are_unique_and_prices_follow_rarity():
     ids = [item["id"] for item in catalog.ITEMS]
-    assert len(ids) == len(set(ids)) == 78
+    assert len(ids) == len(set(ids)) == 42
     for slot in ("hair", "shirt", "name"):
         names = [item["name"] for item in catalog.by_slot(slot)]
         assert len(names) == len(set(names))

@@ -142,7 +142,7 @@ export default function (component) {
         root.className = "tile-root";
         parentElement.appendChild(root);
     }
-    // Size the tiles to the space there is: ten across (so the 20 commons fill two rows), never tiny, never huge.
+    // Size the tiles to the space there is: ten across (so the 10 commons fill one row), never tiny, never huge.
     const fit = () => {
         const width = root.clientWidth || parentElement.clientWidth || 600;
         const size = Math.max(50, Math.min(104, Math.floor((width - 9 * 6 - 4) / 10)));
