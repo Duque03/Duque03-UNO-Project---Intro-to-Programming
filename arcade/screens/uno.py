@@ -237,7 +237,7 @@ def render() -> None:
             play_pressed = False
             pass_pressed = ui.button("Pass", "uno_pass", "P", disabled=not my_turn or game.drawn_card is None)
     with bar[2]:
-        cancel_pressed = ui.button("Cancel", "uno_cancel", "C", disabled=not picks) if picks else False
+        cancel_pressed = ui.button("Cancel", "uno_cancel", "X", disabled=not picks) if picks else False  # (Streamlit keeps C and R for itself)
     common.pause_button(bar[3], "uno")
 
     acted = True
