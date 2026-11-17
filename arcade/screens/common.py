@@ -41,7 +41,18 @@ def pause_button(column, screen: str) -> None:
     with column:
         if ui.button("Pause", f"{screen}_pause", "Esc"):
             S.paused_from = screen
+            S.pause_behind = S.get("_last_frame")  # the menu sits on top of the table as it was
             state.go("pause")
+            st.rerun()
+
+
+def rules_button(column, screen: str) -> None:
+    """Opens the rules of this game (task B3); Back returns to the table."""
+    from arcade.screens import howto  # (imported here: howto imports the room, which imports this file's neighbours)
+
+    with column:
+        if ui.button("Rules", f"{screen}_rules", "H"):
+            howto.open_from(screen, screen)
             st.rerun()
 
 

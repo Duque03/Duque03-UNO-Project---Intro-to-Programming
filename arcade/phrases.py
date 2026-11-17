@@ -29,6 +29,11 @@ WIN_LINES = [
 
 TIE_LINES = [
     "It's a tie! Nobody blinked.",
+    "A draw! The board is full and so is the drama.",
+    "Dead even. Rematch?",
+    "Nobody wins, nobody cries.",
+    "Equal minds, equal pixels.",
+    "Tie game! The bot wants a rematch too.",
 ]
 
 CHAMPION_LINES = [
