@@ -79,13 +79,21 @@ changing these files, and change them in a small pull request of their own.
   `state.save()`.
 - **`.streamlit/config.toml` sets `fastReruns = false` on purpose.** With the default, a click made while
   the bots are still moving starts a second run next to the first and the bots move twice. Do not change it.
-- **Pictures are sent inline as PNG** (`ui.show`, `ui.picture`). Do not call `st.image` with a Pillow image
-  directly: it turns pixel art into blurry JPEG and animation frames can go missing.
+- **Pictures are sent inline** (`ui.show`, `ui.picture`, as high-quality WebP). Do not call `st.image` with a Pillow
+  image directly: it turns pixel art into blurry JPEG and animation frames can go missing.
+- **The arcade room is drawn in the browser** (`arcade/room.py`), so walking is smooth. Python still owns every
+  rule: `hubmap.floor_map()` turns the rules of `hubmap.py` (floor, tables, counter, zones) into a table for the
+  browser, so change the rules in `hubmap.py` and the browser follows. The room's pictures come from
+  `arcade/art/room_layers.py` and are sent once per session. The browser reports events (`pos`, `interact`,
+  `rules`, `pause`, `cut_done`, `need`), handled in `screens/hub.py`; Python checks every position with `room.read_pos`.
+  To move the player from Python, change `S.hub["pos"]`: the browser jumps there on the next run.
 - **Clicks made during a bot's turn are ignored** (see `bots_were_playing` in the table screens). Keep that
   when you change a table screen.
-- **The only JavaScript is `INPUT_JS` in `arcade/ui.py` and `SOUND_JS` in `arcade/sound.py`.** `INPUT_JS` reports
-  clicks and walking keys. `SOUND_JS` only plays sounds by name and never sends anything back. Python checks
-  every value it receives before using it.
+- **The only JavaScript is `INPUT_JS` in `arcade/ui.py`, `SOUND_JS` in `arcade/sound.py` and `ROOM_JS` in
+  `arcade/room.py`.** `INPUT_JS` reports clicks on the game picture. `SOUND_JS` only plays sounds by name and never
+  sends anything back. `ROOM_JS` moves and draws the room. Python checks every value it receives before using it.
+- **Streamlit fades the page while the script runs** (`data-stale`). `ui.py` switches that off, because in a game
+  it looks like the screen going dark.
 
 ## Data and secrets
 
@@ -101,6 +109,6 @@ changing these files, and change them in a small pull request of their own.
 ## Known limits (be ready to explain them)
 
 - Anyone who types a name continues that player's save. There is no password yet.
-- Walking is one request to the server per step, so it is less smooth than a game written in JavaScript.
-- Bots in the room stand still unless they walk to a table.
+- Walking happens in the browser and Python only hears about it when the player stops, changes zone or presses a
+  key, so the position Python knows can be a fraction of a second old (every action re-sends it).
 - In the championship, the two bots that are not playing you do not really play: their result is drawn at random.
