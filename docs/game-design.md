@@ -33,9 +33,18 @@ Numbers live in `arcade/config.py`.
 
 ### UNO
 - 108 cards, 7 each, the first card on the table is a number.
-- A card can be played if it matches the colour in play or the symbol, or if it is a wild.
-- Skip, reverse, +2, wild and wild +4 work as in the official rules. +2 and +4 cannot be stacked.
-- A player who cannot (or does not want to) play draws one card. If that card can be played, they may play it or pass.
+- A play starts with a card that matches the colour in play or the symbol, or with a wild.
+- House rule, several cards at once: with that first card you may play any other cards with the same number or
+  symbol, in any order. The last card sets the colour (on a red pile: red 4, green 4, yellow 4 -> next is yellow).
+  Several wilds share one chosen colour.
+- Effects add up: each Skip skips one more player (3 skips with 4 players and you play again), each Reverse flips
+  the order (two cancel out; with 2 players a Reverse works like a Skip), each +2 adds 2 and each +4 adds 4 cards.
+- House rule, stacking: facing +2 you may answer with +2 cards, facing +4 with +4 cards; the total grows. A player
+  who does not answer draws the total and loses the turn.
+- House rule, drawing: a player who cannot (or does not want to) play keeps drawing until a card can be played,
+  then may play it (with its twins) or pass.
+- House rule, UNO: when a play leaves a player with one card they must say UNO within 2 seconds (button or U), or
+  draw 2. Bots forget now and then.
 - The first player with no cards wins.
 
 ### Checkers

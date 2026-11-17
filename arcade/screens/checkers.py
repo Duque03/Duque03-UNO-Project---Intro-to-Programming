@@ -138,11 +138,12 @@ def render() -> None:
     point = None if bot_was_playing else ui.click()  # a click made during the bot's turn does not count
     action = ui.hit(regions, point)
 
-    bar = st.columns([1.4, 2.8, 1])
+    bar = st.columns([1.4, 1.4, 1.4, 1])
     if S.result:
         common.continue_button(bar[0], "checkers", point is not None)
         return
-    common.pause_button(bar[2], "checkers")
+    common.rules_button(bar[2], "checkers")
+    common.pause_button(bar[3], "checkers")
 
     if not action or game.winner or game.turn != BOTTOM:
         return

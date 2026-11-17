@@ -17,6 +17,7 @@ def set_up(game, hand, top, colour=None):
     game.turn = 0
     game.direction = 1
     game.drawn_card = None
+    game.pending, game.pending_value, game.uno_due = 0, None, None
 
 
 def test_deck_has_108_cards():
@@ -77,19 +78,23 @@ def test_reverse_with_two_players_acts_like_skip():
 def test_draw_two_makes_next_player_draw_and_lose_the_turn():
     game = make_game()
     set_up(game, [("red", "draw2"), ("blue", "1")], ("red", "9"))
-    before = len(game.hands["A"])
+    game.hands["A"] = [("yellow", "5")]  # A cannot answer with a +2
     game.play("ME", ("red", "draw2"))
-    assert len(game.hands["A"]) == before + 2
-    assert game.current == "B"
+    assert (game.current, game.pending) == ("A", 2)
+    game.draw("A")
+    assert len(game.hands["A"]) == 3
+    assert (game.current, game.pending) == ("B", 0)
 
 
 def test_wild_draw_four_sets_colour_and_gives_four_cards():
     game = make_game()
     set_up(game, [("wild", "wild4"), ("blue", "1")], ("red", "9"))
-    before = len(game.hands["A"])
+    game.hands["A"] = [("yellow", "5")]
     game.play("ME", ("wild", "wild4"), colour="green")
     assert game.colour == "green"
-    assert len(game.hands["A"]) == before + 4
+    assert (game.current, game.pending) == ("A", 4)
+    game.draw("A")
+    assert len(game.hands["A"]) == 5
     assert game.current == "B"
 
 
@@ -100,12 +105,13 @@ def test_playing_the_last_card_wins():
     assert game.winner == "ME"
 
 
-def test_drawing_an_unplayable_card_ends_the_turn():
+def test_drawing_goes_on_until_a_card_can_be_played():
     game = make_game()
     set_up(game, [("blue", "1")], ("red", "9"))
-    game.deck.append(("green", "3"))
-    assert game.draw("ME") == ("green", "3")
-    assert game.current == "A"
+    game.deck += [("red", "3"), ("green", "4"), ("green", "3")]  # drawn from the end: green 3, green 4, red 3
+    assert game.draw("ME") == [("green", "3"), ("green", "4"), ("red", "3")]
+    assert game.current == "ME"
+    assert game.playable_cards("ME") == [("red", "3")]
 
 
 def test_drawing_a_playable_card_lets_you_play_it_or_pass():
@@ -122,11 +128,191 @@ def test_drawing_a_playable_card_lets_you_play_it_or_pass():
 def test_empty_deck_is_refilled_from_the_discard_pile():
     game = make_game()
     set_up(game, [("blue", "1")], ("red", "9"))
-    game.discard = [("green", "2"), ("green", "4"), ("red", "9")]
+    game.discard = [("green", "2"), ("red", "4"), ("red", "9")]
     game.deck = []
-    card = game.draw("ME")
-    assert card in (("green", "2"), ("green", "4"))
+    drawn = game.draw("ME")
+    assert set(drawn) <= {("green", "2"), ("red", "4")}
+    assert ("red", "4") in drawn  # the refilled deck holds a playable card, so the draw stops there
     assert game.top == ("red", "9")
+
+
+def test_when_no_card_is_left_anywhere_the_turn_passes():
+    game = make_game()
+    set_up(game, [("blue", "1")], ("red", "9"))
+    game.discard, game.deck = [("red", "9")], []
+    assert game.draw("ME") == []
+    assert game.current == "A"
+
+
+# ---- house rules: several equal cards at once
+
+def test_several_cards_with_the_same_number_go_together_and_the_last_one_sets_the_colour():
+    game = make_game()
+    set_up(game, [("red", "4"), ("green", "4"), ("yellow", "4"), ("blue", "1")], ("red", "9"))
+    game.play("ME", [("red", "4"), ("green", "4"), ("yellow", "4")])
+    assert game.hands["ME"] == [("blue", "1")]
+    assert (game.top, game.colour, game.current) == (("yellow", "4"), "yellow", "A")
+
+
+def test_the_first_card_must_match_and_a_wrong_play_changes_nothing():
+    game = make_game()
+    set_up(game, [("red", "4"), ("green", "4")], ("red", "9"))
+    with pytest.raises(IllegalMove):
+        game.play("ME", [("green", "4"), ("red", "4")])
+    assert game.hands["ME"] == [("red", "4"), ("green", "4")]
+    assert (game.top, game.current) == (("red", "9"), "ME")
+
+
+def test_cards_with_different_numbers_cannot_go_together():
+    game = make_game()
+    set_up(game, [("red", "4"), ("red", "5")], ("red", "9"))
+    with pytest.raises(IllegalMove):
+        game.play("ME", [("red", "4"), ("red", "5")])
+
+
+def test_you_cannot_play_the_same_card_twice():
+    game = make_game()
+    set_up(game, [("red", "4"), ("blue", "1")], ("red", "9"))
+    with pytest.raises(IllegalMove):
+        game.play("ME", [("red", "4"), ("red", "4")])
+
+
+def test_three_skips_with_four_players_and_you_play_again():
+    game = make_game()
+    set_up(game, [("red", "skip"), ("blue", "skip"), ("green", "skip"), ("blue", "1")], ("red", "9"))
+    game.play("ME", [("red", "skip"), ("blue", "skip"), ("green", "skip")])
+    assert game.current == "ME"
+
+
+def test_two_skips_skip_two_players():
+    game = make_game()
+    set_up(game, [("red", "skip"), ("blue", "skip"), ("blue", "1")], ("red", "9"))
+    game.play("ME", [("red", "skip"), ("blue", "skip")])
+    assert game.current == "C"
+
+
+def test_two_reverses_cancel_out():
+    game = make_game()
+    set_up(game, [("red", "reverse"), ("blue", "reverse"), ("blue", "1")], ("red", "9"))
+    game.play("ME", [("red", "reverse"), ("blue", "reverse")])
+    assert (game.direction, game.current) == (1, "A")
+
+
+def test_several_draw_twos_add_up():
+    game = make_game()
+    set_up(game, [("red", "draw2"), ("blue", "draw2"), ("blue", "1")], ("red", "9"))
+    game.hands["A"] = [("yellow", "5")]
+    game.play("ME", [("red", "draw2"), ("blue", "draw2")])
+    assert (game.current, game.pending, game.colour) == ("A", 4, "blue")
+
+
+def test_several_wilds_share_one_colour_and_need_one():
+    game = make_game()
+    set_up(game, [("wild", "wild"), ("wild", "wild"), ("blue", "1")], ("red", "9"))
+    with pytest.raises(IllegalMove):
+        game.play("ME", [("wild", "wild"), ("wild", "wild")])
+    game.play("ME", [("wild", "wild"), ("wild", "wild")], colour="blue")
+    assert (game.colour, game.current) == ("blue", "A")
+
+
+def test_after_drawing_the_play_starts_with_the_drawn_card_and_may_add_its_twins():
+    game = make_game()
+    set_up(game, [("blue", "3"), ("green", "1")], ("red", "9"))
+    game.deck.append(("red", "3"))
+    game.draw("ME")
+    with pytest.raises(IllegalMove):
+        game.play("ME", [("blue", "3"), ("red", "3")])
+    game.play("ME", [("red", "3"), ("blue", "3")])
+    assert game.colour == "blue"
+
+
+# ---- house rules: stacking
+
+def test_a_draw_two_can_be_answered_with_a_draw_two():
+    game = make_game()
+    set_up(game, [("red", "draw2"), ("blue", "1")], ("red", "9"))
+    game.hands["A"] = [("green", "draw2"), ("yellow", "5")]
+    game.hands["B"] = [("yellow", "7")]
+    game.play("ME", ("red", "draw2"))
+    game.play("A", ("green", "draw2"))
+    assert (game.current, game.pending) == ("B", 4)
+    game.draw("B")
+    assert len(game.hands["B"]) == 5
+    assert (game.current, game.pending) == ("C", 0)
+
+
+def test_facing_draw_cards_only_the_same_kind_can_be_played():
+    game = make_game()
+    set_up(game, [("red", "draw2"), ("blue", "1")], ("red", "9"))
+    game.hands["A"] = [("red", "5"), ("wild", "wild4"), ("wild", "wild")]
+    game.play("ME", ("red", "draw2"))
+    for card in (("red", "5"), ("wild", "wild4"), ("wild", "wild")):
+        with pytest.raises(IllegalMove):
+            game.play("A", card, colour="red")
+    assert (game.current, game.pending) == ("A", 2)
+
+
+def test_a_wild_draw_four_can_be_answered_with_several_wild_draw_fours():
+    game = make_game()
+    set_up(game, [("wild", "wild4"), ("blue", "1")], ("red", "9"))
+    game.hands["A"] = [("wild", "wild4"), ("wild", "wild4"), ("yellow", "5")]
+    game.play("ME", ("wild", "wild4"), colour="green")
+    game.play("A", [("wild", "wild4"), ("wild", "wild4")], colour="yellow")
+    assert (game.current, game.pending, game.colour) == ("B", 12, "yellow")
+
+
+def test_passing_is_not_allowed_while_facing_draw_cards():
+    game = make_game()
+    set_up(game, [("red", "draw2"), ("blue", "1")], ("red", "9"))
+    game.hands["A"] = [("yellow", "5")]
+    game.play("ME", ("red", "draw2"))
+    with pytest.raises(IllegalMove):
+        game.pass_turn("A")
+
+
+# ---- house rules: UNO
+
+def test_going_down_to_one_card_means_uno_is_due_and_saying_it_clears_it():
+    game = make_game()
+    set_up(game, [("red", "5"), ("blue", "1")], ("red", "9"))
+    game.play("ME", ("red", "5"))
+    assert game.uno_due == "ME"
+    assert game.call_uno("ME") is True
+    assert game.uno_due is None
+    assert len(game.hands["ME"]) == 1
+
+
+def test_forgetting_uno_costs_two_cards():
+    game = make_game()
+    set_up(game, [("red", "5"), ("blue", "1")], ("red", "9"))
+    game.play("ME", ("red", "5"))
+    game.miss_uno("ME")
+    assert game.uno_due is None
+    assert len(game.hands["ME"]) == 3
+
+
+def test_saying_uno_when_it_is_not_due_does_nothing():
+    game = make_game()
+    set_up(game, [("red", "5"), ("blue", "1"), ("blue", "2")], ("red", "9"))
+    game.play("ME", ("red", "5"))
+    assert game.uno_due is None
+    assert game.call_uno("ME") is False
+    game.miss_uno("ME")
+    assert len(game.hands["ME"]) == 2
+
+
+def test_playing_several_cards_down_to_one_also_needs_uno():
+    game = make_game()
+    set_up(game, [("red", "4"), ("green", "4"), ("blue", "1")], ("red", "9"))
+    game.play("ME", [("red", "4"), ("green", "4")])
+    assert game.uno_due == "ME"
+
+
+def test_winning_with_the_last_card_needs_no_uno():
+    game = make_game()
+    set_up(game, [("red", "4"), ("green", "4")], ("red", "9"))
+    game.play("ME", [("red", "4"), ("green", "4")])
+    assert (game.winner, game.uno_due) == ("ME", None)
 
 
 # ---- rejected actions
@@ -191,6 +377,34 @@ def test_no_moves_after_the_game_is_over():
 
 
 # ---- bots
+
+def test_a_bot_answers_a_draw_two_when_it_can():
+    game = make_game()
+    set_up(game, [("red", "draw2"), ("blue", "1")], ("red", "9"))
+    game.hands["A"] = [("green", "draw2"), ("yellow", "5"), ("yellow", "6")]
+    game.play("ME", ("red", "draw2"))
+    game.bot_turn("A")
+    assert (game.current, game.pending) == ("B", 4)
+
+
+def test_a_bot_plays_all_the_twins_of_its_card():
+    game = make_game()
+    set_up(game, [("blue", "1")], ("red", "9"))
+    game.turn = 1
+    game.hands["A"] = [("red", "7"), ("green", "7"), ("blue", "7"), ("yellow", "2")]
+    game.bot_turn("A")
+    assert game.hands["A"] == [("yellow", "2")]
+
+
+def test_a_bot_says_uno_unless_it_forgets():
+    for forget, cards in ((0.0, 1), (1.0, 3)):
+        game = make_game()
+        set_up(game, [("blue", "1")], ("red", "9"))
+        game.turn = 1
+        game.hands["A"] = [("red", "7"), ("yellow", "2")]
+        game.bot_turn("A", forget_uno=forget)
+        assert len(game.hands["A"]) == cards
+        assert game.uno_due is None
 
 @pytest.mark.parametrize("seed", range(25))
 def test_four_bots_always_finish_a_game_with_legal_moves(seed):

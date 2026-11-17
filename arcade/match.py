@@ -71,6 +71,7 @@ def start_game() -> None:
     S.flash = ""
     S.selected = None
     S.pending_wild = None
+    S.uno_pick, S.uno_deadline = [], None  # UNO house rules: cards picked so far, time left to say UNO
     S.screen = match["game"]
 
 
