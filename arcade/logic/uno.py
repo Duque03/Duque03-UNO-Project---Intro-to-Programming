@@ -238,18 +238,23 @@ class UnoGame:
         self._give(player, UNO_PENALTY)
         self.last_event = f"{player} forgot to say UNO! +{UNO_PENALTY}"
 
-    def bot_turn(self, player: str, forget_uno: float = 0.15) -> None:
-        """A simple computer player: play something sensible (with all its twins), otherwise draw.
+    def bot_turn(self, player: str, forget_uno: float = 0.15, twins: float = 1.0, stack: float = 1.0,
+                 smart: float = 1.0) -> None:
+        """A simple computer player: play something sensible, otherwise draw.
 
-        forget_uno is the chance that the bot forgets to say UNO (and draws 2).
+        The numbers are chances between 0 and 1 (config.py sets them for the real game):
+        forget_uno  the bot forgets to say UNO (and draws 2)
+        twins       the bot plays all its matching cards at once instead of just one
+        stack       the bot answers a +2 / +4 with its own instead of taking the cards
+        smart       the bot picks its best card instead of any card it can play
         """
         self._check_turn(player)
         if self.pending:
-            stack = [c for c in self.hands[player] if c[1] == self.pending_value]
-            if not stack:
+            answers = [c for c in self.hands[player] if c[1] == self.pending_value]
+            if not answers or self.rng.random() >= stack:
                 self.draw(player)
                 return
-            self._bot_play(player, stack[0], forget_uno)
+            self._bot_play(player, answers[0], forget_uno, twins)
             return
         options = self.playable_cards(player)
         if not options:
@@ -268,13 +273,24 @@ class UnoGame:
                 return (4 if danger else 2) + twins
             return 1 + int(value) / 10 + twins  # getting rid of several cards at once is good
 
-        best = max(score(c) for c in options)
-        self._bot_play(player, self.rng.choice([c for c in options if score(c) == best]), forget_uno)
+        if self.rng.random() < smart:
+            best = max(score(c) for c in options)
+            options = [c for c in options if score(c) == best]
+        self._bot_play(player, self.rng.choice(options), forget_uno, twins)
+
+    def auto_turn(self, player: str) -> None:
+        """The player's time ran out: they draw (or take the +2 / +4 cards) and their turn passes."""
+        self._check_turn(player)
+        if self.drawn_card is None:
+            self.draw(player)
+        if self.winner is None and self.current == player:  # they drew a card they could play: they do not
+            self.pass_turn(player)
 
     # ----- helpers
-    def _bot_play(self, player: str, first: Card, forget_uno: float) -> None:
-        """Play `first` with all its twins, ending on the colour the bot holds most of."""
-        twins = self.partners(player, first) if self.drawn_card is None or first == self.drawn_card else []
+    def _bot_play(self, player: str, first: Card, forget_uno: float, twins_chance: float = 1.0) -> None:
+        """Play `first` (with its twins, sometimes), ending on the colour the bot holds most of."""
+        may_add = self.drawn_card is None or first == self.drawn_card
+        twins = self.partners(player, first) if may_add and self.rng.random() < twins_chance else []
         rest = list(self.hands[player])
         rest.remove(first)  # one copy only: the hand can hold two identical cards
         for twin in twins:

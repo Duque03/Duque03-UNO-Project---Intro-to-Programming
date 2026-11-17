@@ -10,7 +10,7 @@ from PIL import ImageDraw
 from arcade import match, state, ui
 from arcade.art import scenes
 from arcade.art.pixel import draw_text, panel
-from arcade.config import BOT_DELAY, CONNECT4_BLUNDER, CONNECT4_DEPTH, SCREEN_W
+from arcade.config import CONNECT4_BLUNDER, CONNECT4_DEPTH, SCREEN_W
 from arcade.logic.connect4 import COLS, DRAW, RED, ROWS, YELLOW, IllegalMove
 from arcade.screens import common
 from arcade.state import S
@@ -84,19 +84,24 @@ def render() -> None:
     opponent = match.opponents()[0]
     slot = ui.screen()
     bot_was_playing = game.winner is None and game.turn == YELLOW
+    if common.run_clock(game.winner is None and game.turn == RED):
+        game.random_move(state.rng())  # 15 seconds went by: a random column for the player
+        common.restart_clock()
+        S.flash, S.drop_pending = "Time's up! A random move was played", True
+        st.rerun()
 
     if S.get("drop_pending"):  # show my own disc falling
         S.drop_pending = False
         _animate_drop(slot, game, opponent)
     if game.winner is None and game.turn == YELLOW:
-        ui.show(slot, draw(game, opponent)[0])
-        time.sleep(BOT_DELAY)
+        common.show(slot, draw(game, opponent)[0], "connect4")
+        common.bot_pause()
         game.bot_move(state.rng(), CONNECT4_DEPTH, CONNECT4_BLUNDER)
         _animate_drop(slot, game, opponent)
 
     if game.winner and S.result is None:
         if S.match["mode"] == "champ":
-            ui.show(slot, draw(game, opponent)[0])
+            common.show(slot, draw(game, opponent)[0], "connect4")
             time.sleep(1.2)
         if game.winner == DRAW:
             match.finish([me, opponent["name"]], tied=True)
@@ -105,9 +110,10 @@ def render() -> None:
         if S.screen != "connect4":
             st.rerun()
 
+    common.run_clock(game.winner is None and game.turn == RED)  # the bot is done: the player's 15 seconds start
     img, regions = draw(game, opponent, S.flash)
     img, regions = common.with_result(img, regions)
-    ui.show(slot, img)
+    common.show(slot, img, "connect4")
     point = None if bot_was_playing else ui.click()  # a click made during the bot's turn does not count
     action = ui.hit(regions, point)
 

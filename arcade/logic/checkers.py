@@ -187,6 +187,14 @@ class CheckersGame:
                 break
         return best
 
+    def random_move(self, rng: random.Random | None = None) -> Move:
+        """Play any legal move (one jump of a chain). Used when the player's time runs out."""
+        moves = self.legal_moves()
+        if self.winner or not moves:
+            raise IllegalMove("The game is over.")
+        start, end, _ = (rng or random.Random()).choice(moves)
+        return self.move(start, end)
+
     def bot_move(self, rng: random.Random | None = None, depth: int = 2, blunder: float = 0.0) -> Move:
         """Choose and play one move (one jump of a chain) for the side to move."""
         rng = rng or random.Random()

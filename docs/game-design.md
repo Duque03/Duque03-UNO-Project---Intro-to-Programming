@@ -25,6 +25,15 @@ Numbers live in `arcade/config.py`.
 - Pressing E picks the bots at random: 3 of the 5 for UNO, 1 of the 5 for checkers and for Connect Four.
 - The player and the chosen bots walk to the table. When everyone has arrived the view zooms in and the game starts.
 - At the table the player sees the opponents sitting across it.
+- A bot thinks for a random 1 to 3 seconds before each move (in checkers, the extra jumps of a chain follow quickly).
+- The player has **15 seconds** for each turn, shown by a countdown bar under the table (red for the last 5 seconds).
+  When time runs out the game plays for the player: in UNO they draw (or take the +2 / +4 cards) and their turn
+  passes; in checkers and Connect Four a random legal move is played (every jump of a chain). Drawing a card in UNO
+  or jumping again in checkers starts a fresh 15 seconds. Pausing or opening the rules stops the clock; it starts
+  again from 15 on return.
+- UNO bots do not play perfectly: they play all their matching cards at once only sometimes, answer a +2 / +4 with
+  their own only half the time, sometimes play a weaker card, and forget to say UNO a quarter of the time.
+  (Settings in `config.py`. In 400 simulated games a careful player wins about half the time against them.)
 - When the game ends a box appears:
   - win: "Congratulations!! You won!" and **+5 coins**;
   - loss: one of 20 sentences, picked at random;

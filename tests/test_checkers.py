@@ -175,3 +175,33 @@ def test_bot_against_bot_always_ends(seed):
             break
         game.bot_move(rng, depth=1, blunder=0.3)
     assert game.winner in (BOTTOM, TOP, DRAW)
+
+
+def test_random_move_is_a_legal_move_and_passes_the_turn():
+    for seed in range(10):
+        game = CheckersGame()
+        legal = {(start, end) for start, end, _ in game.legal_moves()}
+        start, end, _ = game.random_move(random.Random(seed))
+        assert (start, end) in legal
+        assert game.turn == TOP
+
+
+def test_random_move_takes_a_capture_when_one_is_mandatory():
+    game = empty()
+    game.board[4][3] = "b"
+    game.board[3][4] = "t"
+    game.board[0][1] = "t"
+    game.board[6][1] = "b"  # this piece could step, but the capture is mandatory
+    for seed in range(5):
+        trial = game.clone()
+        start, end, captured = trial.random_move(random.Random(seed))
+        assert (start, end) == ((4, 3), (2, 5)) and captured
+        assert trial.board[3][4] is None
+
+
+def test_random_move_is_refused_when_the_game_is_over():
+    game = empty()
+    game.board[5][2] = "b"
+    game.winner = BOTTOM
+    with pytest.raises(IllegalMove):
+        game.random_move(random.Random(1))

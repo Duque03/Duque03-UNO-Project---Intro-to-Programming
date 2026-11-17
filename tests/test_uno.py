@@ -418,3 +418,93 @@ def test_four_bots_always_finish_a_game_with_legal_moves(seed):
     total = len(game.deck) + len(game.discard) + sum(len(h) for h in game.hands.values())
     assert total == 108
     assert game.colour in COLOURS
+
+
+# ---- how well the bots play (config.py: UNO_BOT_TWINS, UNO_BOT_STACK, UNO_BOT_SMART)
+
+def _bot_to_play(game, hand, top):
+    set_up(game, [("blue", "1")], top)
+    game.hands["A"] = list(hand)
+    game.turn = 1  # A plays
+
+
+def test_bot_that_never_plays_twins_plays_one_card():
+    game = make_game()
+    _bot_to_play(game, [("red", "5"), ("green", "5"), ("yellow", "5"), ("blue", "9")], ("red", "2"))
+    game.bot_turn("A", twins=0.0)
+    assert len(game.hands["A"]) == 3
+    assert game.top == ("red", "5")
+
+
+def test_bot_that_always_plays_twins_plays_them_all():
+    game = make_game()
+    _bot_to_play(game, [("red", "5"), ("green", "5"), ("yellow", "5"), ("blue", "9")], ("red", "2"))
+    game.bot_turn("A", twins=1.0)
+    assert game.hands["A"] == [("blue", "9")] or len(game.hands["A"]) == 1
+
+
+def test_bot_that_never_stacks_takes_the_cards():
+    game = make_game()
+    _bot_to_play(game, [("red", "draw2"), ("blue", "9")], ("green", "draw2"))
+    game.pending, game.pending_value = 2, "draw2"
+    game.bot_turn("A", stack=0.0)
+    assert len(game.hands["A"]) == 4
+    assert game.pending == 0 and game.current != "A"
+
+
+def test_bot_that_always_stacks_passes_the_cards_on():
+    game = make_game()
+    _bot_to_play(game, [("red", "draw2"), ("blue", "9")], ("green", "draw2"))
+    game.pending, game.pending_value = 2, "draw2"
+    game.bot_turn("A", stack=1.0)
+    assert game.pending == 4
+    assert ("red", "draw2") not in game.hands["A"]
+
+
+def test_careless_bots_still_only_play_legal_cards():
+    for seed in range(40):
+        game = make_game(seed)
+        game.turn = 1
+        before, played_from = game.top, len(game.discard)
+        game.bot_turn(game.current, twins=0.3, stack=0.3, smart=0.0)
+        played = game.discard[played_from:]
+        if played:  # the first card matches the card before it, the rest are its twins
+            assert played[0][0] in (before[0], "wild") or played[0][1] == before[1]
+            assert all(card[1] == played[0][1] for card in played)
+
+
+# ---- the player's time runs out (auto_turn)
+
+def test_time_out_draws_and_passes_the_turn():
+    game = make_game()
+    set_up(game, [("red", "5"), ("blue", "1")], ("red", "9"))
+    game.auto_turn("ME")
+    assert len(game.hands["ME"]) >= 3
+    assert game.current == "A"
+    assert game.drawn_card is None
+
+
+def test_time_out_with_cards_stacked_on_you_takes_them_all():
+    game = make_game()
+    set_up(game, [("red", "5")], ("green", "draw2"))
+    game.pending, game.pending_value = 4, "draw2"
+    game.auto_turn("ME")
+    assert len(game.hands["ME"]) == 5
+    assert game.pending == 0 and game.current == "A"
+
+
+def test_time_out_after_drawing_just_passes():
+    game = make_game()
+    set_up(game, [("red", "5")], ("red", "9"))
+    game.drawn_card = ("red", "5")
+    game.auto_turn("ME")
+    assert game.hands["ME"] == [("red", "5")]
+    assert game.current == "A"
+
+
+def test_time_out_is_refused_when_it_is_not_your_turn():
+    game = make_game()
+    set_up(game, [("red", "5")], ("red", "9"))
+    game.turn = 1
+    with pytest.raises(IllegalMove):
+        game.auto_turn("ME")

@@ -74,6 +74,15 @@ class Connect4Game:
                 return sorted(cells)
         return []
 
+    def random_move(self, rng: random.Random | None = None) -> int:
+        """Drop a disc in any column that is not full. Used when the player's time runs out."""
+        columns = self.legal_columns()
+        if not columns:
+            raise IllegalMove("The game is over.")
+        col = (rng or random.Random()).choice(columns)
+        self.drop(col)
+        return col
+
     # ----- computer player
     def bot_move(self, rng: random.Random | None = None, depth: int = 2, blunder: float = 0.0) -> int:
         """Choose and play a column for the side to move. Returns the column."""

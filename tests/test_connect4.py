@@ -101,3 +101,19 @@ def test_bot_against_bot_always_ends(seed):
             break
         game.bot_move(rng, depth=2, blunder=0.2)
     assert game.winner in (RED, YELLOW, DRAW)
+
+
+def test_random_move_drops_in_a_column_that_is_not_full():
+    game = Connect4Game()
+    play(game, [0] * ROWS)  # column 0 is full
+    for seed in range(20):
+        trial = game.clone()
+        col = trial.random_move(random.Random(seed))
+        assert col != 0 and col in game.legal_columns()
+
+
+def test_random_move_is_refused_when_the_game_is_over():
+    game = Connect4Game()
+    play(game, [0, 1, 0, 1, 0, 1, 0])  # red wins in column 0
+    with pytest.raises(IllegalMove):
+        game.random_move(random.Random(1))

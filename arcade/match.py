@@ -72,6 +72,7 @@ def start_game() -> None:
     S.selected = None
     S.pending_wild = None
     S.uno_pick, S.uno_deadline = [], None  # UNO house rules: cards picked so far, time left to say UNO
+    S.turn_deadline = None  # the clock for the player's turn starts when their first turn begins
     S.screen = match["game"]
 
 

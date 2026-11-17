@@ -41,7 +41,18 @@ NAME_MIN, NAME_MAX = 1, 10
 # Animation (set ANIMATIONS to False to make every screen change instant)
 ANIMATIONS = True
 FRAME_DELAY = 0.045
-BOT_DELAY = 0.7
+# Bots think for a random time between these two numbers of seconds before each move
+BOT_THINK = (1.0, 3.0)
+
+# The player has this many seconds for each turn at every table. When time runs out the game plays
+# for them: in UNO they draw and the turn passes, in checkers and Connect Four a random move is made.
+TURN_SECONDS = 15
+
+# How well the UNO bots play (1.0 = as well as they can, 0.0 = never)
+UNO_BOT_TWINS = 0.35  # chance a bot plays all its matching cards at once (otherwise just one)
+UNO_BOT_STACK = 0.5  # chance a bot answers a +2 / +4 with its own (otherwise it takes the cards)
+UNO_BOT_SMART = 0.6  # chance a bot picks its best card (otherwise any card it can play)
+UNO_BOT_FORGET = 0.25  # chance a bot forgets to say UNO (and draws 2)
 
 # Fade to black between screens (task A1): frames down to black (and the same back up), and the time per frame
 FADE_STEPS = 5
