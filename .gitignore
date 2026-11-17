@@ -5,3 +5,4 @@ __pycache__/
 data/*.db
 .env
 .streamlit/secrets.toml
+.pytest_tmp/

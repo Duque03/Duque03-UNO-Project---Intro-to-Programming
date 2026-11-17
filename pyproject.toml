@@ -14,3 +14,6 @@ dev = ["pytest==9.2.0"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+# Keep pytest's temporary folders inside the project. On some Windows laptops the
+# default folder (AppData\Local\Temp\pytest-of-<user>) refuses access.
+addopts = "--basetemp=.pytest_tmp"
