@@ -1,4 +1,4 @@
-"""Every cosmetic the store sells: 3 tabs x (20 common + 5 rare + 1 legendary).
+"""Every cosmetic the store sells: 3 tabs x (10 common + 3 rare + 1 legendary).
 
 An item is a plain dictionary:
     id      unique key, e.g. "shirt_c01"
@@ -13,19 +13,11 @@ To add or redesign an item, edit the lists below. Nothing else needs to change.
 
 from __future__ import annotations
 
+from arcade.art.pixel import readable_on
 from arcade.config import PRICES
 
-# name, colour
-PALETTE = [
-    ("Red", "#d83a3a"), ("Orange", "#f08a24"), ("Yellow", "#f2d03b"), ("Lime", "#a4d93a"),
-    ("Green", "#3aa655"), ("Teal", "#2a9d8f"), ("Cyan", "#3ad6d9"), ("Sky", "#6fb7ff"),
-    ("Blue", "#2f6fe0"), ("Navy", "#23346b"), ("Purple", "#7a3ad8"), ("Violet", "#b07aff"),
-    ("Pink", "#ff8ac4"), ("Magenta", "#d93a9c"), ("Brown", "#8a5a33"), ("Tan", "#d9b382"),
-    ("Cream", "#f3ead2"), ("Grey", "#8d8fa3"), ("Black", "#26262e"), ("Mint", "#9df0c4"),
-]
-
-HAIR_STYLES = [("Short", "short"), ("Spikes", "spiky"), ("Long", "long"), ("Bob", "bob"), ("Ponytail", "ponytail")]
-HAIR_COLOURS = [("Black", "#1d1a22"), ("Blonde", "#f0d264"), ("Ginger", "#d9662b"), ("Silver", "#c9ccd6")]
+# Hair colours used by several styles
+BLACK, BROWN, BLONDE = "#1d1a22", "#5a3a22", "#f0d264"
 
 # What you wear before buying anything. These are not store items.
 DEFAULTS = {
@@ -33,6 +25,13 @@ DEFAULTS = {
     "shirt": {"style": "solid", "c1": "#e9e9ee"},
     "name": {"bg": "#ffffff", "fg": "#16122b", "border": "#16122b", "fx": None},
 }
+
+# The themes (all designs are our own, no real clubs, brands or people):
+#   football: haircuts you see on the pitch, kits in classic club colours, scarf name tags
+#   battle royale: camo, helmets with visors, tactical vests, storm effects
+#   Portugal: azulejo tiles, the flag colours, the Nazare fishermen's check, the Ribatejo stocking cap,
+#             Santos Populares (sardines and party flags)
+# Each tab has one rare item per theme.
 
 
 def _build() -> list[dict]:
@@ -51,35 +50,57 @@ def _build() -> list[dict]:
             }
         )
 
-    # ---- hair: 20 common, 5 rare, 1 legendary
-    for style_name, style in HAIR_STYLES:
-        for colour_name, colour in HAIR_COLOURS:
-            add("hair", "common", f"{colour_name} {style_name}", {"style": style, "c1": colour})
-    add("hair", "rare", "Neon Mohawk", {"style": "mohawk", "c1": "#7cff3a", "c2": "#2fb81f"})
-    add("hair", "rare", "Cosmic Afro", {"style": "afro", "c1": "#8a3ad8", "c2": "#ffd84a"})
-    add("hair", "rare", "Bubblegum Twintails", {"style": "twintails", "c1": "#ff7ac8", "c2": "#ffffff"})
-    add("hair", "rare", "Ice Spikes", {"style": "spiky", "c1": "#4ad2ff", "c2": "#ffffff"})
-    add("hair", "rare", "Royal Bun", {"style": "bun", "c1": "#2b2b6b", "c2": "#ffd84a"})
-    add("hair", "legendary", "Rainbow Wave", {"style": "long", "c1": "#ff4f6d", "rainbow": True})
+    # ---- hair: 10 common, 3 rare (one per theme), 1 legendary
+    for name, style, colour in [
+        ("Brown Quiff", "quiff", BROWN), ("Black Buzz Cut", "buzz", BLACK), ("Brown Man Bun", "manbun", BROWN),
+        ("Blonde Curtains", "curtains", BLONDE), ("Black Slick Back", "slick", BLACK),
+        ("Black Dreads", "dreads", BLACK), ("Blonde Ponytail", "ponytail", BLONDE),
+    ]:
+        add("hair", "common", name, {"style": style, "c1": colour, "c2": "#d9a520"})
+    add("hair", "common", "Headband Hair", {"style": "headband", "c1": BROWN, "c2": "#ffffff"})
+    add("hair", "common", "Red Cap", {"style": "cap", "c1": "#d83a3a", "c2": "#7a1f1f", "c3": BROWN})
+    add("hair", "common", "Grey Beanie", {"style": "beanie", "c1": "#8d8fa3", "c2": "#5d5f70", "c3": BLACK})
+    add("hair", "rare", "Bleached Mohawk", {"style": "mohawk", "c1": "#f3ead2", "c2": "#f0d264"})
+    add("hair", "rare", "Campino Cap", {"style": "campino", "c1": "#2a8a3a", "c2": "#d83a3a", "c3": BLACK})
+    add("hair", "rare", "Visor Helmet", {"style": "helmet", "c1": "#4a5a3a", "c2": "#3ad6ff"})
+    add("hair", "legendary", "Galaxy Hair", {"style": "long", "c1": "#2a0d5e", "galaxy": True})
 
-    # ---- shirts
-    for colour_name, colour in PALETTE:
-        add("shirt", "common", f"{colour_name} Tee", {"style": "solid", "c1": colour})
-    add("shirt", "rare", "Racer Stripes", {"style": "hstripe", "c1": "#d83a3a", "c2": "#ffffff"})
-    add("shirt", "rare", "Pinstripe Pro", {"style": "vstripe", "c1": "#23346b", "c2": "#dfe6ff"})
-    add("shirt", "rare", "Checker Champ", {"style": "check", "c1": "#26262e", "c2": "#f2d03b"})
-    add("shirt", "rare", "Star Player", {"style": "emblem", "c1": "#2f6fe0", "c2": "#ffd84a"})
-    add("shirt", "rare", "Midnight Hoodie", {"style": "hoodie", "c1": "#3b2a6b", "c2": "#3ad6d9"})
-    add("shirt", "legendary", "Golden Champion", {"style": "gold", "c1": "#ffd84a", "c2": "#fff6c4"})
+    # ---- shirts: football kits, battle-royale outfits, Portuguese themes
+    for name, colour, trim, number in [
+        ("Red Kit", "#d83a3a", "#ffffff", "9"), ("White Kit", "#f3f3f7", "#16122b", "4"),
+        ("Green Kit", "#2a8a3a", "#ffffff", "8"), ("Blue Kit", "#2f6fe0", "#ffffff", "10"),
+    ]:
+        add("shirt", "common", name, {"style": "kit", "c1": colour, "c2": trim, "num": number})
+    for name, style, c1, c2 in [
+        ("Blue & White Stripes", "stripes", "#ffffff", "#2f6fe0"),
+        ("Green Hoops", "hoops", "#2a8a3a", "#ffffff"),
+        ("Red & Blue Halves", "halves", "#d83a3a", "#2f6fe0"),
+        ("White Red Sash", "sash", "#f3f3f7", "#d83a3a"),
+    ]:
+        add("shirt", "common", name, {"style": style, "c1": c1, "c2": c2})
+    add("shirt", "common", "Forest Camo", {"style": "camo", "c1": "#5a7a3a", "c2": "#3a4a2a", "c3": "#8a7a4a"})
+    add("shirt", "common", "Nazare Check", {"style": "plaid", "c1": "#2f4fa8", "c2": "#d83a3a", "c3": "#16122b"})
+    add("shirt", "rare", "Azulejo Shirt", {"style": "azulejo", "c1": "#f3f6ff", "c2": "#1d4fa8", "c3": "#6fa8ff"})
+    add("shirt", "rare", "Bandeira Kit", {"style": "flag", "c1": "#1f7a32", "c2": "#d22a2a", "c3": "#ffd84a",
+                                          "num": "7", "nc": "#ffd84a"})
+    add("shirt", "rare", "Tactical Vest", {"style": "vest", "c1": "#4a5a3a", "c2": "#2e3a24", "c3": "#8d8fa3"})
+    add("shirt", "legendary", "Golden Champion", {"style": "gold", "c1": "#ffd84a", "c2": "#fff6c4",
+                                                  "num": "1", "nc": "#ffffff"})
 
-    # ---- name tags
-    for colour_name, colour in PALETTE:
-        add("name", "common", f"{colour_name} Tag", {"bg": colour, "fx": None})
-    add("name", "rare", "Neon Glow", {"bg": "#16122b", "fg": "#7dfcff", "border": "#3ad6d9", "fx": "glow"})
-    add("name", "rare", "Gold Plate", {"bg": "#ffd84a", "fg": "#5a3a00", "border": "#a8780f", "fx": "gold"})
-    add("name", "rare", "Starry Night", {"bg": "#1b2a6b", "fg": "#ffffff", "border": "#0d1433", "fx": "stars"})
-    add("name", "rare", "Heartbeat", {"bg": "#ffd9ea", "fg": "#c2185b", "border": "#c2185b", "fx": "hearts"})
-    add("name", "rare", "Thunder", {"bg": "#26262e", "fg": "#ffe94a", "border": "#ffe94a", "fx": "bolt"})
+    # ---- name tags: football scarves and plain colours, then the special effects
+    for name, c1, c2 in [
+        ("Red & White Scarf", "#d83a3a", "#ffffff"), ("Green & White Scarf", "#2a8a3a", "#ffffff"),
+        ("Blue & White Scarf", "#2f6fe0", "#ffffff"), ("Black & White Scarf", "#26262e", "#ffffff"),
+        ("Green & Red Scarf", "#2a8a3a", "#d83a3a"), ("Navy & Gold Scarf", "#23346b", "#ffd84a"),
+    ]:
+        add("name", "common", name, {"bg": c1, "border": c1, "border2": c2, "fg": readable_on(c1), "fx": "scarf"})
+    for name, colour in [("Yellow Tag", "#f2d03b"), ("Mint Tag", "#9df0c4"), ("Purple Tag", "#7a3ad8"),
+                         ("Pink Tag", "#ff8ac4")]:
+        add("name", "common", name, {"bg": colour, "fx": None})
+    add("name", "rare", "Santos Populares", {"bg": "#bfe6ff", "fg": "#16122b", "border": "#2f6fe0",
+                                             "fx": "arraial"})
+    add("name", "rare", "Football Pitch", {"bg": "#2f8f3a", "fg": "#ffffff", "border": "#ffffff", "fx": "pitch"})
+    add("name", "rare", "Storm Circle", {"bg": "#2a0d4a", "fg": "#ffffff", "border": "#b07aff", "fx": "storm"})
     add("name", "legendary", "Inferno", {"bg": "#3a0d0d", "fg": "#ffe94a", "border": "#ff7a1a", "fx": "fire"})
     return items
 

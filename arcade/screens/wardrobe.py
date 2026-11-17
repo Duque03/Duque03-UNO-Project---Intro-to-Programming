@@ -1,51 +1,54 @@
-"""Customize character: try on what you own, then press E to equip or U to take it off."""
+"""Customize character: try on what you own, then press E to equip or U to take it off.
+
+The items you are wearing have a green pixel tick.
+"""
 
 from __future__ import annotations
 
 import streamlit as st
 
-from arcade import catalog, state, ui
+from arcade import state, tiles, ui
 from arcade import player as player_model
-from arcade.art import scenes, sprites
-from arcade.config import SLOT_LABELS
+from arcade.art import scenes
+from arcade.config import RARITIES, SLOT_LABELS
 from arcade.logic import store
-from arcade.screens.store import tab_picker
+from arcade.screens.store import picked_item, preview, tab_picker
 from arcade.state import S
-
-COLUMNS = 3
 
 
 def render() -> None:
     player = S.player
     ui.picture(scenes.banner("WARDROBE", None, "CLICK AN ITEM TO TRY IT ON"))
-    left, right = st.columns([3, 2], gap="large")
+    left, right = st.columns([3, 2], gap="medium")
 
     with left:
         slot = tab_picker("wardrobe_tab")
-        focus = catalog.get(S.get("wardrobe_focus") or "")
-        if focus and focus["slot"] != slot:
-            focus = None  # the tried-on item belongs to another tab
-        owned = store.owned_items(player, slot)
-        if not owned:
-            st.info(f"You do not own any {SLOT_LABELS[slot].lower()} items yet. Buy some in the store.")
-        columns = st.columns(COLUMNS)
+        focus = picked_item("wardrobe_focus", slot)
+        if focus is not None and not store.owns(player, focus["id"]):
+            focus = None
         look = player_model.look(player)
-        for index, item in enumerate(owned):
-            with columns[index % COLUMNS]:
-                ui.picture(sprites.item_tile(item, look, player["name"]))
-                equipped = player["equipped"][slot] == item["id"]
-                label = ("✅ " if equipped else "") + item["name"]
-                chosen = focus is not None and focus["id"] == item["id"]
-                if ui.button(label, f"try_{item['id']}", type="primary" if chosen else "secondary"):
-                    S.wardrobe_focus = item["id"]
-                    st.rerun()
+        owned = store.owned_items(player, slot)
+        sections = []
+        for rarity in RARITIES:
+            row = []
+            for item in owned:
+                if item["rarity"] != rarity:
+                    continue
+                worn = player["equipped"][slot] == item["id"]
+                row.append(tiles.tile(item, look, player["name"], worn=worn,
+                                      picked=focus is not None and focus["id"] == item["id"],
+                                      badge="WEARING" if worn else "OWNED", badge_kind="worn" if worn else "owned"))
+            sections.append(tiles.section(rarity, row))
+        empty = f"You do not own any {SLOT_LABELS[slot].lower()} items yet. Buy some in the store."
+        clicked = tiles.grid(sections, key="wardrobe_grid", empty=empty)
+        if clicked is not None and clicked != S.get("wardrobe_focus"):
+            S.wardrobe_focus = clicked
+            st.rerun()
 
     with right:
-        preview = {slot: focus["id"]} if focus else None
-        worn = dict(player["equipped"], **(preview or {}))
-        ui.picture(sprites.portrait(player_model.look(player, preview), player["name"], worn["name"]))
+        ui.picture(preview(player, slot, focus))
         if focus:
-            state_text = "equipped" if player["equipped"][slot] == focus["id"] else "trying on"
+            state_text = "wearing" if player["equipped"][slot] == focus["id"] else "trying on"
             st.caption(f"{focus['name']} ({focus['rarity']}) - {state_text}")
         else:
             st.caption("Showing what you are wearing now.")

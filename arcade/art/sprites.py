@@ -20,56 +20,107 @@ OX, OY = 2, 6  # where the 16x22 figure starts inside that canvas
 RAINBOW = ["#ff4f6d", "#ff9f1a", "#ffe94a", "#4ade80", "#3ad6ff", "#a06bff"]
 
 # Hair shapes as rectangles (x, y, w, h, colour index) on the 16x22 figure.
-# Colour index 0 = main colour, 1 = accent colour.
+# Colour index: 0 = main colour (c1), 1 = accent (c2), 2 = hair under a hat (c3),
+# 3 = main colour darker, 4 = main colour lighter, 5 = accent lighter.
 _BASE = {
     "front": [(4, 1, 8, 3, 0), (3, 2, 1, 4, 0), (12, 2, 1, 4, 0)],
     "back": [(4, 1, 8, 7, 0), (3, 2, 1, 5, 0), (12, 2, 1, 5, 0)],
     "side": [(4, 1, 8, 3, 0), (8, 2, 4, 6, 0), (12, 3, 1, 4, 0)],
 }
-_SPIKES = [(4, -1, 2, 2, 1), (7, -2, 2, 3, 1), (10, -1, 2, 2, 1)]
+_LONG = {
+    "front": [(3, 6, 1, 7, 0), (12, 6, 1, 7, 0), (2, 5, 1, 7, 0), (13, 5, 1, 7, 0)],
+    "back": [(3, 1, 10, 12, 0), (2, 5, 12, 7, 0)],
+    "side": [(8, 8, 5, 5, 0), (12, 3, 1, 9, 0)],
+}
+# Styles drawn on top of the basic cap of hair (_BASE).
 _HAIR = {
     "short": {"front": [], "back": [], "side": []},
-    "spiky": {"front": _SPIKES, "back": _SPIKES, "side": _SPIKES},
-    "long": {
-        "front": [(3, 6, 1, 7, 0), (12, 6, 1, 7, 0), (2, 5, 1, 7, 0), (13, 5, 1, 7, 0)],
-        "back": [(3, 1, 10, 12, 0), (2, 5, 12, 7, 0)],
-        "side": [(8, 8, 5, 5, 0), (12, 3, 1, 9, 0)],
-    },
-    "bob": {
-        "front": [(3, 6, 1, 3, 0), (12, 6, 1, 3, 0), (2, 4, 1, 4, 0), (13, 4, 1, 4, 0), (4, 4, 2, 1, 0)],
-        "back": [(3, 1, 10, 8, 0), (2, 4, 12, 4, 0)],
-        "side": [(7, 2, 6, 7, 0), (4, 4, 2, 1, 0)],
-    },
+    "long": _LONG,
     "ponytail": {
         "front": [(13, 2, 2, 2, 0), (14, 4, 1, 5, 0)],
         "back": [(7, 7, 2, 6, 0)],
         "side": [(12, 2, 2, 2, 0), (13, 4, 1, 6, 0)],
     },
-    "twintails": {
-        "front": [(1, 3, 2, 7, 0), (13, 3, 2, 7, 0), (2, 3, 1, 1, 1), (13, 3, 1, 1, 1)],
-        "back": [(1, 3, 2, 7, 0), (13, 3, 2, 7, 0), (2, 3, 1, 1, 1), (13, 3, 1, 1, 1)],
-        "side": [(11, 3, 2, 8, 0), (11, 3, 2, 1, 1)],
+    "quiff": {  # a raised front, combed up
+        "front": [(5, 0, 6, 1, 0), (6, -1, 5, 1, 0), (7, -2, 3, 1, 4), (6, 0, 4, 1, 4)],
+        "back": [(5, 0, 6, 1, 0), (6, -1, 4, 1, 0)],
+        "side": [(2, -1, 7, 2, 0), (3, 1, 1, 1, 0), (2, -1, 4, 1, 4)],
     },
-    "bun": {
-        "front": [(6, -2, 4, 3, 0), (9, -1, 1, 1, 1)],
-        "back": [(6, -2, 4, 3, 0), (9, -1, 1, 1, 1)],
-        "side": [(9, -2, 4, 3, 0), (12, -1, 1, 1, 1)],
+    "curtains": {  # parted in the middle, falling at both sides of the forehead
+        "front": [(4, 4, 2, 1, 0), (10, 4, 2, 1, 0), (3, 2, 1, 6, 0), (12, 2, 1, 6, 0), (7, 1, 2, 1, 3)],
+        "back": [(3, 2, 10, 7, 0)],
+        "side": [(4, 4, 2, 1, 0), (12, 2, 1, 6, 0), (8, 2, 4, 7, 0)],
+    },
+    "headband": {  # long hair held back by a sports band (colour c2)
+        "front": _LONG["front"] + [(3, 3, 10, 1, 1)],
+        "back": _LONG["back"] + [(3, 3, 10, 1, 1)],
+        "side": _LONG["side"] + [(4, 3, 9, 1, 1)],
     },
 }
-# Styles that replace the basic cap of hair completely.
+# Styles that replace the basic cap of hair completely (also hats and helmets).
 _FULL = {
     "mohawk": {
         "front": [(7, -4, 2, 8, 0), (6, -3, 1, 6, 1), (9, -3, 1, 6, 1)],
         "back": [(7, -4, 2, 13, 0), (6, -3, 1, 10, 1), (9, -3, 1, 10, 1)],
         "side": [(4, -4, 8, 3, 0), (3, -3, 10, 1, 1), (5, -1, 7, 4, 0)],
     },
-    "afro": {
-        "front": [(4, -4, 8, 1, 0), (3, -3, 10, 1, 0), (2, -2, 12, 6, 0), (2, 4, 2, 2, 0), (12, 4, 2, 2, 0),
-                  (5, -2, 1, 1, 1), (10, 0, 1, 1, 1), (3, 1, 1, 1, 1)],
-        "back": [(4, -4, 8, 1, 0), (3, -3, 10, 1, 0), (2, -2, 12, 11, 0), (5, -2, 1, 1, 1), (10, 3, 1, 1, 1)],
-        "side": [(4, -4, 8, 1, 0), (3, -3, 10, 1, 0), (2, -2, 12, 6, 0), (8, 4, 6, 4, 0), (6, -1, 1, 1, 1)],
+    "buzz": {
+        "front": [(4, 1, 8, 2, 0), (3, 2, 1, 2, 0), (12, 2, 1, 2, 0)],
+        "back": [(4, 1, 8, 6, 0), (3, 2, 1, 4, 0), (12, 2, 1, 4, 0)],
+        "side": [(4, 1, 8, 2, 0), (9, 2, 3, 4, 0), (12, 2, 1, 3, 0)],
+    },
+    "manbun": {  # short darker sides, long top tied in a bun (tie colour c2)
+        "front": [(4, 0, 8, 3, 0), (3, 2, 1, 2, 3), (12, 2, 1, 2, 3), (6, -3, 4, 2, 0), (7, -1, 2, 1, 1)],
+        "back": [(4, 0, 8, 6, 0), (3, 2, 1, 4, 3), (12, 2, 1, 4, 3), (6, -3, 4, 2, 0), (7, -1, 2, 1, 1)],
+        "side": [(4, 0, 8, 3, 0), (9, 2, 3, 4, 3), (12, 3, 1, 3, 3), (9, -3, 4, 2, 0), (10, -1, 2, 1, 1)],
+    },
+    "slick": {  # combed straight back, with a shine
+        "front": [(4, 0, 8, 3, 0), (3, 1, 1, 4, 0), (12, 1, 1, 4, 0), (5, 0, 6, 1, 4)],
+        "back": [(4, 0, 8, 8, 0), (3, 1, 1, 6, 0), (12, 1, 1, 6, 0), (5, 1, 6, 1, 4)],
+        "side": [(3, 0, 9, 3, 0), (8, 2, 4, 6, 0), (12, 2, 1, 5, 0), (4, 0, 7, 1, 4)],
+    },
+    "dreads": {  # rope strands with beads (colour c2)
+        "front": [(4, 0, 8, 4, 0), (3, 1, 1, 9, 0), (12, 1, 1, 9, 0), (2, 3, 1, 8, 0), (13, 3, 1, 8, 0),
+                  (5, 0, 1, 1, 3), (8, 0, 1, 1, 3), (10, 0, 1, 1, 3),
+                  (2, 10, 1, 1, 1), (13, 10, 1, 1, 1), (3, 9, 1, 1, 1), (12, 9, 1, 1, 1)],
+        "back": [(3, 0, 10, 9, 0), (2, 3, 12, 6, 0), (3, 9, 1, 4, 0), (5, 9, 1, 5, 0), (7, 9, 1, 4, 0),
+                 (8, 9, 1, 5, 0), (10, 9, 1, 4, 0), (12, 9, 1, 5, 0),
+                 (5, 13, 1, 1, 1), (8, 13, 1, 1, 1), (12, 13, 1, 1, 1), (6, 2, 1, 6, 3), (9, 2, 1, 6, 3)],
+        "side": [(4, 0, 8, 4, 0), (8, 2, 5, 7, 0), (13, 3, 1, 7, 0), (9, 9, 1, 4, 0), (11, 9, 1, 5, 0),
+                 (13, 10, 1, 1, 1), (9, 13, 1, 1, 1), (10, 2, 1, 6, 3)],
+    },
+    "cap": {  # c1 cap, c2 peak, c3 hair underneath
+        "front": [(3, 2, 1, 4, 2), (12, 2, 1, 4, 2), (4, 0, 8, 1, 0), (3, 1, 10, 2, 0), (3, 3, 10, 1, 1),
+                  (7, 0, 2, 1, 4)],
+        "back": [(3, 3, 10, 4, 2), (4, 0, 8, 1, 0), (3, 1, 10, 3, 0), (6, 4, 4, 1, 1)],
+        "side": [(9, 3, 4, 4, 2), (4, 0, 8, 1, 0), (3, 1, 10, 2, 0), (0, 3, 6, 1, 1), (6, 3, 6, 1, 0)],
+    },
+    "beanie": {  # c1 wool hat, c2 folded edge and pompom, c3 hair underneath
+        "front": [(3, 4, 1, 2, 2), (12, 4, 1, 2, 2), (4, -2, 8, 1, 0), (3, -1, 10, 4, 0), (3, 3, 10, 1, 1),
+                  (7, -3, 2, 1, 1), (5, -1, 1, 4, 3), (8, -1, 1, 4, 3), (11, -1, 1, 4, 3)],
+        "back": [(3, 4, 10, 3, 2), (4, -2, 8, 1, 0), (3, -1, 10, 4, 0), (3, 3, 10, 1, 1), (7, -3, 2, 1, 1),
+                 (5, -1, 1, 4, 3), (8, -1, 1, 4, 3), (11, -1, 1, 4, 3)],
+        "side": [(9, 4, 4, 3, 2), (4, -2, 8, 1, 0), (3, -1, 10, 4, 0), (3, 3, 10, 1, 1), (9, -3, 2, 1, 1),
+                 (6, -1, 1, 4, 3), (9, -1, 1, 4, 3)],
+    },
+    "campino": {  # Ribatejo stocking cap: c1 green, c2 red edge and tip, c3 hair
+        "front": [(3, 4, 1, 2, 2), (12, 4, 1, 2, 2), (4, -1, 8, 1, 0), (3, 0, 10, 3, 0), (3, 3, 10, 1, 1),
+                  (11, -2, 3, 1, 0), (13, -1, 2, 2, 0), (14, 1, 1, 3, 0), (14, 4, 2, 2, 1)],
+        "back": [(3, 4, 10, 3, 2), (4, -1, 8, 1, 0), (3, 0, 10, 3, 0), (3, 3, 10, 1, 1),
+                 (2, -2, 3, 1, 0), (1, -1, 2, 2, 0), (1, 1, 1, 3, 0), (0, 4, 2, 2, 1)],
+        "side": [(9, 4, 4, 3, 2), (4, -1, 8, 1, 0), (3, 0, 10, 3, 0), (3, 3, 10, 1, 1),
+                 (10, -2, 4, 1, 0), (13, -1, 2, 3, 0), (14, 2, 1, 3, 0), (14, 5, 2, 2, 1)],
+    },
+    "helmet": {  # battle helmet: c1 shell, c2 glowing visor over the eyes
+        "front": [(3, -1, 10, 4, 0), (2, 0, 1, 6, 0), (13, 0, 1, 6, 0), (3, 3, 10, 2, 3), (3, 5, 10, 2, 1),
+                  (4, 5, 2, 1, 5), (5, -1, 3, 1, 4)],
+        "back": [(3, -1, 10, 6, 0), (2, 0, 12, 6, 0), (3, 5, 10, 1, 3), (2, 5, 1, 1, 1), (13, 5, 1, 1, 1),
+                 (5, -1, 3, 1, 4)],
+        "side": [(3, -1, 10, 4, 0), (12, 0, 2, 6, 0), (3, 3, 9, 2, 3), (2, 5, 6, 2, 1), (2, 5, 2, 1, 5),
+                 (10, 2, 2, 4, 0), (5, -1, 3, 1, 4)],
     },
 }
+HAIR_STYLES = sorted(set(_HAIR) | set(_FULL))
 
 
 def _hair_rects(style: str, view: str):
@@ -78,35 +129,113 @@ def _hair_rects(style: str, view: str):
     return _BASE[view] + _HAIR.get(style, _HAIR["short"])[view]
 
 
-def _shirt_colour(spec: dict, x: int, y: int, t: int):
-    """Colour of one shirt pixel. (x, y) are on the 16x22 figure."""
+def _hair_colours(spec: dict) -> list:
+    c1 = spec["c1"]
+    c2 = spec.get("c2", c1)
+    r, g, b = rgb(c1)
+    darker = mix(c1, "#ffffff", 0.2) if r + g + b < 150 else shade(c1, 0.72)  # black hair shows lines lighter
+    return [rgb(c1), rgb(c2), rgb(spec.get("c3", "#3a2618")), darker, shade(c1, 1.3), shade(c2, 1.45)]
+
+
+def _galaxy(x: int, y: int, t: int):
+    """Night-sky hair: deep purple fading to blue, with stars that twinkle."""
+    colour = mix("#2a0d5e", "#1f6fd1", max(0.0, min(1.0, (y + 4) / 18)))
+    sparkle = (x * 7 + y * 11 + t * 3) % 17
+    if sparkle == 0:
+        return (255, 255, 255)
+    if sparkle == 9:
+        return rgb("#ff8ac4")
+    return colour
+
+
+# ---------------------------------------------------------------- shirts
+
+# 3x5 digits for the numbers on the back of football kits
+_DIGITS = {
+    "0": ["###", "#.#", "#.#", "#.#", "###"], "1": [".#.", "##.", ".#.", ".#.", "###"],
+    "2": ["###", "..#", "###", "#..", "###"], "3": ["###", "..#", ".##", "..#", "###"],
+    "4": ["#.#", "#.#", "###", "..#", "..#"], "5": ["###", "#..", "###", "..#", "###"],
+    "6": ["###", "#..", "###", "#.#", "###"], "7": ["###", "..#", ".#.", ".#.", ".#."],
+    "8": ["###", "#.#", "###", "#.#", "###"], "9": ["###", "#.#", "###", "..#", "###"],
+}
+_CAMO = ["..AA.BB.", ".AAA..B.", "B..A.AA.", "BB...AA.", ".B.AA..B", "..AAA.BB", "A..A..B."]
+_AZULEJO = ["B..B", ".LL.", ".LL.", "B..B"]
+SHIRT_STYLES = ["solid", "kit", "stripes", "hoops", "halves", "sash", "camo", "plaid", "azulejo", "flag", "vest", "gold"]
+
+
+def _number_pixel(number: str, x: int, y: int) -> bool:
+    """Is (x, y) part of the number printed on the back (rows 11 to 15, centred)?"""
+    width = len(number) * 4 - 1
+    left = 4 + (8 - width) // 2
+    row, column = y - 11, x - left
+    if not (0 <= row < 5 and 0 <= column < width) or column % 4 == 3:
+        return False
+    return _DIGITS[number[column // 4]][row][column % 4] == "#"
+
+
+def _shirt_colour(spec: dict, x: int, y: int, t: int, view: str = "front", arm: bool = False, cuff: bool = False):
+    """Colour of one shirt pixel. (x, y) are on the 16x22 figure.
+
+    view is "front", "back" or "side"; arm is True on the sleeves, cuff on the last row of a sleeve.
+    """
     style = spec.get("style", "solid")
     c1 = spec["c1"]
     c2 = spec.get("c2", "#ffffff")
-    if style == "hstripe":
+    c3 = spec.get("c3", shade(c1, 0.7))
+    front, back = view == "front", view == "back"
+    colour = c1
+    if style == "kit":
+        collar = y == 10 and ((5 <= x <= 10) if back else (6 <= x <= 9) if front else (5 <= x <= 6))
+        if collar or (front and y == 11 and x in (7, 8)) or cuff:
+            colour = c2
+    elif style == "stripes":
+        colour = c2 if not arm and x in (5, 6, 9, 10) else c2 if cuff else c1
+    elif style == "hoops":
         colour = c1 if ((y - 10) // 2) % 2 == 0 else c2
-    elif style == "vstripe":
-        colour = c1 if x % 2 == 0 else c2
-    elif style == "check":
-        colour = c1 if ((x // 2) + (y // 2)) % 2 == 0 else c2
-    elif style == "emblem":
-        star = (x in (7, 8) and 11 <= y <= 14) or (y in (12, 13) and 6 <= x <= 9)
-        colour = c2 if star else c1
-    elif style == "hoodie":
-        if x in (6, 9) and y in (10, 11, 12):
-            colour = c2  # drawstrings
-        elif 6 <= x <= 9 and y in (14, 15):
-            colour = shade(c1, 0.7)  # pocket
-        else:
-            colour = c1
+    elif style == "halves":
+        left = x <= 7 if not arm else x > 7
+        colour = c1 if left != back else c2
+    elif style == "sash":
+        on_band = (x + y) in (20, 21) if back else (x - y) in (-6, -5)
+        colour = c2 if on_band and not arm else c1
+    elif style == "camo":
+        cell = _CAMO[(y - 10) % len(_CAMO)][x % 8]
+        colour = {"A": c2, "B": c3}.get(cell, c1)
+    elif style == "plaid":
+        line_x, line_y = x % 4 == 1, (y - 10) % 4 == 2
+        colour = c3 if line_x and line_y else c2 if line_x or line_y else c1
+    elif style == "azulejo":
+        cell = _AZULEJO[(y - 10) % 4][x % 4]
+        colour = {"B": c2, "L": c3}.get(cell, c1)
+        if cuff or (y == 10 and not arm):
+            colour = c2
+    elif style == "flag":  # green and red like the Portuguese flag, with a yellow sphere on the chest
+        green_side = (x <= 6) if not arm else (x < 4)
+        if back:
+            green_side = (x >= 9) if not arm else (x > 11)
+        colour = c1 if green_side else c2
+        if front and not arm and 6 <= x <= 8 and 11 <= y <= 13:
+            colour = "#ffffff" if (x, y) == (7, 12) else c3
+        if y == 10 and not arm:
+            colour = c3
+    elif style == "vest":
+        if arm:
+            colour = c3
+        elif front and ((x in (5, 6) or x in (9, 10)) and y in (13, 14)):
+            colour = c2  # pouches
+        elif x in (5, 10) and y in (10, 11):
+            colour = shade(c1, 0.7)  # straps
+        elif front and x in (7, 8) and y == 12:
+            colour = c2
     elif style == "gold":
         colour = mix(c1, "#c98a12", (y - 10) / 8)
         if (x * 7 + y * 13 + t * 5) % 11 == 0:
             colour = c2  # sparkle
-        if x in (7, 8):
+        if front and x in (7, 8):
             colour = "#ffffff" if y < 16 else colour  # zip
-    else:
-        colour = c1
+    number = spec.get("num")
+    if number and back and not arm and _number_pixel(number, x, y):
+        colour = spec.get("nc", c2)
     if y == 16:
         colour = shade(colour, 0.8)
     return rgb(colour)
@@ -128,22 +257,23 @@ def sprite(skin: str, pants: str, hair_id, shirt_id, direction: str = "down", st
     def r(x, y, w, h, colour):
         d.rectangle([OX + x, OY + y, OX + x + w - 1, OY + y + h - 1], fill=colour)
 
-    def shirt_area(x0, x1, y0, y1, darker=False):
+    def shirt_area(x0, x1, y0, y1, darker=False, view="front", arm=False):
         for y in range(y0, y1 + 1):
             for x in range(x0, x1 + 1):
-                colour = _shirt_colour(shirt, x, y, t)
+                colour = _shirt_colour(shirt, x, y, t, view, arm, cuff=arm and y == y1)
                 d.point((OX + x, OY + y), fill=shade(colour, 0.82) if darker else colour)
 
     if direction in ("down", "up"):
+        view = "front" if direction == "down" else "back"
         lift_l, lift_r = (1 if step == 1 else 0), (1 if step == 2 else 0)
         r(5, 17, 3, 3 - lift_l, pants_c)
         r(5, 20 - lift_l, 3, 2, shoe)
         r(8, 17, 3, 3 - lift_r, pants_dark)
         r(8, 20 - lift_r, 3, 2, shoe)
-        shirt_area(4, 11, 10, 16)
+        shirt_area(4, 11, 10, 16, view=view)
         swing = {0: (0, 0), 1: (1, -1), 2: (-1, 1)}[step]
-        shirt_area(2, 3, 10, 13 + min(0, swing[0]), darker=True)
-        shirt_area(12, 13, 10, 13 + min(0, swing[1]), darker=True)
+        shirt_area(2, 3, 10, 13 + min(0, swing[0]), darker=True, view=view, arm=True)
+        shirt_area(12, 13, 10, 13 + min(0, swing[1]), darker=True, view=view, arm=True)
         r(2, 14 + min(0, swing[0]), 2, 2, skin_c)
         r(12, 14 + min(0, swing[1]), 2, 2, skin_c)
         r(4, 2, 8, 8, skin_c)
@@ -152,8 +282,8 @@ def sprite(skin: str, pants: str, hair_id, shirt_id, direction: str = "down", st
             r(6, 5, 1, 2, (34, 26, 30))
             r(9, 5, 1, 2, (34, 26, 30))
             r(7, 8, 2, 1, skin_dark)
-        view = "front" if direction == "down" else "back"
     else:  # left (right is the mirror image)
+        view = "side"
         if step == 1:
             r(4, 17, 3, 3, pants_c)
             r(9, 17, 3, 3, pants_dark)
@@ -162,23 +292,25 @@ def sprite(skin: str, pants: str, hair_id, shirt_id, direction: str = "down", st
         else:
             r(6, 17, 4, 3, pants_c)
             r(5, 20, 5, 2, shoe)
-        shirt_area(5, 10, 10, 16)
+        shirt_area(5, 10, 10, 16, view=view)
         arm_x = 7 + {0: 0, 1: -1, 2: 1}[step]
-        shirt_area(arm_x, arm_x + 1, 11, 14, darker=True)
+        shirt_area(arm_x, arm_x + 1, 11, 14, darker=True, view=view, arm=True)
         r(arm_x, 15, 2, 2, skin_c)
         r(4, 2, 8, 8, skin_c)
         r(4, 9, 8, 1, skin_dark)
         r(5, 5, 1, 2, (34, 26, 30))
-        view = "side"
 
-    c1 = hair["c1"]
-    c2 = hair.get("c2", c1)
+    colours = _hair_colours(hair)
     for x, y, w, h, index in _hair_rects(hair.get("style", "short"), view):
-        if hair.get("rainbow"):
+        if hair.get("rainbow") or hair.get("galaxy"):
             for row in range(h):
-                r(x, y + row, w, 1, rgb(RAINBOW[(y + row + t) % len(RAINBOW)]))
+                for column in range(w):
+                    px, py = x + column, y + row
+                    colour = (_galaxy(px, py, t) if hair.get("galaxy")
+                              else rgb(RAINBOW[(py + t) % len(RAINBOW)]))
+                    d.point((OX + px, OY + py), fill=colour)
         else:
-            r(x, y, w, h, rgb(c2 if index == 1 else c1))
+            r(x, y, w, h, colours[index])
     # one spare row at the bottom so the dark edge also fits under the shoes
     framed = new_layer((SPR_W, SPR_H + 1))
     framed.paste(img, (0, 0))
@@ -211,6 +343,22 @@ def portrait(look, name=None, tag_item=None, scale=8, direction="down", t=0, bac
     return img
 
 
+def showcase(look, name, tag_item=None, t=0, scale=6, background="#231a4d"):
+    """The big preview in the store and the wardrobe: the character from the front, the side and the back."""
+    gap = 18
+    w = 3 * SPR_W * scale + 2 * gap + 40
+    h = SPR_H * scale + 96
+    img = Image.new("RGB", (w, h), rgb(background))
+    d = ImageDraw.Draw(img)
+    d.rectangle([0, h - 22, w, h], fill=shade(background, 0.7))  # floor
+    for k, direction in enumerate(("down", "left", "up")):
+        cx = 20 + SPR_W * scale // 2 + k * (SPR_W * scale + gap)
+        draw_character(img, cx, h - 14, look, direction, 0, t, scale)
+    if name:
+        draw_name_tag(img, w // 2, 58, name, catalog.spec_for("name", tag_item), t)
+    return img
+
+
 RARITY_COLOURS = {"common": "#3a6b5a", "rare": "#6b3ad8", "legendary": "#ffb81a"}
 
 
@@ -236,8 +384,21 @@ def _noise(i: int, t: int) -> int:
     return (i * 37 + t * 17 + (i * i) % 7) % 5
 
 
+# Little pictures stamped at both ends of a tag: one letter per colour.
+_STAMPS = {
+    "storm": ([".##", "##.", ".##", "##."], {"#": "#ff8af0"}),
+    "arraial": (["..DDDDD.D", ".DEDDDDDD", "SSSSSSSSS", ".SSSSSS.S"],  # sardines
+                {"D": "#2f5f9a", "S": "#d3dbe8", "E": "#16122b"}),
+    "pitch": ([".WW.", "WKWW", "WWKW", ".WW."], {"W": "#ffffff", "K": "#16122b"}),
+}
+FLAG_COLOURS = ["#d83a3a", "#f2d03b", "#3aa655", "#2f6fe0", "#ff8ac4"]
+
+
 def draw_name_tag(img, cx, bottom, name, spec=None, t=0, scale=2):
-    """Draw the bubble with the name. (cx, bottom) is the bottom-middle of the bubble."""
+    """Draw the bubble with the name. (cx, bottom) is the bottom-middle of the bubble.
+
+    spec comes from arcade/catalog.py: bg, fg and border colours and an effect "fx".
+    """
     spec = spec or catalog.DEFAULTS["name"]
     bg = spec.get("bg", "#ffffff")
     fg = spec.get("fg") or readable_on(bg)
@@ -248,6 +409,9 @@ def draw_name_tag(img, cx, bottom, name, spec=None, t=0, scale=2):
     x0, x1 = int(cx - tw // 2 - 3 * u), int(cx + tw // 2 + 3 * u)
     y0, y1 = int(bottom - th - 2 * u), int(bottom)
     d = ImageDraw.Draw(img)
+
+    def block(x, y, colour, w=u, h=u):
+        d.rectangle([x, y, x + w - 1, y + h - 1], fill=rgb(colour))
 
     if fx == "fire":
         flames = ["#ff3b1a", "#ff7a1a", "#ffb81a", "#ffe94a"]
@@ -263,37 +427,45 @@ def draw_name_tag(img, cx, bottom, name, spec=None, t=0, scale=2):
                 if _noise(k + side_x, t) > 1:
                     d.rectangle([side_x, y1 - (k + 1) * u, side_x + u - 1, y1 - k * u - 1],
                                 fill=rgb(flames[min(3, k // 2)]))
-    elif fx == "glow":
+    elif fx == "storm":  # a purple glow that pulses
+        pulse = 0.75 + 0.25 * ((t % 4) in (1, 2))
         for grow, strength in ((3 * u, 0.25), (2 * u, 0.5), (u, 0.8)):
-            d.rectangle([x0 - grow, y0 - grow, x1 + grow, y1 + grow], fill=mix("#16122b", border, strength))
+            d.rectangle([x0 - grow, y0 - grow, x1 + grow, y1 + grow],
+                        fill=mix("#16122b", border, strength * pulse))
+    elif fx == "scarf":  # fringe at both ends, like a football scarf
+        colours = [border, spec.get("border2", "#ffffff")]
+        for k, y in enumerate(range(y0 + u, y1 - u + 1, u)):
+            block(x0 - 2 * u, y, colours[k % 2], 2 * u, u - 1)
+            block(x1 + 1, y, colours[k % 2], 2 * u, u - 1)
+    elif fx == "arraial":  # a string of party flags above the tag
+        d.line([x0 - u, y0 - 3 * u, x1 + u, y0 - 3 * u], fill=rgb("#16122b"), width=1)
+        for k, x in enumerate(range(x0, x1 - u, 3 * u)):
+            colour = rgb(FLAG_COLOURS[k % len(FLAG_COLOURS)])
+            d.polygon([(x, y0 - 3 * u), (x + 2 * u, y0 - 3 * u), (x + u, y0 - u)], fill=colour)
 
     d.rectangle([x0, y0, x1, y1], fill=rgb(border))
+    if fx == "scarf":  # the border is made of blocks of the two scarf colours
+        colours = [border, spec.get("border2", "#ffffff")]
+        for k, x in enumerate(range(x0, x1 + 1, 2 * u)):
+            block(x, y0, colours[k % 2], min(2 * u, x1 + 1 - x), u)
+            block(x, y1 - u + 1, colours[(k + 1) % 2], min(2 * u, x1 + 1 - x), u)
     d.rectangle([x0 + u, y0 + u, x1 - u, y1 - u], fill=rgb(bg))
-    if fx == "gold":
-        d.rectangle([x0 + u, y0 + u, x1 - u, y0 + 2 * u], fill=rgb("#fff3a8"))
-        d.rectangle([x0 + u, y1 - 2 * u, x1 - u, y1 - u], fill=rgb("#d9a520"))
+    if fx == "pitch":  # mowed stripes, like the grass of a football pitch
+        for k, x in enumerate(range(x0 + u, x1 - u + 1, 2 * u)):
+            if k % 2:
+                block(x, y0 + u, shade(bg, 1.15), min(2 * u, x1 - u + 1 - x), y1 - y0 - 2 * u + 1)
     draw_text(img, (cx, (y0 + y1) // 2 + 1), name, scale, fg, "mm")
 
-    def stamp(shape, colour, left):
+    stamp = _STAMPS.get(fx)
+    if stamp:
+        shape, colours = stamp
         width = len(shape[0]) * u
-        sx = x0 - width - u if left else x1 + u + 1
         sy = (y0 + y1) // 2 - len(shape) * u // 2
-        for ry, row in enumerate(shape):
-            for rx, cell in enumerate(row):
-                if cell == "#":
-                    d.rectangle([sx + rx * u, sy + ry * u, sx + (rx + 1) * u - 1, sy + (ry + 1) * u - 1],
-                                fill=rgb(colour))
-
-    if fx == "stars":
-        star = [".#.", "###", ".#."]
-        stamp(star, "#ffe94a", True)
-        stamp(star, "#ffe94a", False)
-    elif fx == "hearts":
-        heart = ["#.#", "###", ".#."]
-        stamp(heart, "#ff4f8b", True)
-        stamp(heart, "#ff4f8b", False)
-    elif fx == "bolt":
-        bolt = [".##", "##.", ".##", "##."]
-        stamp(bolt, "#ffe94a", True)
-        stamp(bolt, "#ffe94a", False)
+        for left in (True, False):
+            sx = x0 - width - u if left else x1 + u + 1
+            for ry, row in enumerate(shape):
+                cells = row if left or fx != "arraial" else row[::-1]  # the fish face each other
+                for rx, cell in enumerate(cells):
+                    if cell in colours:
+                        block(sx + rx * u, sy + ry * u, colours[cell])
     return (x0, y0, x1, y1)

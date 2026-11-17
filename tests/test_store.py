@@ -6,16 +6,16 @@ from arcade.logic import store
 from arcade.logic.store import StoreError
 
 
-def test_catalogue_has_20_common_5_rare_1_legendary_per_tab():
+def test_catalogue_has_10_common_3_rare_1_legendary_per_tab():
     for slot in ("hair", "shirt", "name"):
-        assert len(catalog.by_slot(slot, "common")) == 20
-        assert len(catalog.by_slot(slot, "rare")) == 5
+        assert len(catalog.by_slot(slot, "common")) == 10
+        assert len(catalog.by_slot(slot, "rare")) == 3
         assert len(catalog.by_slot(slot, "legendary")) == 1
 
 
 def test_item_ids_and_names_are_unique_and_prices_follow_rarity():
     ids = [item["id"] for item in catalog.ITEMS]
-    assert len(ids) == len(set(ids)) == 78
+    assert len(ids) == len(set(ids)) == 42
     for slot in ("hair", "shirt", "name"):
         names = [item["name"] for item in catalog.by_slot(slot)]
         assert len(names) == len(set(names))
@@ -95,3 +95,40 @@ def test_equipping_an_item_you_do_not_own_is_rejected(player):
 def test_unequipping_an_unknown_slot_is_rejected(player):
     with pytest.raises(StoreError):
         store.unequip(player, "shoes")
+
+
+# ---- what each tile in the store shows (store.status)
+
+def test_status_of_an_item_you_can_pay_for(player):
+    player["coins"] = 20
+    assert store.status(player, "shirt_c01") == "affordable"
+    assert store.coins_missing(player, "shirt_c01") == 0
+
+
+def test_status_of_an_item_you_cannot_pay_for(player):
+    player["coins"] = 30
+    assert store.status(player, "shirt_r01") == "too_expensive"
+    assert store.coins_missing(player, "shirt_r01") == 70
+
+
+def test_status_of_owned_and_worn_items(player):
+    player["owned"] = ["hair_c01", "hair_c02"]
+    store.equip(player, "hair_c02")
+    assert store.status(player, "hair_c01") == "owned"
+    assert store.status(player, "hair_c02") == "worn"
+    store.unequip(player, "hair")
+    assert store.status(player, "hair_c02") == "owned"
+
+
+def test_status_of_an_unknown_item_is_refused(player):
+    with pytest.raises(StoreError):
+        store.status(player, "hair_x99")
+    with pytest.raises(StoreError):
+        store.coins_missing(player, "hair_x99")
+
+
+def test_catalogue_names_are_original_designs():
+    """No real clubs, brands or people in the item names (docs/game-design.md, store)."""
+    banned = ("benfica", "porto", "sporting", "fortnite", "clash", "ronaldo", "messi", "nike", "adidas")
+    for item in catalog.ITEMS:
+        assert not any(word in item["name"].lower() for word in banned), item["name"]

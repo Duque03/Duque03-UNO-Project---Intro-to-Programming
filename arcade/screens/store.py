@@ -1,17 +1,22 @@
-"""The store: three tabs (hair, shirt, name), items grouped by rarity, paid with coins."""
+"""The store: click an item to see it on your character, then buy it with coins.
+
+Left: the three tabs (hair, shirt, name) and every item of the tab as a tile showing its price,
+or OWNED / WEARING. Right: a big preview of you wearing the picked item, and the Buy button.
+"""
 
 from __future__ import annotations
 
 import streamlit as st
 
-from arcade import catalog, state, ui
+from arcade import catalog, state, tiles, ui
 from arcade import player as player_model
 from arcade.art import scenes, sprites
-from arcade.config import PRICES, RARITIES, SLOT_LABELS, SLOTS
+from arcade.config import RARITIES, SLOT_LABELS, SLOTS
 from arcade.logic import store
 from arcade.state import S
 
-COLUMNS = 5
+# How a tile's badge looks for each store.status()
+BADGES = {"worn": ("WEARING", "worn"), "owned": ("OWNED", "owned")}
 
 
 def tab_picker(key: str) -> str:
@@ -23,38 +28,75 @@ def tab_picker(key: str) -> str:
     return choice
 
 
+def picked_item(key: str, slot: str) -> dict | None:
+    """The item clicked last, if it belongs to the tab on screen."""
+    item = catalog.get(S.get(key) or "")
+    return item if item is not None and item["slot"] == slot else None
+
+
+def preview(player: dict, slot: str, item: dict | None):
+    """The big picture of the player wearing the item (or what they wear now)."""
+    trying = {slot: item["id"]} if item else None
+    worn = dict(player["equipped"], **(trying or {}))
+    return sprites.showcase(player_model.look(player, trying), player["name"], worn["name"])
+
+
+def _tile(player: dict, item: dict, look: tuple, focus: dict | None) -> dict:
+    status = store.status(player, item["id"])
+    badge, kind = BADGES.get(status, (str(item["price"]), "price" if status == "affordable" else "poor"))
+    return tiles.tile(item, look, player["name"], picked=focus is not None and focus["id"] == item["id"],
+                      badge=badge, badge_kind=kind, worn=status == "worn")
+
+
 def render() -> None:
     player = S.player
-    ui.picture(scenes.banner("STORE", player["coins"], "SPEND THE COINS YOU WIN AT THE TABLES"))
-    slot = tab_picker("store_tab")
-    look = player_model.look(player)
+    ui.picture(scenes.banner("STORE", player["coins"], "CLICK AN ITEM TO TRY IT ON"))
+    left, right = st.columns([3, 2], gap="medium")
 
-    for rarity in RARITIES:
-        st.markdown(
-            f"<b class='rarity-{rarity}'>&#9632; {rarity.upper()}</b> &nbsp; {PRICES[rarity]} coins each",
-            unsafe_allow_html=True,
-        )
-        items = catalog.by_slot(slot, rarity)
-        columns = st.columns(COLUMNS)
-        for index, item in enumerate(items):
-            with columns[index % COLUMNS]:
-                ui.picture(sprites.item_tile(item, look, player["name"]))
-                st.caption(item["name"])
-                if store.owns(player, item["id"]):
-                    ui.button("Owned", f"buy_{item['id']}", disabled=True)
-                elif ui.button(f"Buy · {item['price']}", f"buy_{item['id']}",
-                               disabled=not store.can_afford(player, item["id"]),
-                               help=None if store.can_afford(player, item["id"]) else "Not enough coins"):
-                    try:
-                        store.buy(player, item["id"])
-                        state.save()
-                        st.toast(f"Bought {item['name']}! Wear it from Pause > Customize character.")
-                    except store.StoreError as problem:
-                        st.toast(str(problem))
-                    st.rerun()
-
-    bar = st.columns([1.6, 3.4])
-    with bar[0]:
-        if ui.button("Back to the arcade", "store_back", "Esc", type="primary"):
-            state.go("hub")
+    with left:
+        slot = tab_picker("store_tab")
+        focus = picked_item("store_focus", slot)
+        look = player_model.look(player)
+        sections = [tiles.section(rarity, [_tile(player, item, look, focus) for item in catalog.by_slot(slot, rarity)])
+                    for rarity in RARITIES]
+        clicked = tiles.grid(sections, key="store_grid")
+        if clicked is not None and clicked != S.get("store_focus"):
+            S.store_focus = clicked
             st.rerun()
+
+    with right:
+        ui.picture(preview(player, slot, focus))
+        if focus is None:
+            st.caption("Click an item to see it on you.")
+            status = None
+        else:
+            status = store.status(player, focus["id"])
+            st.markdown(f"<p class='store-item'><b class='rarity-{focus['rarity']}'>{focus['name']}</b>"
+                        f" &middot; {focus['rarity']} &middot; {focus['price']} coins</p>", unsafe_allow_html=True)
+        buy = wear = False
+        if status in ("affordable", "too_expensive"):
+            buy = ui.button(f"Buy for {focus['price']} coins", "store_buy", type="primary",
+                            disabled=status == "too_expensive")
+            if status == "too_expensive":
+                st.caption(f"You need {store.coins_missing(player, focus['id'])} more coins. Win games to earn them.")
+        elif status == "owned":
+            wear = ui.button("Wear it now", "store_wear", type="primary")
+        elif status == "worn":
+            ui.button("You are wearing it", "store_worn", disabled=True)
+        back = ui.button("Back to the arcade", "store_back", "Esc")
+
+    if buy:
+        try:
+            store.buy(player, focus["id"])
+            state.save()
+            st.toast(f"Bought {focus['name']}!")
+        except store.StoreError as problem:
+            st.toast(str(problem))
+        st.rerun()
+    if wear:
+        store.equip(player, focus["id"])
+        state.save()
+        st.rerun()
+    if back:
+        state.go("hub")
+        st.rerun()
