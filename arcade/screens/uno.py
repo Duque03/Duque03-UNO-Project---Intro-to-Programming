@@ -193,7 +193,8 @@ def render() -> None:
         st.rerun()
 
     while not uno_open and game.winner is None and game.current != me:  # the bots play, one visible move at a time
-        common.show(slot, draw(game, me, opponents)[0], "uno")
+        seat = [o["name"] for o in opponents].index(game.current)
+        common.show(slot, common.thinking(draw(game, me, opponents)[0], seat, len(opponents)), "uno")
         started = time.time()
         game.bot_turn(game.current, **UNO_LEVELS[bots.level(game.current)])  # each bot plays at its own level
         common.bot_pause(since=started)

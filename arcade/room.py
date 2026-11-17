@@ -260,6 +260,7 @@ export default function (component) {
         return t && (t.isContentEditable || ["input", "textarea", "select"].includes((t.tagName || "").toLowerCase()));
     };
     const here = () => ({ x: Math.round(G.x), y: Math.round(G.y), dir: G.dir });
+    const PAUSE_BOX = [10, 470, 44, 44];  // bottom-left corner, above the hints
     // Key presses are numbered and sent again until Python says it handled them (data.ack), so none is lost.
     G.pressN = Math.max(G.pressN || 0, data.ack || 0);
     if (G.press && (data.ack || 0) >= G.press.n) G.press = null;
@@ -293,6 +294,8 @@ export default function (component) {
         if (G.cut) return;
         const box = canvas.getBoundingClientRect();
         const sx = (event.clientX - box.left) * 960 / box.width, sy = (event.clientY - box.top) * 540 / box.height;
+        const [px, py, pw, ph] = PAUSE_BOX;
+        if (sx >= px && sx <= px + pw && sy >= py && sy <= py + ph) { act("pause"); return; }
         for (const hit of G.hits || []) {
             if (sx >= hit[0] && sx <= hit[2] && sy >= hit[1] && sy <= hit[3]) {
                 act(hit[4] === "rules" ? "rules" : "interact");
@@ -311,7 +314,14 @@ export default function (component) {
     document.addEventListener("keydown", onKeyDown);
     document.addEventListener("keyup", onKeyUp);
     window.addEventListener("blur", onBlur);
+    const onMove = (event) => {
+        const box = canvas.getBoundingClientRect();
+        const sx = (event.clientX - box.left) * 960 / box.width, sy = (event.clientY - box.top) * 540 / box.height;
+        const [px, py, pw, ph] = PAUSE_BOX;
+        G.hoverPause = sx >= px && sx <= px + pw && sy >= py && sy <= py + ph;
+    };
     canvas.addEventListener("click", onClick);
+    canvas.addEventListener("mousemove", onMove);
 
     if (!G.running) { G.running = true; G.last = now; requestAnimationFrame(frame); }
 
@@ -320,6 +330,7 @@ export default function (component) {
         document.removeEventListener("keyup", onKeyUp);
         window.removeEventListener("blur", onBlur);
         canvas.removeEventListener("click", onClick);
+        canvas.removeEventListener("mousemove", onMove);
     };
 
     // ================================================================ the loop
@@ -344,6 +355,42 @@ export default function (component) {
             if (ox * ox + oy * oy <= 1) return false;
         }
         return true;
+    }
+
+    function lightSprite(S) {
+        if (G.light) return G.light;
+        const r = Math.round(30 * S * 1.35), c = document.createElement("canvas");
+        c.width = 2 * r; c.height = Math.round(2 * r * 0.6);
+        const x = c.getContext("2d");
+        x.translate(r, c.height / 2); x.scale(1, 0.6);
+        const g = x.createRadialGradient(0, 0, 0, 0, 0, r);
+        g.addColorStop(0, "rgba(46, 38, 29, 1)"); g.addColorStop(0.5, "rgba(40, 33, 25, 1)"); g.addColorStop(1, "rgba(0, 0, 0, 1)");
+        x.fillStyle = g; x.fillRect(-r, -r, 2 * r, 2 * r);
+        return (G.light = c);
+    }
+
+    function vignetteSprite() {
+        if (G.vignette) return G.vignette;
+        const c = document.createElement("canvas");
+        c.width = 960; c.height = 540;
+        const x = c.getContext("2d");
+        x.translate(480, 270); x.scale(480, 270);
+        const v = x.createRadialGradient(0, 0, 0, 0, 0, 1.45);
+        for (let i = 0; i <= 12; i++) {
+            const rr = i / 12 * 1.45, edge = Math.min(1, Math.max(0, rr - 0.55) / 0.85);
+            v.addColorStop(i / 12, `rgba(0, 0, 0, ${0.45 * edge * edge})`);
+        }
+        x.fillStyle = v; x.fillRect(-1, -1, 2, 2);
+        return (G.vignette = c);
+    }
+
+    function pauseButton(ctx) {  // a small pause button in the corner, for the mouse (Esc does the same)
+        const [x, y, w, h] = PAUSE_BOX;
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.fillStyle = "rgba(13, 10, 31, 0.82)"; ctx.fillRect(x, y, w, h);
+        ctx.strokeStyle = G.hoverPause ? "#3ad6ff" : "rgba(58, 214, 255, 0.6)"; ctx.lineWidth = 3;
+        ctx.strokeRect(x + 1.5, y + 1.5, w - 3, h - 3);
+        ctx.fillStyle = "#f3ead2"; ctx.fillRect(x + 13, y + 10, 6, h - 20); ctx.fillRect(x + w - 19, y + 10, 6, h - 20);
     }
 
     function zoneAt(x, y) {
@@ -414,7 +461,8 @@ export default function (component) {
         }
         const zoomTime = cut.zoom ? 0.5 : 0;
         cut.zoomP = Math.max(0, Math.min(1, (t - cut.t0 - Math.max(0.3, cut.walk)) / (zoomTime || 1)));
-        if (!cut.sent && t - cut.t0 >= Math.max(0.3, cut.walk) + zoomTime + 0.12) {
+        cut.darkP = cut.zoom ? Math.max(0, Math.min(1, (t - cut.t0 - Math.max(0.3, cut.walk) - zoomTime) / 0.25)) : 0;
+        if (!cut.sent && t - cut.t0 >= Math.max(0.3, cut.walk) + zoomTime + (cut.zoom ? 0.3 : 0.12)) {
             cut.sent = true;
             G.cutDone[cut.id] = true;
             G.send("cut_done", cut.id);
@@ -475,34 +523,18 @@ export default function (component) {
             ctx.drawImage(sheet, col * cw, row * ch, cw, ch, Math.round(th.x * S) - d.feet[0], Math.round(th.y * S) - d.feet[1], cw, ch);
         }
 
-        // a warm light follows the player
+        // a warm light follows the player (painted once, then just stamped: cheap on every computer)
         const me = people.find((p) => p.actor.player);
         if (me) {
+            const light = lightSprite(S);
             ctx.save();
             ctx.globalCompositeOperation = "lighter";
-            ctx.translate(me.x * S, (me.y - 6) * S);
-            ctx.scale(1, 0.6);
-            const r = 30 * S * 1.35, g = ctx.createRadialGradient(0, 0, 0, 0, 0, r);
-            g.addColorStop(0, "rgba(46, 38, 29, 1)");
-            g.addColorStop(0.5, "rgba(40, 33, 25, 1)");
-            g.addColorStop(1, "rgba(0, 0, 0, 1)");
-            ctx.fillStyle = g;
-            ctx.fillRect(-r, -r, 2 * r, 2 * r);
+            ctx.drawImage(light, Math.round(me.x * S - light.width / 2), Math.round((me.y - 6) * S - light.height / 2));
             ctx.restore();
         }
 
-        // darker edges (the vignette of lighting.vignette)
-        ctx.save();
-        ctx.translate(480, 270);
-        ctx.scale(480, 270);
-        const v = ctx.createRadialGradient(0, 0, 0, 0, 0, 1.45);
-        for (let i = 0; i <= 12; i++) {
-            const rr = i / 12 * 1.45, edge = Math.min(1, Math.max(0, rr - 0.55) / 0.85);
-            v.addColorStop(i / 12, `rgba(0, 0, 0, ${0.45 * edge * edge})`);
-        }
-        ctx.fillStyle = v;
-        ctx.fillRect(-1, -1, 2, 2);
-        ctx.restore();
+        // darker edges (the vignette of lighting.vignette), painted once
+        ctx.drawImage(vignetteSprite(), 0, 0);
 
         const top = img(d.top);
         if (top) ctx.drawImage(top, 0, 0);
@@ -534,6 +566,10 @@ export default function (component) {
             }
         }
 
+        if (!G.cut) pauseButton(ctx);
+        if (G.cut && G.cut.darkP > 0) {  // the end of the zoom: fade to black, the table then fades in from black
+            ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = `rgba(0, 0, 0, ${G.cut.darkP})`; ctx.fillRect(0, 0, 960, 540);
+        }
         if (G.fadeStart !== undefined) {  // fade in from black when the room appears
             const a = 1 - (t - G.fadeStart) / 0.35;
             if (a > 0) { ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = `rgba(0, 0, 0, ${a})`; ctx.fillRect(0, 0, 960, 540); }

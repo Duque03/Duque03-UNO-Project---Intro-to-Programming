@@ -17,7 +17,7 @@ import time
 import streamlit as st
 
 from arcade.art import effects, scenes
-from arcade.config import ANIMATIONS, FADE_DELAY, FADE_STEPS, FRAME_DELAY, GAME_TITLE, GLOW, SCREEN_H, SCREEN_W
+from arcade.config import ANIMATIONS, FRAME_DELAY, GAME_TITLE, GLOW, SCREEN_H, SCREEN_W
 
 SCREEN_KEY = "game_screen"
 
@@ -169,17 +169,7 @@ def setup_page() -> None:
     result = _input_catcher(key="click_catcher", on_click_change=lambda: None)
     st.session_state["_click"] = _as_point(result.click)
     _fullscreen(key="fullscreen_button")
-
-
-def movie(frames, seconds_per_frame: float) -> str:
-    """Several pictures as one looping animated picture (WebP). The browser plays it by itself, so the
-    server does no work while it runs (used for the title screen)."""
-    if GLOW:
-        frames = [effects.neon_glow(frame) for frame in frames]
-    buffer = io.BytesIO()
-    frames[0].save(buffer, format="WEBP", save_all=True, append_images=list(frames[1:]),
-                   duration=int(seconds_per_frame * 1000), loop=0, quality=80, method=4)
-    return "data:image/webp;base64," + base64.b64encode(buffer.getvalue()).decode()
+    _fade_style()
 
 
 def _as_point(value) -> tuple[float, float] | None:
@@ -238,16 +228,26 @@ def _inline(img) -> str:
 def show(slot, img) -> None:
     """Put a picture in a slot made by screen().
 
-    After fade_next(), the picture shown before fades to black first and this
-    one fades in from black (task A1).
+    After fade_next() the picture fades in from black (task A1). The browser does the fade (see
+    _fade_style), so it is smooth on every computer instead of a few pictures sent one by one.
     """
-    previous = st.session_state.get("_last_frame")
-    if st.session_state.pop("_fade_next", False) and ANIMATIONS and previous is not None:
-        for frame in scenes.fade_through_black(previous, img, FADE_STEPS):
-            slot.image(_inline(frame), width="stretch")
-            time.sleep(FADE_DELAY)
+    st.session_state.pop("_fade_next", False)
     slot.image(_inline(img), width="stretch")
     st.session_state["_last_frame"] = img
+
+
+def _fade_style() -> None:
+    """Every run writes one small style. After fade_next() it switches the game picture to the other of two
+    identical fade-in animations; a new animation name makes the browser play the fade again from black."""
+    if st.session_state.get("_fade_next") and ANIMATIONS:
+        st.session_state["_fade_count"] = st.session_state.get("_fade_count", 0) + 1
+    name = f"arcade-fade-{st.session_state.get('_fade_count', 0) % 2}"
+    st.markdown(
+        f"<style>.st-key-{SCREEN_KEY} img {{ animation: {name} .4s ease-out; }}"
+        "@keyframes arcade-fade-0 { from { opacity: 0; } to { opacity: 1; } }"
+        "@keyframes arcade-fade-1 { from { opacity: 0; } to { opacity: 1; } }</style>",
+        unsafe_allow_html=True,
+    )
 
 
 def fade_next() -> None:

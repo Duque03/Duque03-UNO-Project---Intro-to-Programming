@@ -71,5 +71,3 @@ GLOW = True
 # or None for the old built-in 5x7 font
 TEXT_FONT = "Jersey10-Regular.ttf"
 
-# Title screen animation (visual update, idea 5): seconds between two frames
-TITLE_EVERY = 0.4
