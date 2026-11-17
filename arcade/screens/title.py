@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import streamlit as st
 
-from arcade import sound, state, ui
+from arcade import accounts, sound, state, ui
 from arcade.art import scenes
 from arcade.config import ANIMATIONS, NAME_MAX, TITLE_EVERY
-from arcade.player import InvalidName, clean_name
+from arcade.player import InvalidName
 from arcade.screens import howto
 from arcade.state import S
 
@@ -41,16 +41,20 @@ def render() -> None:
         with st.form("name_form", border=False):
             raw = st.text_input("Insert name", value=S.last_name, max_chars=NAME_MAX, placeholder="YOUR NAME",
                                 label_visibility="collapsed")
+            raw_pin = st.text_input("PIN", type="password", max_chars=accounts.PIN_MAX, placeholder="PIN (4-8 DIGITS)",
+                                    label_visibility="collapsed")
             play = st.form_submit_button("Play", type="primary", width="stretch")
-        st.caption("Type your name and press Enter. Use the same name later to continue with your coins and clothes.")
+        st.caption("New name? Choose a PIN and remember it. Coming back? Use the same name and PIN to keep "
+                   "your coins and clothes.")
         _howto_button()
         if play:
             try:
-                name = clean_name(raw)
-            except InvalidName as problem:
+                player, is_new = accounts.sign_in(raw, raw_pin)
+            except (InvalidName, accounts.InvalidPin, accounts.WrongPin, accounts.Locked) as problem:
                 st.error(str(problem))
                 return
-            is_new = state.start_session(name)
+            name = player["name"]
+            state.start_session(player)
             S.naming = False
             ui.fade_next()  # into the arcade through black
             sound.play("start")

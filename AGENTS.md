@@ -6,7 +6,8 @@ Change this file through a pull request, like any other file.
 ## Stack
 
 - Python 3.11 or newer, managed with `uv`.
-- Streamlit for the interface, Pillow to paint the pixel art, SQLite for saved players, pytest for tests.
+- Streamlit for the interface, Pillow to paint the pixel art, SQLite (laptop) or a hosted PostgreSQL database
+  through psycopg (online) for saved players, pytest for tests.
 - No other libraries without agreeing as a team first. Keep versions pinned in `pyproject.toml`
   and keep `requirements.txt` (used by the host) identical to it.
 
@@ -97,18 +98,19 @@ changing these files, and change them in a small pull request of their own.
 
 ## Data and secrets
 
-- Saved players live in `data/arcade.db` (SQLite). The file is in `.gitignore`. Delete it to reset all players.
+- Players are saved by `arcade/db.py`: in `data/arcade.db` (SQLite, in `.gitignore`) on a laptop, and in a hosted
+  PostgreSQL database when a `DATABASE_URL` secret is set (the deployed app). Same table, same three functions.
 - A player is stored as one JSON text per name. New fields get their default from `player.new_player()`.
-- Tests use a temporary database (`tmp_path`), never `data/arcade.db`.
-- On Streamlit Community Cloud the disk is temporary, so `data/arcade.db` is wiped whenever the app restarts.
-  If saved progress must survive there, move storage to a hosted database: change only `arcade/db.py`, read
-  the connection string from a secret named `DATABASE_URL`, and keep tests on a local database.
+- Tests use a temporary SQLite file (`tmp_path`), never `data/arcade.db` and never the real online database.
+  `tests/test_db_online.py` only runs with `TEST_DATABASE_URL` set to a database that may be wiped.
+- Sign-in goes through `accounts.sign_in` (name + PIN). PINs are stored only as salted PBKDF2 hashes; never log,
+  print or show them.
 - No keys, passwords or connection strings in the repository. Secrets go in the host's settings and in
   `.streamlit/secrets.toml`, which is in `.gitignore`.
 
 ## Known limits (be ready to explain them)
 
-- Anyone who types a name continues that player's save. There is no password yet.
+- A forgotten PIN cannot be recovered (there is no email). Delete the player from the database to free the name.
 - Walking happens in the browser and Python only hears about it when the player stops, changes zone or presses a
   key, so the position Python knows can be a fraction of a second old (every action re-sends it).
 - In the championship, the two bots that are not playing you do not really play: their result is drawn at random.
