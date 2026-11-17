@@ -51,15 +51,14 @@ def save() -> None:
         db.save_player(S.player)
 
 
-def start_session(name: str) -> bool:
-    """Load (or create) the player and walk into the arcade. Returns True for a new player."""
-    S.player, is_new = db.load_or_create(name)
-    S.last_name = name
+def start_session(player: dict) -> None:
+    """Walk into the arcade with a player who has signed in (see accounts.sign_in)."""
+    S.player = player
+    S.last_name = player["name"]
     S.hub = {"pos": hubmap.SPAWN, "dir": "up", "bots": {}, "walk": None}
     reset_bots()
     S.match = S.game = S.result = S.champ = None
     S.screen = "hub"
-    return is_new
 
 
 def reset_bots() -> None:

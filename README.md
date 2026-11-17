@@ -22,8 +22,8 @@ uv sync
 uv run streamlit run app.py
 ```
 
-The game opens at http://localhost:8501. Type a name, press **Play**, and use the same name later to
-continue with your coins, clothes and wins.
+The game opens at http://localhost:8501. Type a name and a PIN (4 to 8 digits), press **Play**, and use
+the same name and PIN later to continue with your coins, clothes and wins.
 
 ## Run the tests
 
@@ -65,6 +65,23 @@ AGENTS.md              rules for people and coding agents working on this reposi
 
 ## Where the data is stored
 
-Players are saved in a SQLite file, `data/arcade.db`, which is created on first run and is not
-committed to git. Delete the file to reset all players. See `AGENTS.md` for what this means when the
-app is deployed.
+- **On your computer:** players are saved in a SQLite file, `data/arcade.db`, created on first run and not
+  committed to git. Delete it to reset all players.
+- **Online:** the free Streamlit host wipes its disk whenever the app restarts, so the deployed game saves players
+  in a free hosted PostgreSQL database instead. `arcade/db.py` switches automatically when a `DATABASE_URL` secret
+  is set. The connection string is never in the repository.
+- **PINs** are never stored: only a salted PBKDF2 hash (see `arcade/accounts.py`). After 5 wrong PINs a name is
+  locked for a minute.
+
+### Setting up the online database (once)
+
+1. Create a free account at [neon.tech](https://neon.tech) and a project (any name, region in Europe).
+2. On the project page, copy the connection string (it starts with `postgresql://`).
+3. In Streamlit Community Cloud, open the app's **Settings > Secrets** and paste:
+   ```toml
+   DATABASE_URL = "postgresql://...the string you copied..."
+   ```
+4. Save. The app restarts and creates its `players` table by itself.
+
+To run the online-save tests against a database you may wipe (never the real one):
+`TEST_DATABASE_URL="postgresql://..." uv run pytest tests/test_db_online.py`. Without it they are skipped.
