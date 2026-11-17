@@ -89,9 +89,11 @@ changing these files, and change them in a small pull request of their own.
   To move the player from Python, change `S.hub["pos"]`: the browser jumps there on the next run.
 - **Clicks made during a bot's turn are ignored** (see `bots_were_playing` in the table screens). Keep that
   when you change a table screen.
-- **The only JavaScript is `INPUT_JS` in `arcade/ui.py`, `SOUND_JS` in `arcade/sound.py` and `ROOM_JS` in
-  `arcade/room.py`.** `INPUT_JS` reports clicks on the game picture. `SOUND_JS` only plays sounds by name and never
-  sends anything back. `ROOM_JS` moves and draws the room. Python checks every value it receives before using it.
+- **The only JavaScript is `INPUT_JS` in `arcade/ui.py`, `SOUND_JS` in `arcade/sound.py`, `ROOM_JS` in
+  `arcade/room.py` and `JS` in `arcade/tiles.py`.** `INPUT_JS` reports clicks on the game picture. `SOUND_JS` only
+  plays sounds by name and never sends anything back. `ROOM_JS` moves and draws the room. The `tiles.py` script draws
+  the item grid of the store and the wardrobe and reports which item was clicked. Python checks every value it
+  receives before using it (`tiles.grid` only accepts ids that exist in `catalog.py`).
 - **Streamlit fades the page while the script runs** (`data-stale`). `ui.py` switches that off, because in a game
   it looks like the screen going dark.
 

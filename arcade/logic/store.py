@@ -51,3 +51,23 @@ def unequip(player: dict, slot: str) -> None:
 
 def owned_items(player: dict, slot: str) -> list[dict]:
     return [item for item in catalog.by_slot(slot) if item["id"] in player["owned"]]
+
+
+def status(player: dict, item_id: str) -> str:
+    """How the store shows an item: "worn", "owned", "affordable" or "too_expensive"."""
+    item = catalog.get(item_id)
+    if item is None:
+        raise StoreError("That item does not exist.")
+    if player["equipped"].get(item["slot"]) == item_id:
+        return "worn"
+    if owns(player, item_id):
+        return "owned"
+    return "affordable" if can_afford(player, item_id) else "too_expensive"
+
+
+def coins_missing(player: dict, item_id: str) -> int:
+    """How many more coins the player needs for an item (0 when they can pay)."""
+    item = catalog.get(item_id)
+    if item is None:
+        raise StoreError("That item does not exist.")
+    return max(0, item["price"] - player["coins"])

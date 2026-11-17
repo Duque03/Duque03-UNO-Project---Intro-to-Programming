@@ -4,19 +4,19 @@ from __future__ import annotations
 
 # "home" is where the bot hangs out in the arcade (base-canvas coordinates of its feet).
 BOTS = [
-    {"name": "PIXEL", "skin": "#f2c9a0", "pants": "#2b3a67", "hair": "hair_c06", "shirt": "shirt_r04",
-     "tag": "name_c08", "home": (88, 72), "dir": "up"},
-    {"name": "TURBO", "skin": "#c98d5f", "pants": "#3a3a44", "hair": "hair_r01", "shirt": "shirt_r01",
-     "tag": "name_c02", "home": (120, 72), "dir": "up"},
-    {"name": "GLITCH", "skin": "#e9c9f2", "pants": "#1d1a22", "hair": "hair_r04", "shirt": "shirt_r05",
-     "tag": "name_r01", "home": (152, 72), "dir": "up"},
-    {"name": "JOY", "skin": "#8f5a3a", "pants": "#6b2b4a", "hair": "hair_r03", "shirt": "shirt_c13",
+    {"name": "PIXEL", "skin": "#f2c9a0", "pants": "#2b3a67", "hair": "hair_c07", "shirt": "shirt_c04",
+     "tag": "name_c03", "home": (88, 72), "dir": "up"},
+    {"name": "TURBO", "skin": "#c98d5f", "pants": "#3a3a44", "hair": "hair_r01", "shirt": "shirt_c01",
+     "tag": "name_c07", "home": (120, 72), "dir": "up"},
+    {"name": "GLITCH", "skin": "#e9c9f2", "pants": "#1d1a22", "hair": "hair_r04", "shirt": "shirt_r04",
+     "tag": "name_r05", "home": (152, 72), "dir": "up"},
+    {"name": "JOY", "skin": "#8f5a3a", "pants": "#6b2b4a", "hair": "hair_r05", "shirt": "shirt_c19",
      "tag": "name_r04", "home": (24, 112), "dir": "left"},
-    {"name": "BYTE", "skin": "#f2d9b8", "pants": "#2a5a3a", "hair": "hair_c15", "shirt": "shirt_r03",
-     "tag": "name_c04", "home": (296, 116), "dir": "right"},
+    {"name": "BYTE", "skin": "#f2d9b8", "pants": "#2a5a3a", "hair": "hair_c11", "shirt": "shirt_c17",
+     "tag": "name_r03", "home": (296, 116), "dir": "right"},
 ]
 
-SHOPKEEPER = {"name": "SHOP", "skin": "#e0b088", "pants": "#3a3a44", "hair": "hair_r05", "shirt": "shirt_r02"}
+SHOPKEEPER = {"name": "SHOP", "skin": "#e0b088", "pants": "#3a3a44", "hair": "hair_r03", "shirt": "shirt_r03"}
 
 BOT_NAMES = [b["name"] for b in BOTS]
 _BY_NAME = {b["name"]: b for b in BOTS}
