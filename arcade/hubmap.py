@@ -7,6 +7,7 @@ the spot where its feet touch the floor.
 from __future__ import annotations
 
 import math
+from functools import lru_cache
 
 from arcade.config import SCALE
 
@@ -137,3 +138,54 @@ def facing(start, end) -> str:
     if abs(dx) > abs(dy):
         return "right" if dx > 0 else "left"
     return "down" if dy > 0 else "up"
+
+
+# ----- the floor map for the browser (walking is drawn in the browser, see arcade/room.py)
+#
+# The browser moves the player 60 times a second, far too often to ask Python
+# each time. So Python answers every question in advance, for every pixel of
+# the room, and sends the answers as two small tables:
+#   blocked: 1 where feet can never stand (outside the floor, tables, counter)
+#   near:    which spot (if any) you are close enough to use, as a number
+# Bots move, so they are not in the table: the browser checks BOT_BODY itself.
+
+NEAR_CODES = {None: 0, "uno": 1, "checkers": 2, "connect4": 3, "store": 4, "champ": 5}
+
+
+def _runs(values) -> list[int]:
+    """Run-length encoding: [value, count, value, count, ...]. Long runs of the same value become two numbers."""
+    out: list[int] = []
+    for value in values:
+        if out and out[-2] == value:
+            out[-1] += 1
+        else:
+            out += [value, 1]
+    return out
+
+
+def unruns(runs: list[int]) -> list[int]:
+    """Undo _runs (the browser does the same in JavaScript)."""
+    out: list[int] = []
+    for i in range(0, len(runs), 2):
+        out += [runs[i]] * runs[i + 1]
+    return out
+
+
+@lru_cache(maxsize=1)
+def floor_map() -> dict:
+    """Both tables for the whole 320x180 room, row by row (index = y * 320 + x)."""
+    from arcade.config import BASE_H, BASE_W
+
+    blocked, near = [], []
+    for y in range(BASE_H):
+        for x in range(BASE_W):
+            on_floor = clamp(x, y) == (x, y)
+            blocked.append(0 if on_floor and not blocked_by_furniture((x, y)) else 1)
+            near.append(NEAR_CODES[near_spot((x, y))] if on_floor else 0)
+    return {"w": BASE_W, "h": BASE_H, "blocked": _runs(blocked), "near": _runs(near),
+            "bot_body": list(BOT_BODY), "walk_area": list(WALK_AREA)}
+
+
+def blocked_by_furniture(pos) -> bool:
+    """blocked() without the bots: tables and the store counter."""
+    return blocked(pos, ())

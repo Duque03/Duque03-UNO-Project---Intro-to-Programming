@@ -1,17 +1,11 @@
 """Small Streamlit helpers shared by all the screens.
 
-How clicks and walking keys reach Python
-----------------------------------------
-Streamlit pictures are not clickable by themselves, and Streamlit cannot tell
-that a key is being held down. INPUT_JS below is the only JavaScript in the
-project. It does two small jobs:
-
-  * it listens for clicks on the game picture and tells Python where the
-    click landed, already converted to the 960x540 coordinates the drawing
-    code uses (read it with click());
-  * while W, A, S, D or an arrow key is held down in the arcade room, it
-    tells Python "one step that way" about ten times a second (read it
-    with move()).
+How clicks reach Python
+-----------------------
+Streamlit pictures are not clickable by themselves. INPUT_JS below listens for
+clicks on the game picture and tells Python where the click landed, already
+converted to the 960x540 coordinates the drawing code uses (read it with click()).
+Walking in the arcade room is handled by the room itself (arcade/room.py).
 """
 
 from __future__ import annotations
@@ -49,7 +43,10 @@ _CSS = f"""
 .stApp, .stApp p, .stApp label, .stApp input, .stApp button, [data-testid="stToast"] {{
     font-family: "Jersey 10", monospace !important;
 }}
-.block-container {{ max-width: 992px; padding: 1.4rem 1rem 1rem 1rem; }}
+/* the game is as big as the window allows: the picture (16:9) plus one row of buttons must fit in the height */
+.block-container {{ max-width: min(96vw, calc((100vh - 120px) * 16 / 9)); padding: .8rem 1rem .6rem 1rem; }}
+/* Streamlit fades everything while the script runs; in a game that just looks like the screen going dark */
+[data-stale="true"] {{ opacity: 1 !important; transition: none !important; }}
 /* Streamlit's own header, menu and footer are not part of the game */
 header[data-testid="stHeader"], [data-testid="stToolbar"], [data-testid="stDecoration"],
 #MainMenu, footer, [data-testid="stStatusWidget"] {{ display: none !important; }}
@@ -99,13 +96,9 @@ button[data-testid^="stBaseButton-primary"]:not(:disabled) * {{ color: #1a0f2e !
 </style>
 """
 
-ROOM_MARKER = "hub_use"  # key of a button that only exists in the arcade room
-STEP_MS = 100  # how often a held key sends another step
-
 INPUT_JS = f"""
 export default function (component) {{
     const {{ setTriggerValue }} = component;
-
     const onClick = (event) => {{
         const picture = event.target;
         if (!(picture instanceof HTMLImageElement) || !picture.closest(".st-key-{SCREEN_KEY}")) return;
@@ -116,65 +109,19 @@ export default function (component) {{
             y: ((event.clientY - box.top) / box.height) * {SCREEN_H},
         }});
     }};
-
-    const STEPS = {{
-        w: [0, -1], a: [-1, 0], s: [0, 1], d: [1, 0],
-        arrowup: [0, -1], arrowleft: [-1, 0], arrowdown: [0, 1], arrowright: [1, 0],
-    }};
-    const held = [];
-    let timer = null;
-    const inRoom = () => document.querySelector(".st-key-{ROOM_MARKER}") !== null;
-    const sendStep = () => {{
-        if (!held.length || !inRoom()) return;
-        const [dx, dy] = STEPS[held[held.length - 1]];
-        setTriggerValue("move", {{ dx, dy }});
-    }};
-    const stopWalking = () => {{
-        held.length = 0;
-        if (timer) {{ clearInterval(timer); timer = null; }}
-    }};
-    const onKeyDown = (event) => {{
-        const key = (event.key || "").toLowerCase();
-        if (!(key in STEPS) || event.repeat || event.ctrlKey || event.metaKey || event.altKey) return;
-        const tag = (event.target.tagName || "").toLowerCase();
-        if (tag === "input" || tag === "textarea" || !inRoom()) return;
-        if (key.startsWith("arrow")) event.preventDefault();  // do not scroll the page
-        if (!held.includes(key)) held.push(key);
-        sendStep();
-        if (!timer) timer = setInterval(sendStep, {STEP_MS});
-    }};
-    const onKeyUp = (event) => {{
-        const index = held.indexOf((event.key || "").toLowerCase());
-        if (index >= 0) held.splice(index, 1);
-        if (!held.length) stopWalking();
-    }};
-
     document.addEventListener("click", onClick);
-    document.addEventListener("keydown", onKeyDown);
-    document.addEventListener("keyup", onKeyUp);
-    window.addEventListener("blur", stopWalking);
-    return () => {{
-        document.removeEventListener("click", onClick);
-        document.removeEventListener("keydown", onKeyDown);
-        document.removeEventListener("keyup", onKeyUp);
-        window.removeEventListener("blur", stopWalking);
-        stopWalking();
-    }};
+    return () => document.removeEventListener("click", onClick);
 }}
 """
 _input_catcher = st.components.v2.component("arcade_input_catcher", js=INPUT_JS)
 
-_STEPS = {(0, -1), (-1, 0), (0, 1), (1, 0)}
-
 
 def setup_page() -> None:
     """Call once at the top of every run: page settings, styles and the input listener."""
-    st.set_page_config(page_title=GAME_TITLE.title(), page_icon="🕹️", layout="centered")
+    st.set_page_config(page_title=GAME_TITLE.title(), page_icon="🕹️", layout="wide")
     st.markdown(_CSS, unsafe_allow_html=True)
-    result = _input_catcher(key="click_catcher", on_click_change=lambda: None, on_move_change=lambda: None)
-    point, step = result.click, result.move
-    st.session_state["_click"] = _as_point(point)
-    st.session_state["_move"] = _as_step(step)
+    result = _input_catcher(key="click_catcher", on_click_change=lambda: None)
+    st.session_state["_click"] = _as_point(result.click)
 
 
 def _as_point(value) -> tuple[float, float] | None:
@@ -186,23 +133,9 @@ def _as_point(value) -> tuple[float, float] | None:
     return (x, y) if 0 <= x <= SCREEN_W and 0 <= y <= SCREEN_H else None
 
 
-def _as_step(value) -> tuple[int, int] | None:
-    """Only accept one step up, down, left or right (never a bigger jump)."""
-    try:
-        step = (int(value["dx"]), int(value["dy"]))
-    except (TypeError, KeyError, ValueError):
-        return None
-    return step if step in _STEPS else None
-
-
 def click() -> tuple[float, float] | None:
     """Where the game picture was clicked just now (960x540 coordinates), or None."""
     return st.session_state.get("_click")
-
-
-def move() -> tuple[int, int] | None:
-    """The step asked for by a walking key just now, as (dx, dy), or None."""
-    return st.session_state.get("_move")
 
 
 class Slot:
@@ -231,15 +164,17 @@ def screen(key: str = SCREEN_KEY) -> Slot:
 def _inline(img) -> str:
     """The picture as text that the browser can show straight away.
 
-    PNG keeps the pixel art sharp. Sending the picture inline (instead of as a
-    separate file the browser has to fetch) is what keeps animations smooth:
-    a frame can never arrive after it has already been replaced.
+    WebP at high quality is about three times smaller than PNG for these pictures
+    (the glow and the lighting are soft gradients) and quicker to make, so every
+    frame reaches the browser sooner. Sending the picture inline (instead of as a
+    separate file the browser has to fetch) keeps animations smooth: a frame can
+    never arrive after it has already been replaced.
     """
     if GLOW:  # every picture gets the soft neon glow just before it is sent
         img = effects.neon_glow(img)
     buffer = io.BytesIO()
-    img.save(buffer, format="PNG", compress_level=3)
-    return "data:image/png;base64," + base64.b64encode(buffer.getvalue()).decode("ascii")
+    img.save(buffer, format="WEBP", quality=92, method=0)
+    return "data:image/webp;base64," + base64.b64encode(buffer.getvalue()).decode("ascii")
 
 
 def show(slot, img) -> None:
