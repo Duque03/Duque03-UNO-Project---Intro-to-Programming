@@ -10,7 +10,7 @@ from PIL import ImageDraw
 from arcade import match, state, ui
 from arcade.art import scenes
 from arcade.art.pixel import draw_text, panel
-from arcade.config import BOT_DELAY, CHECKERS_BLUNDER, CHECKERS_DEPTH, SCREEN_W
+from arcade.config import CHECKERS_BLUNDER, CHECKERS_DEPTH, SCREEN_W
 from arcade.logic.checkers import BOTTOM, DRAW, SIZE, TOP, IllegalMove, owner
 from arcade.screens import common
 from arcade.state import S
@@ -113,15 +113,26 @@ def render() -> None:
     opponent = match.opponents()[0]
     slot = ui.screen()
     bot_was_playing = game.winner is None and game.turn == TOP
+    if common.run_clock(game.winner is None and game.turn == BOTTOM):
+        while game.winner is None and game.turn == BOTTOM:  # 15 seconds went by: random moves (every jump)
+            game.random_move(state.rng())
+        common.restart_clock()
+        S.selected, S.flash = None, "Time's up! A random move was played"
+        st.rerun()
 
+    first_jump = True
     while game.winner is None and game.turn == TOP:  # bot moves (each jump is shown)
-        ui.show(slot, draw(game, opponent)[0])
-        time.sleep(BOT_DELAY)
+        common.show(slot, draw(game, opponent)[0], "checkers")
+        if first_jump:
+            common.bot_pause()  # it thinks before its move, then jumps on quickly
+        else:
+            time.sleep(0.6)
+        first_jump = False
         game.bot_move(state.rng(), CHECKERS_DEPTH, CHECKERS_BLUNDER)
 
     if game.winner and S.result is None:
         if S.match["mode"] == "champ":
-            ui.show(slot, draw(game, opponent)[0])
+            common.show(slot, draw(game, opponent)[0], "checkers")
             time.sleep(1.2)
         if game.winner == DRAW:
             match.finish([me, opponent["name"]], tied=True)
@@ -130,11 +141,12 @@ def render() -> None:
         if S.screen != "checkers":
             st.rerun()
 
+    common.run_clock(game.winner is None and game.turn == BOTTOM)  # the bot is done: the player's 15 seconds start
     if game.chain:
         S.selected = game.chain
     img, regions = draw(game, opponent, S.selected, S.flash)
     img, regions = common.with_result(img, regions)
-    ui.show(slot, img)
+    common.show(slot, img, "checkers")
     point = None if bot_was_playing else ui.click()  # a click made during the bot's turn does not count
     action = ui.hit(regions, point)
 
@@ -152,6 +164,8 @@ def render() -> None:
         if S.selected and square in {move[1] for move in game.moves_from(S.selected)}:
             game.move(S.selected, square)
             S.selected, S.flash = game.chain, ""
+            if game.chain:
+                common.restart_clock()  # 15 new seconds for the next jump
         elif game.moves_from(square):
             S.selected, S.flash = square, ""
         elif owner(game.board[square[0]][square[1]]) == BOTTOM:

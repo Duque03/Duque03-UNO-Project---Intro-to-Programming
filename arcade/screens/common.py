@@ -1,6 +1,10 @@
-"""Bits that every game table shares: the header, the end pop-up and the pause button."""
+"""Bits that every game table shares: the header, the end pop-up, the pause button,
+how long the bots think, and the clock for the player's turn."""
 
 from __future__ import annotations
+
+import random
+import time
 
 import streamlit as st
 from PIL import ImageDraw
@@ -8,8 +12,57 @@ from PIL import ImageDraw
 from arcade import match, state, ui
 from arcade.art import scenes
 from arcade.art.pixel import draw_text, text_size
-from arcade.config import SCREEN_W
+from arcade.config import BOT_THINK, SCREEN_W, TURN_SECONDS
+from arcade.logic import turn_clock
 from arcade.state import S
+
+
+def bot_pause() -> None:
+    """A bot thinks for a moment before it moves: a random time between the two numbers of BOT_THINK."""
+    time.sleep(random.uniform(*BOT_THINK))
+
+
+def show(slot, img, screen: str) -> None:
+    """Show the table picture. The first time in a run, the turn clock goes right under it."""
+    ui.show(slot, img)
+    if not getattr(slot, "clock_drawn", False):
+        slot.clock_drawn = True
+        clock_bar(screen)
+
+
+def run_clock(my_turn: bool) -> bool:
+    """Start, keep or stop the clock for the player's turn. Returns True when their time has run out."""
+    S.turn_deadline = turn_clock.keep_or_start(S.get("turn_deadline"), my_turn and not S.get("result"), time.time())
+    return turn_clock.is_up(S.turn_deadline, time.time())
+
+
+def restart_clock() -> None:
+    """The player did something that keeps their turn going (drew a card, jumped again): a fresh clock."""
+    S.turn_deadline = None
+
+
+@st.fragment(run_every=1.0)
+def clock_bar(screen: str) -> None:
+    """The countdown under the table. It redraws itself every second; at zero the whole screen runs
+    again, and the screen sees that the time is up and plays for the player."""
+    deadline = S.get("turn_deadline")
+    if S.screen != screen:
+        return
+    if deadline is None:  # not the player's turn: an empty line of the same height (it replaces the old bar at once)
+        st.markdown("<div style='height:30px'></div>", unsafe_allow_html=True)
+        return
+    left = turn_clock.seconds_left(deadline, time.time())
+    colour = "#ff4f6d" if left <= 5 else "#3ad6ff"
+    st.markdown(
+        f"<div style='display:flex;align-items:center;gap:10px;height:30px;margin:-6px 0 2px 0'>"
+        f"<div style='flex:1;height:10px;border-radius:5px;background:#17123a;border:1px solid #3a2f6b'>"
+        f"<div style='width:{100 * left / TURN_SECONDS:.0f}%;height:100%;border-radius:5px;background:{colour};"
+        f"box-shadow:0 0 8px {colour}'></div></div>"
+        f"<b style='color:{colour};font-size:1.25rem;min-width:7.5em'>YOUR TURN: {left:.0f}s</b></div>",
+        unsafe_allow_html=True,
+    )
+    if left <= 0:
+        st.rerun()
 
 
 def header(img, title: str) -> None:
@@ -40,6 +93,7 @@ def with_result(img, regions):
 def pause_button(column, screen: str) -> None:
     with column:
         if ui.button("Pause", f"{screen}_pause", "Esc"):
+            restart_clock()  # the clock stops while the game is paused and starts again on return
             S.paused_from = screen
             S.pause_behind = S.get("_last_frame")  # the menu sits on top of the table as it was
             state.go("pause")
@@ -52,6 +106,7 @@ def rules_button(column, screen: str) -> None:
 
     with column:
         if ui.button("Rules", f"{screen}_rules", "H"):
+            restart_clock()
             howto.open_from(screen, screen)
             st.rerun()
 

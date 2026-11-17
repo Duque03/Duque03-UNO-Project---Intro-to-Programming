@@ -19,7 +19,7 @@ from PIL import ImageDraw
 from arcade import match, sound, ui
 from arcade.art import cards, scenes
 from arcade.art.pixel import darken, draw_text, key_icon, panel, rgb
-from arcade.config import BOT_DELAY, SCALE, SCREEN_W
+from arcade.config import SCALE, SCREEN_W, UNO_BOT_FORGET, UNO_BOT_SMART, UNO_BOT_STACK, UNO_BOT_TWINS
 from arcade.logic.uno import COLOURS, NUMBERS, WILD, IllegalMove, card_name
 from arcade.screens import common
 from arcade.state import S
@@ -183,25 +183,33 @@ def render() -> None:
     uno_open = game.uno_due == me and game.winner is None
     slot = ui.screen()
     bots_were_playing = game.winner is None and game.current != me and not uno_open
+    if common.run_clock(not bots_were_playing and game.winner is None and not uno_open):
+        S.pending_wild, S.uno_pick = None, []  # 15 seconds went by: draw and pass for the player
+        game.auto_turn(me)
+        common.restart_clock()
+        S.flash = "Time's up! You drew and your turn passed"
+        st.rerun()
 
     while not uno_open and game.winner is None and game.current != me:  # the bots play, one visible move at a time
-        ui.show(slot, draw(game, me, opponents)[0])
-        time.sleep(BOT_DELAY)
-        game.bot_turn(game.current)
+        common.show(slot, draw(game, me, opponents)[0], "uno")
+        common.bot_pause()
+        game.bot_turn(game.current, forget_uno=UNO_BOT_FORGET, twins=UNO_BOT_TWINS, stack=UNO_BOT_STACK,
+                      smart=UNO_BOT_SMART)
 
     if game.winner and S.result is None:
         if S.match["mode"] == "champ":
-            ui.show(slot, draw(game, me, opponents)[0])
+            common.show(slot, draw(game, me, opponents)[0], "uno")
             time.sleep(1.2)
         match.finish([game.winner])
         if S.screen != "uno":
             st.rerun()
 
     my_turn = game.winner is None and game.current == me and not uno_open
+    common.run_clock(my_turn)  # the bots are done: the player's 15 seconds start
     img, regions = draw(game, me, opponents, S.flash, choosing=S.pending_wild is not None, picks=picks,
                         uno_open=uno_open)
     img, regions = common.with_result(img, regions)
-    ui.show(slot, img)
+    common.show(slot, img, "uno")
     point = None if bots_were_playing else ui.click()  # a click made during the bots' turn does not count
     action = ui.hit(regions, point)
     if uno_open:
@@ -260,6 +268,7 @@ def render() -> None:
         elif draw_pressed or action == ("draw",):
             drawn = game.draw(me)
             S.uno_pick = []
+            common.restart_clock()  # 15 new seconds to play the drawn card or pass
             if game.drawn_card:
                 many = f"{len(drawn)} cards" if len(drawn) > 1 else "a card"
                 S.flash = f"You drew {many}: play the {card_name(game.drawn_card)} or pass"
