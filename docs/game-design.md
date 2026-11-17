@@ -54,6 +54,9 @@ Numbers live in `arcade/config.py`.
   then may play it (with its twins) or pass.
 - House rule, UNO: when a play leaves a player with one card they must say UNO within 2 seconds (button or U), or
   draw 2. Bots forget now and then.
+- House rule, going out: nobody goes out with several cards at once. When a play would use the player's whole hand
+  (for example their last two 1s), all but the last card go down and the player must say UNO; the last card then
+  goes down by itself and they win. Missing UNO means drawing 2 and keeping that card.
 - The first player with no cards wins.
 
 ### Checkers

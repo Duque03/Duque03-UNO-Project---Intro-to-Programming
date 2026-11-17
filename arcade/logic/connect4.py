@@ -12,6 +12,14 @@ ROWS, COLS = 6, 7
 RED, YELLOW = "red", "yellow"
 DRAW = "draw"
 _LINES = ((0, 1), (1, 0), (1, 1), (1, -1))
+# Every group of 4 cells in a line (69 of them). The bot scores a board by looking at each group.
+_WINDOWS = [
+    [(r + dr * i, c + dc * i) for i in range(4)]
+    for r in range(ROWS) for c in range(COLS) for dr, dc in _LINES
+    if 0 <= r + dr * 3 < ROWS and 0 <= c + dc * 3 < COLS
+]
+_WINDOW_SCORE = {0: 0, 1: 0, 2: 2, 3: 10}  # a group with only my discs: 2 of mine is good, 3 (one gap) very good
+_CENTRE_FIRST = (3, 2, 4, 1, 5, 0, 6)  # trying the middle first makes the search faster
 
 
 class IllegalMove(ValueError):
@@ -115,14 +123,40 @@ class Connect4Game:
         self.drop(choice)
         return choice
 
-    def _search(self, col: int, depth: int, me: str) -> float:
+    def _score(self, me: str) -> float:
+        """How good the board looks for `me`: open lines of 2 and 3 count, the opponent's count a bit more."""
+        them = other(me)
+        score = 0.0
+        for window in _WINDOWS:
+            cells = [self.board[r][c] for r, c in window]
+            mine, theirs = cells.count(me), cells.count(them)
+            if mine and not theirs:
+                score += _WINDOW_SCORE[mine]
+            elif theirs and not mine:
+                score -= 1.2 * _WINDOW_SCORE[theirs]
+        score += sum(1 for r in range(ROWS) if self.board[r][3] == me)  # the middle column is the strongest
+        return score
+
+    def _search(self, col: int, depth: int, me: str, alpha: float = -1e9, beta: float = 1e9) -> float:
+        """Drop in `col`, then look `depth` more moves ahead (both sides play their best). Higher is better for me."""
         trial = self.clone()
         trial.drop(col)
         if trial.winner == me:
-            return 100 + depth
+            return 1000 + depth  # winning sooner is better
         if trial.winner == other(me):
-            return -100 - depth
-        if trial.winner == DRAW or depth <= 0:
+            return -1000 - depth
+        if trial.winner == DRAW:
             return 0
-        scores = [trial._search(c, depth - 1, me) for c in trial.legal_columns()]
-        return min(scores) if trial.turn != me else max(scores)
+        if depth <= 0:
+            return trial._score(me)
+        my_move = trial.turn == me
+        best = -1e9 if my_move else 1e9
+        for c in (c for c in _CENTRE_FIRST if trial.board[0][c] is None):
+            value = trial._search(c, depth - 1, me, alpha, beta)
+            if my_move:
+                best, alpha = max(best, value), max(alpha, value)
+            else:
+                best, beta = min(best, value), min(beta, value)
+            if beta <= alpha:  # the other side would never allow this line: stop looking at it
+                break
+        return best
