@@ -7,10 +7,10 @@ import time
 import streamlit as st
 from PIL import ImageDraw
 
-from arcade import match, state, ui
+from arcade import bots, match, state, ui
 from arcade.art import scenes
 from arcade.art.pixel import draw_text, panel
-from arcade.config import CONNECT4_BLUNDER, CONNECT4_DEPTH, SCREEN_W
+from arcade.config import CONNECT4_LEVELS, SCREEN_W
 from arcade.logic.connect4 import COLS, DRAW, RED, ROWS, YELLOW, IllegalMove
 from arcade.screens import common
 from arcade.state import S
@@ -95,8 +95,9 @@ def render() -> None:
         _animate_drop(slot, game, opponent)
     if game.winner is None and game.turn == YELLOW:
         common.show(slot, draw(game, opponent)[0], "connect4")
-        common.bot_pause()
-        game.bot_move(state.rng(), CONNECT4_DEPTH, CONNECT4_BLUNDER)
+        started = time.time()
+        game.bot_move(state.rng(), *CONNECT4_LEVELS[bots.level(opponent["name"])])
+        common.bot_pause(since=started)
         _animate_drop(slot, game, opponent)
 
     if game.winner and S.result is None:

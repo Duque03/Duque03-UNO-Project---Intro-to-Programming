@@ -17,9 +17,10 @@ from arcade.logic import turn_clock
 from arcade.state import S
 
 
-def bot_pause() -> None:
-    """A bot thinks for a moment before it moves: a random time between the two numbers of BOT_THINK."""
-    time.sleep(random.uniform(*BOT_THINK))
+def bot_pause(since: float) -> None:
+    """A bot thinks for a random time between the two numbers of BOT_THINK before its move shows.
+    since: when it started working out the move (that time counts too, so strong bots are not slower)."""
+    time.sleep(max(0.0, random.uniform(*BOT_THINK) - (time.time() - since)))
 
 
 def show(slot, img, screen: str) -> None:

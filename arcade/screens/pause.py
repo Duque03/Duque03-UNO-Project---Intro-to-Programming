@@ -12,7 +12,7 @@ from arcade.state import S
 
 OPTIONS = [
     {"label": "RESUME", "action": "resume", "key": "ESC"},
-    {"label": "CUSTOMIZE CHARACTER", "action": "wardrobe"},
+    {"label": "WARDROBE", "action": "wardrobe"},
     {"label": "HOW TO PLAY", "action": "howto"},
     {"label": "LEAVE ARCADE", "action": "leave"},
 ]

@@ -34,11 +34,15 @@ def picked_item(key: str, slot: str) -> dict | None:
     return item if item is not None and item["slot"] == slot else None
 
 
+GLOWS = {"common": "#43c47e", "rare": "#8a5cff", "legendary": "#ffae1a"}  # the same colours as the tiles
+
+
 def preview(player: dict, slot: str, item: dict | None):
     """The big picture of the player wearing the item (or what they wear now)."""
     trying = {slot: item["id"]} if item else None
     worn = dict(player["equipped"], **(trying or {}))
-    return sprites.showcase(player_model.look(player, trying), player["name"], worn["name"])
+    glow = GLOWS[item["rarity"]] if item else "#3ad6ff"
+    return sprites.showcase(player_model.look(player, trying), player["name"], worn["name"], glow=glow)
 
 
 def _tile(player: dict, item: dict, look: tuple, focus: dict | None) -> dict:

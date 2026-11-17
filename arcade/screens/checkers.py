@@ -7,10 +7,10 @@ import time
 import streamlit as st
 from PIL import ImageDraw
 
-from arcade import match, state, ui
+from arcade import bots, match, state, ui
 from arcade.art import scenes
 from arcade.art.pixel import draw_text, panel
-from arcade.config import CHECKERS_BLUNDER, CHECKERS_DEPTH, SCREEN_W
+from arcade.config import CHECKERS_LEVELS, SCREEN_W
 from arcade.logic.checkers import BOTTOM, DRAW, SIZE, TOP, IllegalMove, owner
 from arcade.screens import common
 from arcade.state import S
@@ -120,15 +120,17 @@ def render() -> None:
         S.selected, S.flash = None, "Time's up! A random move was played"
         st.rerun()
 
+    depth, blunder = CHECKERS_LEVELS[bots.level(opponent["name"])]
     first_jump = True
     while game.winner is None and game.turn == TOP:  # bot moves (each jump is shown)
         common.show(slot, draw(game, opponent)[0], "checkers")
+        started = time.time()
+        game.bot_move(state.rng(), depth, blunder)
         if first_jump:
-            common.bot_pause()  # it thinks before its move, then jumps on quickly
+            common.bot_pause(since=started)  # it thinks before its move, then jumps on quickly
         else:
             time.sleep(0.6)
         first_jump = False
-        game.bot_move(state.rng(), CHECKERS_DEPTH, CHECKERS_BLUNDER)
 
     if game.winner and S.result is None:
         if S.match["mode"] == "champ":

@@ -11,7 +11,7 @@ from functools import lru_cache
 
 from PIL import Image, ImageDraw
 
-from arcade import bots, hubmap
+from arcade import bots, catalog, hubmap
 from arcade.art import lighting, sprites
 from arcade.art.pixel import (
     CHAR_H, coin, darken, draw_lines, draw_text, key_icon, lock, mix, new_base, new_layer, outlined, panel, rect,
@@ -544,6 +544,7 @@ def fade_through_black(old: Image.Image, new: Image.Image, steps: int) -> list[I
 # ---------------------------------------------------------------- title screen
 
 TITLE_FRAMES = 8  # the title screen loops through this many pictures (V5)
+TITLE_BOT_X = (84, 122, 160, 198, 236)  # where the five regulars dance on the title screen
 
 
 @lru_cache(maxsize=TITLE_FRAMES + 2)
@@ -570,20 +571,30 @@ def title_scene(t: int = 0) -> Image.Image:
     for cx, body, screen in ((26, "#3a2f6b", "#3ad6ff"), (58, "#4a2f5f", "#ff4fa3"),
                              (262, "#2f3f6b", "#7cff3a"), (294, "#3a2f6b", "#ffe94a")):
         _machine(d, cx, 150, rgb(body), rgb(screen), w=26, h=62, glow=True)
-    # the regulars
+    # the regulars, twice as big, dancing under coloured spotlights
+    spots = ["#3ad6ff", "#ff4fa3", "#ffe94a", "#7cff3a", "#b07aff"]
     for i, bot in enumerate(bots.BOTS):
-        hop = 1 if (t + i * 3) % 4 == 0 else 0  # they bounce to the music, one after the other
-        _lay(img, lighting.soft_oval(13, 5, 0.7), (100 + i * 30 - 9, 163))
-        sprites.draw_character(img, 100 + i * 30, 168 - hop, bots.look(bot), "down", 0, t)
-        if (t + i * 5) % TITLE_FRAMES == 3:
-            blink(img, 100 + i * 30, 168 - hop, bots.look(bot)[0], "down")
+        x = TITLE_BOT_X[i]
+        img = lighting.light_pool(img, (x, 172), 22, rgb(spots[i]), 0.35)
+        _lay(img, lighting.soft_oval(30, 8, 0.75), (x - 15, 168))
+    for i, bot in enumerate(bots.BOTS):
+        x, beat = TITLE_BOT_X[i], (t + i * 2) % TITLE_FRAMES
+        hop = 2 if beat % 4 == 0 else 1 if beat % 4 == 1 else 0  # they bounce to the music, one after the other
+        step = (1, 0, 2, 0)[beat % 4]  # and shuffle their feet
+        facing = "left" if beat == 5 else "right" if beat == 6 else "down"  # now and then they look around
+        sprites.draw_character(img, x, 176 - hop, bots.look(bot), facing, step, t, scale=2)
+        if facing == "down" and (t + i * 5) % TITLE_FRAMES == 3:
+            blink(img, x, 176 - hop, bots.look(bot)[0], "down", scale=2)
     img = lighting.vignette(img, 0.4)
     big = upscale(img)
-    for line, y in (("ARCADE", 40), ("MASTERS", 150)):
+    for line, y in (("ARCADE", 30), ("MASTERS", 140)):
         draw_text(big, (SCREEN_W // 2 + 6, y + 6), line, 12, "#3ad6ff", "mt")
         draw_text(big, (SCREEN_W // 2, y), line, 12, "#ff4fa3", "mt")
         draw_text(big, (SCREEN_W // 2 - 3, y - 3), line, 12, "#ffe94a", "mt")
-    draw_text(big, (SCREEN_W // 2, 262), "UNO  -  CHECKERS  -  CONNECT FOUR", 2, "#d9d4ff", "mt", shadow=INK)
+    for i, bot in enumerate(bots.BOTS):
+        hop = 2 if (t + i * 2) % 4 == 0 else 1 if (t + i * 2) % 4 == 1 else 0
+        sprites.draw_name_tag(big, TITLE_BOT_X[i] * SCALE, (176 - hop - 49) * SCALE,
+                              bot["name"], catalog.spec_for("name", bot["tag"]), t)
     return big
 
 

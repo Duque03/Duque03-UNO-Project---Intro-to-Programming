@@ -43,21 +43,31 @@ _CSS = f"""
 .stApp, .stApp p, .stApp label, .stApp input, .stApp button, [data-testid="stToast"] {{
     font-family: "Jersey 10", monospace !important;
 }}
-/* the game is as big as the window allows: the picture (16:9) plus one row of buttons must fit in the height */
-.block-container {{ max-width: min(96vw, calc((100vh - 120px) * 16 / 9)); padding: .8rem 1rem .6rem 1rem; }}
+/* the game is as big as the window allows: the frame (picture 16:9 + the strip of buttons) fits in the height */
+.block-container {{ max-width: min(97vw, calc((100vh - 150px) * 16 / 9)); padding: .5rem .6rem .3rem .6rem; }}
+
+/* Everything of the game sits inside one glowing frame, like an arcade screen: the picture on top and the
+   buttons as a control strip at the bottom, inside the frame (app.py puts every screen in game_frame). */
+.st-key-game_frame {{
+    background: linear-gradient(180deg, #140f36, #0b0820); border: 2px solid rgba(58, 214, 255, .6);
+    border-radius: 18px; padding: 10px 12px 12px 12px; gap: 8px !important;
+    box-shadow: 0 0 24px rgba(58, 214, 255, .35), 0 0 60px rgba(255, 79, 163, .22), inset 0 0 40px rgba(0, 0, 0, .55);
+}}
+.st-key-game_frame .stButton button {{ min-height: 2.4rem; padding: 0 .6rem; background: rgba(13, 10, 31, .9); }}
+.st-key-game_frame .stButton button p {{ font-size: 1.2rem; }}
+.st-key-game_frame [data-testid="stHorizontalBlock"] {{ gap: .5rem; }}
 /* Streamlit fades everything while the script runs; in a game that just looks like the screen going dark */
 [data-stale="true"] {{ opacity: 1 !important; transition: none !important; }}
 /* Streamlit's own header, menu and footer are not part of the game */
 header[data-testid="stHeader"], [data-testid="stToolbar"], [data-testid="stDecoration"],
 #MainMenu, footer, [data-testid="stStatusWidget"] {{ display: none !important; }}
 .stMain:focus, .stMain:focus-visible {{ outline: none !important; }}
+/* after a key press Streamlit draws a faint box around the page (a focus mark); a game does not need it */
+.stMain::before {{ box-shadow: none !important; }}
 img {{ image-rendering: pixelated; }}
 
-/* the game picture sits in a glowing frame, like an arcade screen */
-.st-key-{SCREEN_KEY} img, .st-key-{TITLE_KEY} img {{
-    border-radius: 14px;
-    box-shadow: 0 0 0 2px rgba(58, 214, 255, .55), 0 0 24px rgba(58, 214, 255, .35), 0 0 60px rgba(255, 79, 163, .25);
-}}
+/* the game picture: the frame around it glows (see game_frame), the picture itself just has round corners */
+.st-key-{SCREEN_KEY} img, .st-key-{TITLE_KEY} img {{ border-radius: 10px; }}
 .st-key-{SCREEN_KEY} img {{ cursor: pointer; }}
 .st-key-{SCREEN_KEY} [data-testid="stElementToolbar"], .st-key-{TITLE_KEY} [data-testid="stElementToolbar"] {{ display: none; }}
 .st-key-click_catcher {{ display: none; }}
@@ -115,6 +125,42 @@ export default function (component) {{
 """
 _input_catcher = st.components.v2.component("arcade_input_catcher", js=INPUT_JS)
 
+# The full-screen button (top right) and the F key: the browser shows only the game, like a normal game.
+FULLSCREEN_CSS = """
+button.fullscreen {
+    position: fixed; top: 10px; right: 14px; z-index: 1000; cursor: pointer;
+    font: 1.05rem "Jersey 10", monospace; letter-spacing: .04em; color: #f3ead2;
+    background: rgba(13, 10, 31, .85); border: 2px solid rgba(58, 214, 255, .5); border-radius: 10px; padding: 4px 10px;
+}
+button.fullscreen:hover { border-color: #3ad6ff; box-shadow: 0 0 12px rgba(58, 214, 255, .5); }
+"""
+FULLSCREEN_JS = r"""
+export default function (component) {
+    const { parentElement } = component;
+    if (parentElement.querySelector("button.fullscreen")) return;
+    const button = document.createElement("button");
+    button.className = "fullscreen";
+    parentElement.appendChild(button);
+    const toggle = () => document.fullscreenElement ? document.exitFullscreen()
+                                                    : document.documentElement.requestFullscreen().catch(() => {});
+    const label = () => { button.textContent = document.fullscreenElement ? "EXIT FULL SCREEN (F)" : "FULL SCREEN (F)"; };
+    button.addEventListener("click", toggle);
+    document.addEventListener("fullscreenchange", label);
+    if (!window.__arcadeFullscreenKey) {
+        window.__arcadeFullscreenKey = true;
+        document.addEventListener("keydown", (event) => {
+            const tag = (event.target.tagName || "").toLowerCase();
+            if ((event.key || "").toLowerCase() === "f" && !event.repeat && !["input", "textarea"].includes(tag)
+                && !event.ctrlKey && !event.metaKey && !event.altKey) {
+                document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen().catch(() => {});
+            }
+        });
+    }
+    label();
+}
+"""
+_fullscreen = st.components.v2.component("arcade_fullscreen", css=FULLSCREEN_CSS, js=FULLSCREEN_JS)
+
 
 def setup_page() -> None:
     """Call once at the top of every run: page settings, styles and the input listener."""
@@ -122,6 +168,18 @@ def setup_page() -> None:
     st.markdown(_CSS, unsafe_allow_html=True)
     result = _input_catcher(key="click_catcher", on_click_change=lambda: None)
     st.session_state["_click"] = _as_point(result.click)
+    _fullscreen(key="fullscreen_button")
+
+
+def movie(frames, seconds_per_frame: float) -> str:
+    """Several pictures as one looping animated picture (WebP). The browser plays it by itself, so the
+    server does no work while it runs (used for the title screen)."""
+    if GLOW:
+        frames = [effects.neon_glow(frame) for frame in frames]
+    buffer = io.BytesIO()
+    frames[0].save(buffer, format="WEBP", save_all=True, append_images=list(frames[1:]),
+                   duration=int(seconds_per_frame * 1000), loop=0, quality=80, method=4)
+    return "data:image/webp;base64," + base64.b64encode(buffer.getvalue()).decode()
 
 
 def _as_point(value) -> tuple[float, float] | None:
