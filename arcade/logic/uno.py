@@ -18,8 +18,10 @@ The official rules, with the team's house rules (task B1):
     cards, and a player facing a Wild Draw Four with Wild Draw Four cards. The
     cards add up for the next player. Whoever does not answer draws them all
     and loses the turn.
-  * House rule, drawing: a player who cannot (or does not want to) play keeps
-    drawing until a card can be played; then they may play or pass.
+  * House rule, drawing: on their turn a player may draw (whenever they like),
+    one card at a time, at most MAX_DRAWS (2) cards. After a draw they may play
+    any card that fits, or pass. With nothing to play after the second card, the
+    turn passes by itself.
   * House rule, UNO: when a play leaves a player with one card, they must say
     UNO (call_uno) - the screen gives 2 seconds - or draw 2 cards (miss_uno).
   * House rule, places: the first player with no cards finishes 1st and the others play on, without them,
@@ -37,6 +39,7 @@ ACTIONS = ("skip", "reverse", "draw2")
 WILD = "wild"
 DRAWS = {"draw2": 2, "wild4": 4}  # cards that make the next player draw, and how many each
 UNO_PENALTY = 2
+MAX_DRAWS = 2  # cards a player may draw in one turn, one at a time
 
 Card = tuple  # (colour, value) e.g. ("red", "7"), ("blue", "skip"), ("wild", "wild4")
 
@@ -95,7 +98,8 @@ class UnoGame:
         self.direction = 1
         self.winner: str | None = None  # 1st place, set when the game is over (only one player has cards left)
         self.out: list[str] = []  # the players who have finished, in order: 1st, 2nd, ...
-        self.drawn_card: Card | None = None  # the playable card that ended a draw this turn
+        self.drawn_card: Card | None = None  # the last card drawn this turn (None before any draw)
+        self.draws = 0  # cards drawn this turn (at most MAX_DRAWS)
         self.pending = 0  # cards waiting for the current player (stacked Draw Two / Wild Draw Four)
         self.pending_value: str | None = None  # "draw2" or "wild4": what can be stacked on them
         self.uno_due: str | None = None  # a player who is down to one card and has not said UNO yet
@@ -141,12 +145,16 @@ class UnoGame:
         return colour == WILD or colour == self.colour or value == self.top[1]
 
     def playable_cards(self, player: str) -> list[Card]:
-        """The cards a play can start with (after a draw: only the card that ended the draw)."""
+        """The cards a play can start with."""
         if self.winner or player != self.current:
             return []
-        if self.drawn_card is not None:
-            return [self.drawn_card]
         return [card for card in self.hands[player] if self.can_play(card)]
+
+    def can_draw(self, player: str) -> bool:
+        """May this player draw now? Facing +2 / +4 cards always; otherwise up to MAX_DRAWS cards a turn."""
+        if self.winner or player != self.current:
+            return False
+        return bool(self.pending) or self.draws < MAX_DRAWS
 
     def partners(self, player: str, card: Card) -> list[Card]:
         """The other cards in the hand that may be played together with this one (same number or symbol)."""
@@ -169,8 +177,6 @@ class UnoGame:
             hand.remove(card)
         if len({card[1] for card in cards}) > 1:
             raise IllegalMove("Cards played together must have the same number or symbol.")
-        if self.drawn_card is not None and cards[0] != self.drawn_card:
-            raise IllegalMove("After drawing, play starts with the card you drew.")
         if not self.can_play(cards[0]):
             if self.pending:
                 raise IllegalMove(f"Answer with {card_name((WILD, self.pending_value)) if self.pending_value == 'wild4' else '+2'}"
@@ -229,28 +235,27 @@ class UnoGame:
             self.pending, self.pending_value = 0, None
             self._advance(1)
             return taken
-        if self.drawn_card is not None:
-            raise IllegalMove("You already drew this turn: play the card or pass.")
-        taken = []
-        while True:
-            card = self._take()
-            if card is None:  # no cards left anywhere: the turn just passes
-                self.last_event = f"{player} drew {len(taken)} cards and found nothing to play" if taken else \
-                    f"{player} could not draw (no cards left)"
-                self._advance(1)
-                return taken
-            self.hands[player].append(card)
-            taken.append(card)
-            if self.uno_due == player:
-                self.uno_due = None
-            if self.can_play(card):
-                self.drawn_card = card
-                self.last_event = f"{player} drew {len(taken)} card{'s' if len(taken) > 1 else ''}"
-                return taken
+        if self.draws >= MAX_DRAWS:
+            raise IllegalMove(f"You already drew {MAX_DRAWS} cards: play one or pass.")
+        card = self._take()
+        if card is None:  # no cards left anywhere: the turn just passes
+            self.last_event = f"{player} could not draw (no cards left)"
+            self._advance(1)
+            return []
+        self.hands[player].append(card)
+        self.draws += 1
+        self.drawn_card = card
+        if self.uno_due == player:
+            self.uno_due = None
+        self.last_event = f"{player} drew a card"
+        if self.draws >= MAX_DRAWS and not self.playable_cards(player):  # still nothing to play: next player
+            self.last_event = f"{player} drew {MAX_DRAWS} cards and could not play"
+            self._advance(1)
+        return [card]
 
     def pass_turn(self, player: str) -> None:
         self._check_turn(player)
-        if self.drawn_card is None:
+        if not self.draws:
             raise IllegalMove("Draw a card before you pass.")
         self.last_event = f"{player} drew and passed"
         self._advance(1)
@@ -303,11 +308,11 @@ class UnoGame:
             self._bot_play(player, answers[0], forget_uno, twins)
             return
         options = self.playable_cards(player)
-        if not options:
+        while not options:  # nothing fits: draw, one card at a time (after the second, the turn passes by itself)
             self.draw(player)
-            if self.winner or self.current != player or self.drawn_card is None:
+            if self.winner or self.current != player:
                 return
-            options = [self.drawn_card]
+            options = self.playable_cards(player)
         danger = len(self.hands[self.next_player()]) <= 2
 
         def score(card: Card) -> float:
@@ -325,18 +330,17 @@ class UnoGame:
         self._bot_play(player, self.rng.choice(options), forget_uno, twins)
 
     def auto_turn(self, player: str) -> None:
-        """The player's time ran out: they draw (or take the +2 / +4 cards) and their turn passes."""
+        """The player's time ran out: they draw one card (or take the +2 / +4 cards) and their turn passes."""
         self._check_turn(player)
-        if self.drawn_card is None:
+        if self.pending or not self.draws:
             self.draw(player)
-        if self.winner is None and self.current == player:  # they drew a card they could play: they do not
+        if self.winner is None and self.current == player:  # still their turn: it passes
             self.pass_turn(player)
 
     # ----- helpers
     def _bot_play(self, player: str, first: Card, forget_uno: float, twins_chance: float = 1.0) -> None:
         """Play `first` (with its twins, sometimes), ending on the colour the bot holds most of."""
-        may_add = self.drawn_card is None or first == self.drawn_card
-        twins = self.partners(player, first) if may_add and self.rng.random() < twins_chance else []
+        twins = self.partners(player, first) if self.rng.random() < twins_chance else []
         rest = list(self.hands[player])
         rest.remove(first)  # one copy only: the hand can hold two identical cards
         for twin in twins:
@@ -384,6 +388,7 @@ class UnoGame:
     def _advance(self, steps: int) -> None:
         self.turn = self._seat_after(steps)
         self.drawn_card = None
+        self.draws = 0
 
     def _finish(self, player: str) -> None:
         """The player has no cards left: they take the next place. With one player left, the game is over."""

@@ -23,7 +23,7 @@ Numbers live in `arcade/config.py`.
   | Championship YES / NO | Left / Right move the highlight, Enter chooses it (or Y / N). |
   | How to play | Left / Right (or 1-4) change tab. Esc goes back. |
   | Choose your opponent | Left / Right move the highlight, Space picks or un-picks that bot (or its number). Enter plays, Esc goes back. |
-  | UNO | Left / Right move along your hand, Space plays that card (or picks it when it has twins, like a click). Enter plays the picked cards, X cancels them. Choosing a wild's colour: Left / Right and Enter (or Space); X cancels. D, P and U as before. |
+  | UNO | Left / Right move along your hand (the frame starts on the first card), Space picks or drops that card, like a click. Enter plays the picked cards, like a click on the discard pile; X cancels them. Choosing a wild's colour: Left / Right and Enter (or Space); X cancels. D draws, P passes, U says UNO. |
   | Checkers | The arrow keys move a cursor on the board (blue, because yellow already marks the pieces); Space or Enter acts like a click on that square. |
   | Connect Four | Left / Right choose a column; Space, Enter or Down drops the disc. 1-7 drop straight into that column. |
   | Store | Left / Right choose an item, Up / Down change tab. Enter buys it (or wears it, if it is owned). Esc goes back. |
@@ -121,8 +121,13 @@ Numbers live in `arcade/config.py`.
   the order (two cancel out; with 2 players a Reverse works like a Skip), each +2 adds 2 and each +4 adds 4 cards.
 - House rule, stacking: facing +2 you may answer with +2 cards, facing +4 with +4 cards; the total grows. A player
   who does not answer draws the total and loses the turn.
-- House rule, drawing: a player who cannot (or does not want to) play keeps drawing until a card can be played,
-  then may play it (with its twins) or pass.
+- House rule, drawing: on their turn a player may draw whenever they like, one card at a time (D or a click on the
+  deck), at most **2 cards** a turn. After a draw they may play any card that fits or pass (P). With nothing to play
+  after the second card, the turn passes by itself.
+- Playing: nothing in the hand glows (finding a card that fits is part of the game). A click on a card picks it (it
+  stands up a little); cards with the same number or symbol can be picked with it; a click on a picked card drops it.
+  A click on the **discard pile** (or Enter) plays the picked cards in the order they were picked; with nothing picked
+  it does nothing. If the first picked card does not fit, a message says so and nothing is played.
 - House rule, UNO: when a play leaves a player with one card they must say UNO within 2 seconds (button or U), or
   draw 2. Bots forget now and then.
 - House rule, going out: nobody goes out with several cards at once. When a play would use the player's whole hand
