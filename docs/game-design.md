@@ -10,6 +10,10 @@ Numbers live in `arcade/config.py`.
   frame. The frame is as big as the window allows without scrolling (checked at 1280x720, 1366x768, 1920x1080).
 - Every button also has a key. **FULL SCREEN (F)** (top right) shows only the game, like a normal game.
   **MUSIC (M)** (top left) turns the music on and off.
+- Music: five original chiptune tunes, all our own (`arcade/music.py`): a driving anthem on the title screen, a light,
+  bouncy tune in the arcade room (also the store, wardrobe and championship), and one for each game (a funky party
+  tune for UNO, a calm one for checkers, a hopping one for Connect Four). Changing screen fades from one to the
+  next; the rules and the pause menu keep the tune that was playing. The music starts with the first key or click.
 - Everything can be done with the mouse or with the keyboard. Where there is something to choose on the picture,
   the arrow keys move a **yellow highlight** and Space or Enter chooses it, like a click:
 
