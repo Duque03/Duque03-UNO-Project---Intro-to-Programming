@@ -61,7 +61,7 @@ def render() -> None:
 
     if clicked:
         choice["picked"] = levels.toggle(picked, clicked, needed)
-        choice["focus"] = bots.BOT_NAMES.index(clicked)  # the frame follows a click or 1-5 too
+        choice["focus"] = bots.BOT_NAMES.index(clicked)  # the frame follows a click or a number key too
         sound.play("blip")
         st.rerun()
     if play and ready:

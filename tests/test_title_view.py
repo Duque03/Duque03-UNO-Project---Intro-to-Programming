@@ -2,7 +2,7 @@
 
 import pytest
 
-from arcade import accounts, catalog, title_view
+from arcade import accounts, bots, catalog, title_view
 from arcade.art import title_layers
 from arcade.player import InvalidName, look, new_player
 
@@ -13,7 +13,7 @@ def test_every_picture_is_sent_once_per_session():
     for key in ("bg", "cabinets", "logo", "logoSmall"):
         assert first[key] in first["assets"]
     assert first["font"]["img"] in first["assets"]
-    assert len(first["bots"]) == 5 and all(bot["sheet"] in first["assets"] for bot in first["bots"])
+    assert len(first["bots"]) == len(bots.BOTS) and all(bot["sheet"] in first["assets"] for bot in first["bots"])
     again = title_view.scene(sent)
     assert again["assets"] == {}  # the browser already has them
     assert again["bots"][0]["sheet"] == first["bots"][0]["sheet"]
@@ -73,7 +73,7 @@ def test_the_pixel_font_has_every_letter_the_title_screen_writes(tmp_path):
     texts = _messages(tmp_path) + ["PLAY", "HOW TO PLAY", "NEW PLAYER", "I HAVE AN ACCOUNT", "WELCOME BACK", "BACK",
                                    "CREATE", "LOG IN", "THE PIN MUST BE 4 TO 8 DIGITS", "THE TWO PINS ARE NOT THE SAME",
                                    "REMEMBER YOUR PIN: IT CANNOT BE RECOVERED", "ARROWS: CHOOSE  -  ENTER: OK",
-                                   "PRESS ENTER", "ENTER YOUR NAME", "CHAMPION X12", "1-5: POKE A BOT  -  M: MUSIC",
-                                   "CLICK A BOT (OR 1-5) TO MAKE IT DANCE"] + title_view.LINES
+                                   "PRESS ENTER", "ENTER YOUR NAME", "CHAMPION X12", "1-4: POKE A BOT  -  M: MUSIC",
+                                   "CLICK A BOT (OR 1-4) TO MAKE IT DANCE"] + title_view.LINES
     missing = {ch for text in texts for ch in text if ch not in glyphs}
     assert not missing, missing

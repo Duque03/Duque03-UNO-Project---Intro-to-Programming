@@ -111,6 +111,20 @@ _FULL = {
         "side": [(9, 4, 4, 3, 2), (4, -1, 8, 1, 0), (3, 0, 10, 3, 0), (3, 3, 10, 1, 1),
                  (10, -2, 4, 1, 0), (13, -1, 2, 3, 0), (14, 2, 1, 3, 0), (14, 5, 2, 2, 1)],
     },
+    "dean": {  # grey hair with a side parting, and glasses (c2 frames). Worn by the bot DEAN.
+        "front": [(4, 1, 8, 3, 0), (3, 2, 1, 4, 0), (12, 2, 1, 4, 0), (6, 1, 1, 2, 3),
+                  (5, 4, 2, 1, 1), (9, 4, 2, 1, 1), (5, 5, 1, 2, 1), (7, 5, 2, 1, 1), (10, 5, 1, 2, 1)],
+        "back": [(4, 1, 8, 7, 0), (3, 2, 1, 5, 0), (12, 2, 1, 5, 0)],
+        "side": [(4, 1, 8, 3, 0), (8, 2, 4, 6, 0), (12, 3, 1, 4, 0),
+                 (4, 4, 3, 1, 1), (6, 5, 4, 1, 1)],
+    },
+    "officer": {  # security officer's peaked cap: c1 crown, c2 badge, c3 visor and the hair underneath
+        "front": [(3, -1, 10, 3, 0), (4, -1, 8, 1, 4), (3, 2, 10, 1, 3), (4, 3, 8, 1, 2), (7, 0, 2, 1, 1),
+                  (3, 3, 1, 3, 2), (12, 3, 1, 3, 2)],
+        "back": [(3, -1, 10, 3, 0), (4, -1, 8, 1, 4), (3, 2, 10, 1, 3), (3, 3, 10, 4, 2)],
+        "side": [(3, -1, 10, 3, 0), (4, -1, 8, 1, 4), (3, 2, 10, 1, 3), (1, 3, 5, 1, 2), (3, 0, 1, 1, 1),
+                 (9, 3, 4, 4, 2)],
+    },
     "helmet": {  # battle helmet: c1 shell, c2 glowing visor over the eyes
         "front": [(3, -1, 10, 4, 0), (2, 0, 1, 6, 0), (13, 0, 1, 6, 0), (3, 3, 10, 2, 3), (3, 5, 10, 2, 1),
                   (4, 5, 2, 1, 5), (5, -1, 3, 1, 4)],
@@ -160,7 +174,8 @@ _DIGITS = {
 }
 _CAMO = ["..AA.BB.", ".AAA..B.", "B..A.AA.", "BB...AA.", ".B.AA..B", "..AAA.BB", "A..A..B."]
 _AZULEJO = ["B..B", ".LL.", ".LL.", "B..B"]
-SHIRT_STYLES = ["solid", "kit", "stripes", "hoops", "halves", "sash", "camo", "plaid", "azulejo", "flag", "vest", "gold"]
+SHIRT_STYLES = ["solid", "kit", "stripes", "hoops", "halves", "sash", "camo", "plaid", "azulejo", "flag", "vest", "gold",
+                "suit", "uniform"]  # the last two are worn by bots only
 
 
 def _number_pixel(number: str, x: int, y: int) -> bool:
@@ -227,6 +242,24 @@ def _shirt_colour(spec: dict, x: int, y: int, t: int, view: str = "front", arm: 
             colour = shade(c1, 0.7)  # straps
         elif front and x in (7, 8) and y == 12:
             colour = c2
+    elif style == "suit":  # c1 jacket, c2 shirt, c3 tie
+        if cuff:
+            colour = c2
+        elif front and not arm and (6 <= x <= 9 and y <= 11 or 7 <= x <= 8 and y <= 13):
+            colour = c3 if 7 <= x <= 8 and y >= 11 else c2
+        elif view == "side" and not arm and x == 5 and y <= 11:
+            colour = c2
+    elif style == "uniform":  # security: c1 shirt, c2 badge and stripes, c3 epaulettes and pockets
+        if not arm and y == 10 and (x <= 5 or x >= 10):
+            colour = c3  # epaulettes
+        elif arm and y == 11:
+            colour = c2  # a stripe on each sleeve
+        elif front and not arm and x in (9, 10) and y in (11, 12):
+            colour = c2  # the badge
+        elif front and not arm and x in (5, 6) and y == 12:
+            colour = c3  # a chest pocket
+        elif back and not arm and y in (12, 13) and 4 <= x <= 11 and (x * 3 + y) % 4 != 0:
+            colour = c2  # a yellow print across the back
     elif style == "gold":
         colour = mix(c1, "#c98a12", (y - 10) / 8)
         if (x * 7 + y * 13 + t * 5) % 11 == 0:
@@ -241,6 +274,73 @@ def _shirt_colour(spec: dict, x: int, y: int, t: int, view: str = "front", arm: 
     return rgb(colour)
 
 
+EYE_COLOUR = (34, 26, 30)
+
+
+def _dog(r, fur: str, spec: dict, bandana: str, direction: str, step: int) -> None:
+    """A dog on four legs, drawn in the space of the 16x22 figure (the bot BARK, our own design).
+
+    fur is the coat, spec c1 the ears, c2 the muzzle, chest and socks, c3 the nose. The eyes sit where a person's
+    eyes are, so the room's blink still finds them from the front.
+    """
+    coat, dark, light, nose = rgb(fur), shade(fur, 0.78), rgb(spec["c2"]), rgb(spec["c3"])
+    ears, band = rgb(spec["c1"]), rgb(bandana)
+    wag = {0: 0, 1: -1, 2: 1}[step]
+    if direction in ("down", "up"):
+        lift_l, lift_r = (1 if step == 1 else 0), (1 if step == 2 else 0)
+        legs = (5, 9) if direction == "down" else (4, 10)
+        for x, lift in zip(legs, (lift_l, lift_r)):
+            r(x, 17, 2, 4 - lift, coat)
+            r(x, 21 - lift, 2, 1, light)
+        if direction == "down":
+            r(4, 13, 8, 4, dark)                # the back half, behind the chest
+            r(12 + wag, 10, 1, 3, coat)         # the tail, wagging
+            r(5, 11, 6, 6, coat)                # chest
+            r(7, 12, 2, 3, light)
+        else:
+            r(4, 10, 8, 7, coat)                # back
+            r(7, 11, 2, 5, dark)
+            r(7 + wag, 12, 2, 5, shade(fur, 1.12))  # the tail, closest to us
+        r(5, 2, 6, 1, coat)                     # head
+        r(4, 3, 8, 7, coat)
+        r(2, 3, 2, 6, ears)                     # floppy ears
+        r(12, 3, 2, 6, ears)
+        r(3, 2, 1, 1, ears)
+        r(12, 2, 1, 1, ears)
+        if direction == "down":
+            r(6, 5, 1, 2, EYE_COLOUR)
+            r(9, 5, 1, 2, EYE_COLOUR)
+            r(6, 7, 4, 2, light)                # muzzle
+            r(7, 7, 2, 1, nose)
+            r(8, 9, 1, 1, (255, 122, 138))      # tongue
+            r(4, 10, 8, 1, band)                # bandana
+            r(6, 11, 4, 1, band)
+            r(7, 12, 2, 1, band)
+        else:
+            r(4, 10, 8, 1, band)
+            r(7, 11, 2, 1, band)
+    else:  # left (right is the mirror image)
+        near, far = {0: (5, 11), 1: (4, 12), 2: (6, 10)}[step], {0: (7, 13), 1: (8, 10), 2: (4, 13)}[step]
+        for x in far:
+            r(x, 16, 2, 5, dark)
+        r(5, 11, 9, 5, coat)                    # body
+        r(6, 15, 7, 1, light)
+        r(14, 8 + wag, 1, 4, coat)              # the tail, up and wagging
+        r(15, 7 + wag, 1, 2, coat)
+        for x in near:
+            r(x, 16, 2, 4, coat)
+            r(x, 20, 2, 1, light)
+        r(3, 3, 5, 1, coat)                     # head
+        r(2, 4, 7, 6, coat)
+        r(0, 7, 3, 2, light)                    # muzzle
+        r(0, 7, 1, 1, nose)
+        r(1, 9, 3, 1, dark)
+        r(4, 5, 1, 2, EYE_COLOUR)
+        r(6, 4, 3, 6, ears)
+        r(5, 10, 4, 1, band)
+        r(4, 11, 3, 1, band)
+
+
 @lru_cache(maxsize=4096)
 def sprite(skin: str, pants: str, hair_id, shirt_id, direction: str = "down", step: int = 0, t: int = 0):
     """Build one character picture (20x28, transparent background)."""
@@ -251,6 +351,14 @@ def sprite(skin: str, pants: str, hair_id, shirt_id, direction: str = "down", st
     d = ImageDraw.Draw(img)
     hair = catalog.spec_for("hair", hair_id)
     shirt = catalog.spec_for("shirt", shirt_id)
+    if hair.get("style") == "dog":  # not a person: the bot BARK
+        def dog_rect(x, y, w, h, colour):
+            if w > 0 and h > 0:
+                d.rectangle([OX + x, OY + y, OX + x + w - 1, OY + y + h - 1], fill=colour)
+        _dog(dog_rect, skin, hair, shirt["c1"], direction, step)
+        framed = new_layer((SPR_W, SPR_H + 1))
+        framed.paste(img, (0, 0))
+        return outlined(framed)
     skin_c, skin_dark = rgb(skin), shade(skin, 0.78)
     pants_c, pants_dark, shoe = rgb(pants), shade(pants, 0.75), (30, 26, 40)
 

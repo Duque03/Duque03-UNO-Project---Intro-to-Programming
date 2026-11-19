@@ -1,19 +1,21 @@
-"""The five regulars of the arcade. Each bot has its own name, look and level (how well it plays)."""
+"""The four regulars of the arcade, one per level. Each has its own name, look and level (how well it plays).
+
+They are listed from the easiest to the hardest, which is also the order of the cards when you choose an
+opponent (left to right). All four are our own designs.
+"""
 
 from __future__ import annotations
 
 # "home" is where the bot hangs out in the arcade (base-canvas coordinates of its feet).
 BOTS = [
-    {"name": "PIXEL", "level": "easy", "skin": "#f2c9a0", "pants": "#2b3a67", "hair": "hair_c04", "shirt": "shirt_c04",
-     "tag": "name_c03", "home": (88, 72), "dir": "up"},
-    {"name": "TURBO", "level": "medium", "skin": "#c98d5f", "pants": "#3a3a44", "hair": "hair_r01", "shirt": "shirt_c01",
-     "tag": "name_c01", "home": (120, 72), "dir": "up"},
-    {"name": "GLITCH", "level": "expert", "skin": "#e9c9f2", "pants": "#1d1a22", "hair": "hair_r03", "shirt": "shirt_r03",
-     "tag": "name_r03", "home": (152, 72), "dir": "up"},
-    {"name": "JOY", "level": "easy", "skin": "#8f5a3a", "pants": "#6b2b4a", "hair": "hair_c08", "shirt": "shirt_c06",
-     "tag": "name_r01", "home": (24, 112), "dir": "left"},
-    {"name": "BYTE", "level": "hard", "skin": "#f2d9b8", "pants": "#2a5a3a", "hair": "hair_c06", "shirt": "shirt_c09",
-     "tag": "name_r02", "home": (296, 116), "dir": "right"},
+    {"name": "DEAN", "level": "easy", "skin": "#e8c4a0", "pants": "#2e3140", "hair": "bot_dean_hair",
+     "shirt": "bot_dean_suit", "tag": "name_c03", "home": (88, 72), "dir": "up"},        # a university dean
+    {"name": "BARK", "level": "medium", "skin": "#c98b4a", "pants": "#c98b4a", "hair": "bot_dog",
+     "shirt": "bot_dog_bandana", "tag": "name_r02", "home": (24, 112), "dir": "left"},   # a dog
+    {"name": "MANHOSA", "level": "hard", "skin": "#6b4428", "pants": "#1c2238", "hair": "bot_guard_cap",
+     "shirt": "bot_guard_uniform", "tag": "name_r03", "home": (296, 116), "dir": "right"},  # a security officer
+    {"name": "JOHN", "level": "expert", "skin": "#f0c8a4", "pants": "#3b5b8f", "hair": "bot_john_hair",
+     "shirt": "bot_john_tee", "tag": None, "home": (152, 72), "dir": "up"},  # the most ordinary guy there is
 ]
 
 SHOPKEEPER = {"name": "SHOP", "skin": "#e0b088", "pants": "#3a3a44", "hair": "hair_r02", "shirt": "shirt_r01"}

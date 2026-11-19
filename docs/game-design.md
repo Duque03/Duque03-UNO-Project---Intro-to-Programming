@@ -18,7 +18,7 @@ Numbers live in `arcade/config.py`.
   | Pause menu | Up / Down move the highlight, Enter chooses it. Esc resumes. |
   | Championship YES / NO | Left / Right move the highlight, Enter chooses it (or Y / N). |
   | How to play | Left / Right (or 1-4) change tab. Esc goes back. |
-  | Choose your opponent | Left / Right move the highlight, Space picks or un-picks that bot (or 1-5). Enter plays, Esc goes back. |
+  | Choose your opponent | Left / Right move the highlight, Space picks or un-picks that bot (or its number). Enter plays, Esc goes back. |
   | UNO | Left / Right move along your hand, Space plays that card (or picks it when it has twins, like a click). Enter plays the picked cards, X cancels them. Choosing a wild's colour: Left / Right and Enter (or Space); X cancels. D, P and U as before. |
   | Checkers | The arrow keys move a cursor on the board (blue, because yellow already marks the pieces); Space or Enter acts like a click on that square. |
   | Connect Four | Left / Right choose a column; Space, Enter or Down drops the disc. 1-7 drop straight into that column. |
@@ -30,11 +30,11 @@ Numbers live in `arcade/config.py`.
 
 ## 1. Title screen
 
-- Animated smoothly: twinkling stars, the neon floor grid sliding towards you, the five bots dancing under
+- Animated smoothly: twinkling stars, the neon floor grid sliding towards you, the four bots dancing under
   spotlights, the name of the game in big letters.
 - It starts like an arcade machine waiting for a player: the name of the game drops in and **PRESS ENTER** blinks.
   Enter, Space or a click starts. This only happens the first time; coming back from HOW TO PLAY shows the menu.
-- Clicking a bot, or pressing 1 to 5 (not while typing), makes it jump, spin and say a short line in a speech bubble.
+- Clicking a bot, or pressing 1 to 4 (not while typing), makes it jump, spin and say a short line in a speech bubble.
 - The arcade's best player dances on a gold podium at the right, in their own skins, with a crown and
   **CHAMPION xN**: the player with the most championships (a tie goes to more games won, then to the name in
   alphabetical order). Nobody stands there until someone has won a championship, and it changes as people play.
@@ -57,8 +57,9 @@ Numbers live in `arcade/config.py`.
 
 - Pixel-art room seen from above. The player appears at the bottom, by the door, wearing the default clothes, with the name in a tag above the head.
 - The player walks with W A S D (or arrow keys, or by clicking) and has four looks: down, up, left, right.
-- Five bots, each with a unique name, look and level: PIXEL and JOY (easy), TURBO (medium), BYTE (hard),
-  GLITCH (expert).
+- Four bots, one per level, each with its own name and look (all our own designs): **DEAN** (easy, a university
+  dean in a suit and glasses), **BARK** (medium, a dog with a blue bandana, on four legs), **MANHOSA** (hard, a
+  security officer in uniform and cap) and **JOHN** (expert, the most ordinary guy there is).
 - Three game tables stand out from the scenery: UNO (left), checkers (top middle), Connect Four (right).
 - The store is at the top right. The championship cabinet is at the top left.
 - A coin counter is shown at the top right of the room. It is not shown at the game tables.
@@ -68,8 +69,9 @@ Numbers live in `arcade/config.py`.
 
 ## 3. Playing a table (free play)
 
-- Pressing E opens **CHOOSE YOUR OPPONENT**: the five bots with their level, its stars and its coins.
-  Checkers and Connect Four: pick 1. UNO: pick 3 (each plays at its own level). Click a card or press 1-5;
+- Pressing E opens **CHOOSE YOUR OPPONENT**: the four bots, from the easiest on the left to the hardest on the
+  right, with their level, its stars and its coins.
+  Checkers and Connect Four: pick 1. UNO: pick 3 (each plays at its own level). Click a card or press 1-4;
   clicking a picked bot takes it back. **PLAY** (Enter) starts once enough bots are picked; Esc goes back.
 - Levels: **easy** (anyone who thinks a little wins), **medium** (a bit of strategy is enough), **hard** (you must
   know what you are doing), **expert** (only the best win). Settings per level in `config.py`. In simulated games a

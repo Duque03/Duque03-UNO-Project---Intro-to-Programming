@@ -15,9 +15,9 @@ def _free(game, names):
 
 
 @pytest.mark.parametrize("game,names", [
-    ("uno", ["JOY", "TURBO", "BYTE"]),
-    ("checkers", ["GLITCH"]),
-    ("connect4", ["PIXEL"]),
+    ("uno", ["DEAN", "BARK", "MANHOSA"]),
+    ("checkers", ["JOHN"]),
+    ("connect4", ["DEAN"]),
 ])
 def test_play_again_keeps_the_table_and_the_bots(game, names):
     match = _free(game, names)
@@ -27,7 +27,7 @@ def test_play_again_keeps_the_table_and_the_bots(game, names):
 
 
 def test_play_again_pays_the_same_prize():
-    match = _free("uno", ["JOY", "TURBO", "BYTE"])
+    match = _free("uno", ["DEAN", "BARK", "MANHOSA"])
     again = levels.rematch(match, bots.BOT_NAMES)
     prize = [levels.win_coins([bots.level(name) for name in m["bots"]]) for m in (match, again)]
     assert prize[0] == prize[1]
@@ -35,11 +35,11 @@ def test_play_again_pays_the_same_prize():
 
 @pytest.mark.parametrize("match", [
     None,                                                                  # no game was played
-    {"game": "uno", "mode": "champ", "bots": ["JOY", "TURBO", "BYTE"], "others": []},  # championship
-    _free("poker", ["JOY"]),                                               # not a table
+    {"game": "uno", "mode": "champ", "bots": ["DEAN", "BARK", "MANHOSA"], "others": []},  # championship
+    _free("poker", ["DEAN"]),                                               # not a table
     _free("checkers", ["NOBODY"]),                                         # not a bot
-    _free("connect4", ["JOY", "BYTE"]),                                    # one bot too many
-    _free("uno", ["JOY", "JOY", "TURBO"]),                                 # the same bot twice
+    _free("connect4", ["DEAN", "MANHOSA"]),                                    # one bot too many
+    _free("uno", ["DEAN", "DEAN", "BARK"]),                                 # the same bot twice
 ])
 def test_play_again_is_refused_when_it_does_not_fit(match):
     with pytest.raises(BadPick):

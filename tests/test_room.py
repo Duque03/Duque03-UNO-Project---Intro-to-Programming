@@ -49,9 +49,9 @@ def test_every_picture_is_sent_only_once():
     assert list(richer["assets"]) == [richer["hud"]["img"]], "only the new coin counter is sent"
 
 
-def test_the_scene_lists_six_characters_and_the_bubbles_by_zone():
+def test_the_scene_lists_the_bots_and_the_player_and_the_bubbles_by_zone():
     data = _scene(set())
-    assert len(data["actors"]) == 6
+    assert len(data["actors"]) == len(bots.BOTS) + 1
     assert [a["name"] for a in data["actors"] if a["player"]] == ["MIGUEL"]
     assert list(data["bubbles"]) == [str(hubmap.NEAR_CODES["uno"])]
     assert data["bubbles"]["1"][0]["action"] == "interact"
