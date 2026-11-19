@@ -10,7 +10,8 @@ import streamlit as st
 
 from arcade import online, sound, state, ui
 from arcade.art import online as art
-from arcade.logic.lobby import GAME_NAMES, GAME_SIZES, LobbyError
+from arcade.logic import cursor
+from arcade.logic.lobby import CODE_LETTERS, GAME_NAMES, GAME_SIZES, LobbyError
 from arcade.state import S
 
 
@@ -33,52 +34,110 @@ def watch(code: str, seen: int) -> None:
 
 # ---------------------------------------------------------------- the online menu
 
+MENU = [
+    {"label": "CREATE LOBBY", "action": "create", "key": "N"},
+    {"label": "JOIN A LOBBY", "action": "join", "key": "J"},
+    {"label": "PLAY OFFLINE", "action": "arcade", "key": "A"},
+    {"label": "LOG OUT", "action": "logout", "key": "ESC"},
+]
+
+
 def render_menu() -> None:
+    if S.get("online_step") == "join":
+        _render_join()
+        return
     me = online.card(S.player)
-    ui.show(ui.screen(), art.menu_picture(me, S.get("online_message", "")))
-    bar = st.columns([1.3, 1.9, 1.0, 1.0])
-    with bar[0]:
-        create = ui.button("Create lobby", "online_create", "N", type="primary")
-    with bar[1]:
-        with st.form("online_join_form", border=False):  # Enter in the box joins, like the Join button
-            box, button = st.columns([1.1, 0.8])
-            with box:
-                code = st.text_input("Code", key="online_code", max_chars=4, placeholder="CODE",
-                                     label_visibility="collapsed")
-            with button:
-                join = st.form_submit_button("Join", width="stretch")
-    with bar[2]:
-        arcade = ui.button("Arcade", "online_arcade", "A")
-    with bar[3]:
-        out = ui.button("Log out", "online_out", "Esc")
-    if create:
+    # Keys first, on every run (see AGENTS.md): Up / Down move the yellow highlight, Enter or Space chooses.
+    key = ui.keys("omenu", {"Up": "up", "Down": "down", "Enter": "choose", "Space": "space", "n": "create",
+                            "j": "join", "a": "arcade", "Escape": "logout"})
+    focus = cursor.clamp(S.get("online_focus"), len(MENU))
+    if key in ("up", "down"):
+        focus = S.online_focus = cursor.step(focus, key, len(MENU))
+        sound.play("blip")
+    img, regions = art.menu_picture(me, MENU, focus, S.get("online_message", ""))
+    ui.show(ui.screen(), img)
+    action = ui.hit(regions, ui.click())
+    choice = action[1] if action else None
+    if key in ("choose", "space"):
+        choice = MENU[focus]["action"]
+    elif key in ("create", "join", "arcade", "logout"):
+        choice = key
+    if not choice:
+        return
+    S.online_message = ""
+    if choice == "create":
         S.lobby_code = online.lobbies().create(me)
-        S.online_message = ""
         sound.play("coin")
         ui.fade_next()
         S.screen = "lobby"
-        st.rerun()
-    if join:
-        try:
-            S.lobby_code = online.lobbies().join(code, me)
-        except LobbyError as problem:
-            S.online_message = str(problem)
-            sound.play("lose")
-            st.rerun()
-        S.online_message = ""
-        sound.play("coin")
-        ui.fade_next()
-        S.screen = "lobby"
-        st.rerun()
-    if arcade:  # play offline: back into the arcade, with the bots. The room as it was (signing in again would
-        ui.fade_next()  # reset the count of key presses the room has handled, and an old Esc would come back)
+    elif choice == "join":
+        S.online_step, S.join_code, S.join_focus = "join", "", 0
+        sound.play("blip")
+    elif choice == "arcade":  # play offline: back into the arcade, with the bots. The room as it was (signing in
+        ui.fade_next()        # again would reset the count of key presses the room has handled: an old Esc returns)
         state.go("hub")
-        st.rerun()
-    if out:
+    else:
         S.player = None
         ui.fade_next()
         S.screen = "title"
-        st.rerun()
+    st.rerun()
+
+
+def _render_join() -> None:
+    """JOIN A LOBBY: type the code (or pick its letters on the on-screen keyboard with the arrows), Enter joins."""
+    letters = CODE_LETTERS
+    keys = art.pad_keys(letters)
+    mapping = {"Up": "up", "Down": "down", "Left": "left", "Right": "right", "Enter": "press", "Space": "space",
+               "Backspace": "DEL", "Escape": "BACK"}
+    mapping.update({letter.lower(): letter for letter in letters})  # the letters typed on the keyboard
+    key = ui.keys("ojoin", mapping)
+    code, focus = S.get("join_code", ""), cursor.clamp(S.get("join_focus"), len(keys))
+    if key in ("up", "down", "left", "right"):
+        focus = S.join_focus = cursor.pad_step(focus, key, len(letters))
+        sound.play("blip")
+        key = None
+    elif key in ("press", "space"):
+        key = keys[focus]
+    img, regions = art.join_picture(code, letters, focus, S.get("online_message", ""))
+    ui.show(ui.screen(), img)
+    action = ui.hit(regions, ui.click())
+    if action:
+        key = action[1]
+        if key in keys:
+            S.join_focus = keys.index(key)
+    if not key:
+        return
+    if key == "BACK":
+        S.online_step, S.online_message = "menu", ""
+        sound.play("blip")
+    elif key == "DEL":
+        S.join_code, S.online_message = code[:-1], ""
+        sound.play("blip")
+    elif key == "JOIN":
+        _join(code)
+    elif len(code) < 4:  # a letter
+        S.join_code, S.online_message = code + key, ""
+        sound.play("blip")
+        if len(S.join_code) == 4:
+            S.join_focus = len(letters) + 1  # the highlight jumps to JOIN: Enter joins
+    st.rerun()
+
+
+def _join(code: str) -> None:
+    if len(code) < 4:
+        S.online_message = "A code has 4 letters"
+        sound.play("lose")
+        return
+    try:
+        S.lobby_code = online.lobbies().join(code, online.card(S.player))
+    except LobbyError as problem:
+        S.online_message = str(problem)
+        sound.play("lose")
+        return
+    S.online_message, S.online_step = "", "menu"
+    sound.play("coin")
+    ui.fade_next()
+    S.screen = "lobby"
 
 
 # ---------------------------------------------------------------- the lobby
@@ -110,7 +169,16 @@ def render_lobby() -> None:
             message = f"{GAME_NAMES[lobby.game]} needs {low if low == high else f'{low} to {high}'} players"
     if S.get("online_message"):
         message, good = S.online_message, False
-    ui.show(ui.screen(), art.lobby_picture(lobby, me, message, good))
+    key = ui.keys("olobby", {"Left": "left", "Right": "right"})  # the host moves along the games
+    if key and host:
+        index = art.GAMES.index(lobby.game) if lobby.game else None
+        index = cursor.step(index, key, len(art.GAMES))
+        online.lobbies().choose(code, me, art.GAMES[index])
+        sound.play("blip")
+        st.rerun()
+    img, regions = art.lobby_picture(lobby, me, message, good)
+    ui.show(ui.screen(), img)
+    clicked = ui.hit(regions, ui.click())
     watch(code, lobby.version)
 
     bar = st.columns([0.8, 1, 1.3, 1, 1, 0.9])
@@ -127,6 +195,8 @@ def render_lobby() -> None:
     with bar[5]:
         out = ui.button("Leave", "lobby_leave", "Esc")
     chosen = next((game for game, pressed in picks.items() if pressed), None)
+    if clicked and clicked[0] == "game":
+        chosen = clicked[1]
     try:
         if chosen:
             online.lobbies().choose(code, me, chosen)

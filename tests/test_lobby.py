@@ -237,3 +237,11 @@ def test_online_uno_prizes_follow_the_places():
     assert [online_coins(result, name) for name in "ABCD"] == [15, 8, 4, 0]
     assert [online_coins({"places": ["A", "B"]}, name) for name in "AB"] == [15, 0]
     assert online_coins({"winner": None}, "A") == 0
+
+
+def test_codes_only_use_letters_that_can_be_typed_on_the_join_screen(setup):
+    from arcade.logic.lobby import CODE_LETTERS
+    assert not set("CRMFIO") & set(CODE_LETTERS)
+    lobbies, _ = setup
+    for k in range(30):
+        assert set(lobbies.create(_player(f"P{k}"))) <= set(CODE_LETTERS)
