@@ -140,3 +140,24 @@ def test_every_game_tab_says_how_to_choose_with_the_keyboard(game):
     tab = next(tab for tab in controls.TABS if tab["key"] == game)
     keys = " ".join(key for key, _ in tab["rows"])
     assert "SPACE" in keys
+
+
+# ----- the on-screen keyboard of the join screen: 20 letters in rows of 5, then DEL, JOIN, BACK
+
+def test_the_code_keyboard_moves_one_key_and_stops_at_the_edges():
+    assert cursor.pad_step(0, "right", 20) == 1 and cursor.pad_step(0, "left", 20) == 0
+    assert cursor.pad_step(4, "right", 20) == 4 and cursor.pad_step(0, "up", 20) == 0
+    assert cursor.pad_step(2, "down", 20) == 7
+
+
+def test_down_from_the_last_letters_reaches_del_join_and_back():
+    assert cursor.pad_step(15, "down", 20) == 20  # DEL
+    assert cursor.pad_step(17, "down", 20) == 21  # JOIN
+    assert cursor.pad_step(19, "down", 20) == 22  # BACK
+    assert cursor.pad_step(21, "up", 20) == 17 and cursor.pad_step(20, "right", 20) == 21
+    assert cursor.pad_step(22, "right", 20) == 22 and cursor.pad_step(22, "down", 20) == 22
+
+
+def test_the_code_keyboard_refuses_a_key_that_is_not_an_arrow():
+    with pytest.raises(ValueError):
+        cursor.pad_step(0, "space", 20)

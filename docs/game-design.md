@@ -188,11 +188,18 @@ Saved per player name: coins, owned cosmetics, equipped cosmetics, wins per game
 ## 8. Playing online with friends
 
 - Everyone plays on their own phone or laptop, at the game's web address. No bots online: only the people in the lobby.
-- **Online menu**: **Create lobby** (N) gives a 4-letter code (no I or O, which look like 1 and 0). Friends type it in
-  the box and press **Join** (or Enter). **Arcade** (A) goes back to playing offline; **Log out** (Esc) to the title.
+- **Online menu**, drawn on the picture like the pause menu (Up / Down move the yellow highlight, Enter or a click
+  chooses): **CREATE LOBBY** (N) gives a 4-letter code; **JOIN A LOBBY** (J); **PLAY OFFLINE** (A) goes back into the
+  arcade; **LOG OUT** (Esc) to the title.
+- **Join a lobby**: four boxes for the code, like an arcade's high-score letters. Type the letters on the keyboard, or
+  move along an on-screen keyboard with the arrows and press Enter (or click / tap a letter: phones have no keyboard).
+  Backspace or DEL deletes, Enter or JOIN joins (the highlight jumps to JOIN after the 4th letter), Esc or BACK goes
+  back. Codes never use I or O (they look like 1 and 0), C or R (Streamlit keeps those keys) or M and F (music and
+  full screen), so every letter of a code can be typed.
 - **Lobby**: up to **4 players**, shown with their own skins and name tags. The code is shown big, and as text with a
-  copy button to paste into a message. Whoever created the lobby is the **host** (a crown): they pick the game, **UNO**
-  (2 to 4 players), **Checkers** or **Connect Four** (exactly 2), and press **Start** when the number of players fits.
+  copy button to paste into a message. Whoever created the lobby is the **host** (a crown): they pick the game on the
+  picture (Left / Right, a click, or 1 / 2 / 3): **UNO** (2 to 4 players), **Checkers** or **Connect Four** (exactly 2),
+  and press **Start** (Enter) when the number of players fits.
   The others see the host's choice and wait. Nobody can join while a game is being played.
 - **At the table** each player sees the game from their own seat, with the same pictures as in the arcade: in UNO the
   others sit across the table in turn order; in checkers and Connect Four the host is red and moves first, and the

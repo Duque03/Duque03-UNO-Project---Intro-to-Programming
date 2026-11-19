@@ -50,3 +50,33 @@ def on_board(cell: tuple[int, int], key: str, rows: int, cols: int) -> tuple[int
     dr, dc = BOARD_KEYS[key]
     row, col = cell
     return (min(max(row + dr, 0), rows - 1), min(max(col + dc, 0), cols - 1))
+
+
+PAD_COLUMNS = 5
+
+
+def pad_step(index: int, key: str, letters: int, columns: int = PAD_COLUMNS) -> int:
+    """The on-screen keyboard for a lobby code: `letters` keys in rows of `columns`, then a bottom row of three
+    (DEL, JOIN, BACK at letters, letters + 1, letters + 2). The arrows move one key and stop at the edges; Down from
+    the last row of letters goes to the bottom row, Up from the bottom row comes back above it."""
+    if key not in BOARD_KEYS:
+        raise ValueError(f"not an arrow key: {key}")
+    rows = -(-letters // columns)
+    if index >= letters:  # the bottom row
+        spot = index - letters
+        if key in ("left", "right"):
+            return letters + min(max(spot + (1 if key == "right" else -1), 0), 2)
+        if key == "up":
+            col = (0, columns // 2, columns - 1)[spot]
+            return min((rows - 1) * columns + col, letters - 1)
+        return index
+    row, col = divmod(index, columns)
+    if key == "left":
+        return index if col == 0 else index - 1
+    if key == "right":
+        return index if col == columns - 1 or index + 1 >= letters else index + 1
+    if key == "up":
+        return index if row == 0 else index - columns
+    if row == rows - 1 or index + columns >= letters:  # down from the last row: to DEL, JOIN or BACK
+        return letters + (0 if col < columns // 2 else 1 if col == columns // 2 else 2)
+    return index + columns

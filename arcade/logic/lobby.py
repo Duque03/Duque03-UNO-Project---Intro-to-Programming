@@ -24,7 +24,9 @@ from arcade.logic.checkers import BOTTOM, CheckersGame
 from arcade.logic.connect4 import RED, Connect4Game
 from arcade.logic.uno import UnoGame
 
-CODE_LETTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ"  # no I or O, which look like 1 and 0
+# No I or O (they look like 1 and 0), no C or R (Streamlit keeps those keys for itself), no M or F (the game's keys
+# for music and full screen), so every letter of a code can be typed straight on the join screen.
+CODE_LETTERS = "ABDEGHJKLNPQSTUVWXYZ"
 CODE_LENGTH = 4
 MAX_PLAYERS = 4
 GAME_SIZES = {"uno": (2, 4), "checkers": (2, 2), "connect4": (2, 2)}
