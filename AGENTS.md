@@ -110,7 +110,9 @@ changing these files, and change them in a small pull request of their own.
 - **The only JavaScript is `INPUT_JS` and `FULLSCREEN_JS` in `arcade/ui.py`, `SOUND_JS` in `arcade/sound.py`,
   `ROOM_JS` in `arcade/room.py`, `TITLE_JS` in `arcade/title_view.py` and `JS` in `arcade/tiles.py`.** `INPUT_JS` reports clicks on the game picture.
   `FULLSCREEN_JS` is the FULL SCREEN button (and the F key) and sends nothing back. `SOUND_JS` only plays sounds by
-  name (and draws the MUSIC button, which does what M does) and never sends anything back. `ROOM_JS` moves and draws the room; it numbers every press of E, I and Esc and
+  name (and draws the MUSIC button, which does what M does) and never sends anything back. Its tunes come from
+  `arcade/music.py`, written into the script once (`__SCORE__`); each run only sends the name of the tune the screen
+  wants (`music.track_for`). To change a tune, edit its text in `music.py`; `tests/test_music.py` checks it fits. `ROOM_JS` moves and draws the room; it numbers every press of E, I and Esc and
   sends it again until Python has handled it (`room.new_press`), so a press is never lost. The `tiles.py` script draws
   the item grid of the store and the wardrobe and reports which item was clicked. Python checks every value it
   receives before using it (`tiles.grid` only accepts ids that exist in `catalog.py`).
