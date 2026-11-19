@@ -6,3 +6,6 @@ data/*.db
 .env
 .streamlit/secrets.toml
 .pytest_tmp/
+
+# Copies of files Claude sends in the chat (the Claude desktop app saves them here); the real ones are in docs/
+Claude outputs/
