@@ -17,3 +17,10 @@ gatherUsageStats = false
 # while the bots are still moving would start a second run next to the first
 # one, and both would move the bots.
 fastReruns = false
+
+[global]
+# Streamlit normally sends a big message (a picture, a script) only once and later tells the browser "show the copy
+# you already have". The browser throws its copies away after a couple of runs, so after a dropped connection or an
+# app restart it can be asked for a copy it no longer has: "Connection error ... Cached ForwardMsg MISS". With this
+# minimum no message is ever cached, so every message arrives whole and that error cannot happen.
+minCachedMessageSize = 1000000000000
