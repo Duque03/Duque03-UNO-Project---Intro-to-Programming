@@ -75,6 +75,9 @@ AGENTS.md              rules for people and coding agents working on this reposi
 
 ### Setting up the online database (once)
 
+The full step-by-step guide, with what each piece is for and the questions we may be asked, is in
+[`docs/deployment.md`](docs/deployment.md). In short:
+
 1. Create a free account at [neon.tech](https://neon.tech) and a project (any name, region in Europe).
 2. On the project page, copy the connection string (it starts with `postgresql://`).
 3. In Streamlit Community Cloud, open the app's **Settings > Secrets** and paste:
