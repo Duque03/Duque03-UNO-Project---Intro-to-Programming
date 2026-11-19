@@ -94,6 +94,9 @@ changing these files, and change them in a small pull request of their own.
   (`arcade/art/title_layers.py`, including a sheet of the pixel font's letters) and the browser animates them and draws
   the menu and the name and PIN boxes. It sends `howto` or `submit` (name, PIN) with a number; `screens/title.py`
   checks them with `accounts.sign_up` / `accounts.log_in` and sends back the number it handled and any error message.
+  An accepted sign-in is kept in `S.title_pending` and Python sends `enter`: the browser flies into the arcade and
+  then sends `entered`, and only then does `state.start_session` run. The best player shown dancing comes from
+  `championship.best_player(db.all_players())`, looked up at most once a minute.
 - **Screens fade in with a browser animation** (`ui._fade_style`), never with pictures sent one by one: those
   stutter. Do not add animations made of several pictures to the table screens.
 - **The only JavaScript is `INPUT_JS` and `FULLSCREEN_JS` in `arcade/ui.py`, `SOUND_JS` in `arcade/sound.py`,

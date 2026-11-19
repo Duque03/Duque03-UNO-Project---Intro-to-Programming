@@ -90,3 +90,15 @@ def champions(champ: dict) -> list[str]:
 def player_is_champion(champ: dict) -> bool:
     """Sharing first place still counts as winning the championship."""
     return is_over(champ) and champ["me"] in champions(champ)
+
+
+def best_player(players: list[dict]) -> dict | None:
+    """The arcade's best player, shown dancing on the title screen: the most championships won.
+
+    A tie goes to the player with more games won, then to the name first in alphabetical order.
+    Nobody is shown (None) until someone has won a championship.
+    """
+    winners = [p for p in players if p.get("championships", 0) > 0]
+    if not winners:
+        return None
+    return min(winners, key=lambda p: (-p["championships"], -sum(p.get("wins", {}).values()), p["name"]))

@@ -15,15 +15,26 @@ Numbers live in `arcade/config.py`.
 
 - Animated smoothly: twinkling stars, the neon floor grid sliding towards you, the five bots dancing under
   spotlights, the name of the game in big letters.
+- It starts like an arcade machine waiting for a player: the name of the game drops in and **PRESS ENTER** blinks.
+  Enter, Space or a click starts. This only happens the first time; coming back from HOW TO PLAY shows the menu.
+- Clicking a bot, or pressing 1 to 5 (not while typing), makes it jump, spin and say a short line in a speech bubble.
+- The arcade's best player dances on a gold podium at the right, in their own skins, with a crown and
+  **CHAMPION xN**: the player with the most championships (a tie goes to more games won, then to the name in
+  alphabetical order). Nobody stands there until someone has won a championship, and it changes as people play.
+- Menu choices make arcade sounds (a coin when you confirm, a blip when you move), and the chosen option has a
+  spinning coin on each side.
 - The menu is drawn in the picture, like a real game: **PLAY** or **HOW TO PLAY** (arrow keys or W S to choose,
   Enter to confirm, Esc to go back, or the mouse). PLAY asks **NEW PLAYER** or **I HAVE AN ACCOUNT** (or BACK).
-- Then a panel with the boxes to type in: name and PIN (dots instead of digits). Arrow keys or Tab move between the
+- Then a panel with the boxes to type in (titled **ENTER YOUR NAME** for a new player, like an arcade high score):
+  name and PIN (dots instead of digits). Arrow keys or Tab move between the
   boxes and the CREATE / LOG IN and BACK buttons. A refusal is written in red in the panel and the PIN boxes empty.
 - New player: a name and a PIN of 4 to 8 digits, typed twice. A name that is already taken is refused.
 - I have an account: the name and its PIN. A name that has never played is refused, and so is a wrong PIN
   (5 wrong PINs lock the name for a minute). A PIN cannot be recovered.
 - Names: 1 to 10 characters, letters, numbers, spaces, `-` and `_`. Stored in capitals. Anything else is rejected with a message.
 - A name that has played before continues with its saved coins, cosmetics, wins and championship status.
+- When the sign-in is accepted, the camera flies forward into the arcade (about one second) and fades to black, and
+  the arcade room fades in: the player enters the game without a cut.
 
 ## 2. Arcade room
 
