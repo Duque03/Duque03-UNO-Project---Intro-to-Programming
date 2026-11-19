@@ -5,7 +5,7 @@ Each bot has a level (easy, medium, hard, expert; see bots.py and config.LEVEL_C
 
 from __future__ import annotations
 
-from arcade.config import BOTS_PER_GAME, LEVEL_COINS, LEVELS
+from arcade.config import BOTS_PER_GAME, LEVEL_COINS, LEVELS, UNO_PLACE_SHARE
 
 
 class BadPick(ValueError):
@@ -17,6 +17,15 @@ def win_coins(levels: list[str]) -> int:
     if not levels or any(level not in LEVEL_COINS for level in levels):
         raise BadPick("Unknown level.")
     return round(sum(LEVEL_COINS[level] for level in levels) / len(levels))
+
+
+def place_coins(levels: list[str], place: int) -> int:
+    """UNO prize for finishing in `place` (1 = first): 1st the full prize, 2nd half, 3rd a quarter, last nothing.
+
+    Halves are rounded up (half of 15 is 8)."""
+    if place < 1:
+        raise ValueError("Places start at 1.")
+    return int(win_coins(levels) * UNO_PLACE_SHARE.get(place, 0) + 0.5)
 
 
 def stars(level: str) -> int:

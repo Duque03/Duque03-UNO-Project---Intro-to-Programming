@@ -92,21 +92,26 @@ class Connect4Game:
         return col
 
     # ----- computer player
-    def bot_move(self, rng: random.Random | None = None, depth: int = 2, blunder: float = 0.0) -> int:
-        """Choose and play a column for the side to move. Returns the column."""
+    def bot_move(self, rng: random.Random | None = None, depth: int = 2, blunder: float = 0.0,
+                 win: float = 1.0, block: float = 1.0) -> int:
+        """Choose and play a column for the side to move. Returns the column.
+
+        depth: how many moves it looks ahead; blunder: the chance of a random column instead;
+        win / block: the chance that it notices a four it can make now / a four the opponent threatens to make.
+        """
         rng = rng or random.Random()
         columns = self.legal_columns()
         if not columns:
             raise IllegalMove("The game is over.")
         me = self.turn
         choice = None
-        for col in columns:  # win now if possible
+        for col in columns if rng.random() < win else ():  # win now if possible (if it notices)
             trial = self.clone()
             trial.drop(col)
             if trial.winner == me:
                 choice = col
                 break
-        if choice is None:
+        if choice is None and rng.random() < block:
             for col in columns:  # otherwise block an immediate loss
                 trial = self.clone()
                 trial.turn = other(me)

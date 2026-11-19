@@ -31,17 +31,30 @@ CHAMPIONSHIP_BOTS = 3
 # three bots, you get the average of their three levels.
 LEVELS = ["easy", "medium", "hard", "expert"]
 LEVEL_COINS = {"easy": 5, "medium": 15, "hard": 25, "expert": 40}
+# UNO is played until one player is left: the share of the prize each place wins (last place wins nothing).
+UNO_PLACE_SHARE = {1: 1.0, 2: 0.5, 3: 0.25}
 
 # How each level plays. UNO: chances between 0 and 1 (see UnoGame.bot_turn).
 UNO_LEVELS = {
-    "easy": {"twins": 0.1, "stack": 0.15, "smart": 0.15, "forget_uno": 0.5},
-    "medium": {"twins": 0.35, "stack": 0.5, "smart": 0.6, "forget_uno": 0.25},
+    "easy": {"twins": 0.0, "stack": 0.0, "smart": 0.0, "forget_uno": 0.7},
+    "medium": {"twins": 0.2, "stack": 0.3, "smart": 0.35, "forget_uno": 0.4},
     "hard": {"twins": 0.75, "stack": 0.85, "smart": 0.9, "forget_uno": 0.1},
     "expert": {"twins": 1.0, "stack": 1.0, "smart": 1.0, "forget_uno": 0.0},
 }
-# Checkers and Connect Four: (how many moves the bot looks ahead, chance of a random move)
-CHECKERS_LEVELS = {"easy": (1, 0.5), "medium": (2, 0.25), "hard": (3, 0.08), "expert": (5, 0.0)}
-CONNECT4_LEVELS = {"easy": (1, 0.5), "medium": (2, 0.2), "hard": (4, 0.08), "expert": (5, 0.0)}
+# Checkers and Connect Four: depth = how many moves the bot looks ahead, blunder = chance of a random move.
+# Connect Four also: win / block = chance the bot notices a four it can make now / one it must stop.
+CHECKERS_LEVELS = {
+    "easy": {"depth": 0, "blunder": 0.5},
+    "medium": {"depth": 1, "blunder": 0.5},
+    "hard": {"depth": 3, "blunder": 0.08},
+    "expert": {"depth": 5, "blunder": 0.0},
+}
+CONNECT4_LEVELS = {
+    "easy": {"depth": 0, "blunder": 0.85, "win": 0.4, "block": 0.15},
+    "medium": {"depth": 1, "blunder": 0.5, "win": 0.9, "block": 0.55},
+    "hard": {"depth": 4, "blunder": 0.08, "win": 1.0, "block": 1.0},
+    "expert": {"depth": 5, "blunder": 0.0, "win": 1.0, "block": 1.0},
+}
 SIMULATED_TIE_CHANCE = 0.1  # bot-versus-bot Connect Four in the championship
 
 # Player name rules

@@ -74,9 +74,16 @@ Numbers live in `arcade/config.py`.
   Checkers and Connect Four: pick 1. UNO: pick 3 (each plays at its own level). Click a card or press 1-4;
   clicking a picked bot takes it back. **PLAY** (Enter) starts once enough bots are picked; Esc goes back.
 - Levels: **easy** (anyone who thinks a little wins), **medium** (a bit of strategy is enough), **hard** (you must
-  know what you are doing), **expert** (only the best win). Settings per level in `config.py`. In simulated games a
-  fair player won against easy / medium / hard / expert: UNO 63 / 43 / 24 / 21 %, checkers 81 / 62 / 19 / 0 %,
-  Connect Four 90 / 80 / 23 / 20 %.
+  know what you are doing), **expert** (only the best win). Settings per level in `config.py`. An easy Connect Four
+  bot sometimes misses a four it could make or one it should stop; hard and expert never do.
+  Simulated games (a **beginner** who plays almost at random, and a **fair** casual player), against easy / medium /
+  hard / expert:
+
+  | Game | Beginner wins | Fair player wins |
+  |---|---|---|
+  | Connect Four | 76 / 20 / 0 / 0 % | 100 / 88 / 15 / 3 % |
+  | Checkers | 59 / 18 / 1 / – % | 96 / 85 / 9 / – % (expert is slow to simulate; it is stronger than hard) |
+  | UNO (1st place out of 4) | 70 / 45 / 20 / 15 % | 81 / 64 / 34 / 27 % |
 - The player and the chosen bots walk to the table. When everyone has arrived the view zooms in and the game starts.
 - At the table the player sees the opponents sitting across it.
 - A bot thinks for a random 1 to 3 seconds before each move, with a "..." speech bubble next to it (in checkers, the
@@ -87,8 +94,11 @@ Numbers live in `arcade/config.py`.
   or jumping again in checkers starts a fresh 15 seconds. Pausing or opening the rules stops the clock; it starts
   again from 15 on return.
 - When the game ends a box appears:
-  - win: "Congratulations!! You won!" and the coins of the bot's level: **easy 5, medium 15, hard 25, expert 40**.
-    In UNO, the average of the three bots' coins, rounded (easy + medium + hard = 15);
+  - win: "Congratulations!! You won!" and the coins of the bot's level: **easy 5, medium 15, hard 25, expert 40**;
+  - UNO is played until only one player is left, so it has places. The prize is the average of the three bots'
+    coins, rounded (easy + medium + hard = 15): **1st** wins all of it, **2nd** half, **3rd** a quarter (halves round
+    up: 15 / 8 / 4), **last** nothing. The box shows everyone's place. Only 1st counts as a win (for the championship
+    cabinet). Once the player has finished, the bots finish the game at once instead of the player watching;
   - loss: one of 20 sentences, picked at random;
   - tie (Connect Four only): a tie message and no coins.
 - Enter closes the box and returns to the room.
@@ -112,7 +122,9 @@ Numbers live in `arcade/config.py`.
 - House rule, going out: nobody goes out with several cards at once. When a play would use the player's whole hand
   (for example their last two 1s), all but the last card go down and the player must say UNO; the last card then
   goes down by itself and they win. Missing UNO means drawing 2 and keeping that card.
-- The first player with no cards wins.
+- House rule, places: the first player with no cards finishes 1st and the others play on without them (they are
+  skipped), until only one player has cards left: that player comes last. With two players left, a Reverse works
+  like a Skip. A player who goes out by saying UNO on a turn that came back round to them passes the turn on.
 
 ### Checkers
 - 8x8 board, the player is red and moves first.
@@ -153,7 +165,8 @@ Numbers live in `arcade/config.py`.
 - Once unlocked the prompt is **START CHAMPIONSHIP [E]**.
 - The first time only, a light-blue bubble explains the rules, one sentence per press of Enter, ending with "Are you ready?" and **Yes** / **No**. No returns to the room.
 - From the second time on, the prompt also offers **RULES [I]**.
-- Three bots are picked at random. Round 1 is UNO with all four players. In rounds 2 (checkers) and 3 (Connect Four) the player is drawn against one bot and the other two bots play each other (their result is simulated).
+- Three bots are picked at random. Round 1 is UNO with all four players; it ends as soon as someone is out, because
+  only 1st place scores. In rounds 2 (checkers) and 3 (Connect Four) the player is drawn against one bot and the other two bots play each other (their result is simulated).
 - A win is worth 2 points, a tie 1 point each. The maximum is 6.
 - After each round a scoreboard shows "Winner: NAME" (or "Winners"), each player's head and name, a horizontal bar that grows with their points, and the number.
 - After round 3 the final board shows one of 20 champion sentences (or one of 20 losing sentences). The champion is whoever has the most points. Sharing first place counts.

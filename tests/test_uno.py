@@ -98,11 +98,63 @@ def test_wild_draw_four_sets_colour_and_gives_four_cards():
     assert game.current == "B"
 
 
-def test_playing_the_last_card_wins():
+def test_playing_the_last_card_finishes_first_and_the_others_play_on():
     game = make_game()
     set_up(game, [("red", "5")], ("red", "9"))
     game.play("ME", ("red", "5"))
+    assert game.out == ["ME"] and game.winner is None  # 1st place; the game goes on without ME
+    assert game.current == "A" and "ME" not in game.active
+
+
+def test_a_player_who_finished_is_skipped():
+    game = make_game()
+    set_up(game, [("red", "5")], ("red", "9"))
+    game.play("ME", ("red", "5"))  # ME (seat 0) is out
+    game.hands["C"] = [("red", "1"), ("blue", "2")]
+    game.colour, game.turn, game.drawn_card = "red", 3, None
+    game.play("C", ("red", "1"))  # after C comes seat 0, but ME has finished: A plays
+    assert game.current == "A"
+
+
+def test_the_last_player_with_cards_comes_last_and_the_game_ends():
+    game = make_game()
+    for name in ("ME", "A", "B"):
+        game.hands[name] = [("red", "5")]
+        game.colour, game.discard = "red", [("red", "9")]
+        game.turn, game.drawn_card = game.players.index(name), None
+        game.play(name, ("red", "5"))
+    assert game.places == ["ME", "A", "B", "C"]
     assert game.winner == "ME"
+    with pytest.raises(IllegalMove):
+        game.draw("C")
+
+
+def test_with_two_players_the_first_one_out_wins_at_once():
+    game = UnoGame(["ME", "A"], random.Random(3))
+    set_up(game, [("red", "5")], ("red", "9"))
+    game.play("ME", ("red", "5"))
+    assert game.winner == "ME" and game.places == ["ME", "A"]
+
+
+def test_a_reverse_works_like_a_skip_when_two_players_are_left():
+    game = make_game()
+    set_up(game, [("red", "5")], ("red", "9"))
+    game.play("ME", ("red", "5"))  # ME is out: A, B, C are left
+    game.hands["B"] = [("yellow", "1")]
+    game.colour, game.turn, game.drawn_card = "yellow", 2, None
+    game.play("B", ("yellow", "1"))  # B is out too: A and C are left
+    game.hands["C"] = [("yellow", "reverse"), ("blue", "2")]
+    assert game.current == "C"
+    game.play("C", ("yellow", "reverse"))
+    assert game.current == "C"  # A is skipped: C plays again
+
+
+def test_playing_out_the_rest_gives_everyone_a_place():
+    game = make_game(5)
+    set_up(game, [("red", "5")], ("red", "9"))
+    game.play("ME", ("red", "5"))
+    game.play_out({name: {} for name in game.players})
+    assert game.winner == "ME" and sorted(game.places) == sorted(game.players) and len(game.places) == 4
 
 
 def test_drawing_goes_on_until_a_card_can_be_played():
@@ -313,9 +365,9 @@ def test_going_out_with_several_cards_needs_uno_first():
     game = make_game()
     set_up(game, [("red", "4"), ("green", "4")], ("red", "9"))
     game.play("ME", [("red", "4"), ("green", "4")])
-    assert (game.winner, game.uno_due) == (None, "ME")
+    assert (game.out, game.uno_due) == ([], "ME")
     game.call_uno("ME")
-    assert game.winner == "ME"
+    assert game.out == ["ME"]
 
 
 # ---- rejected actions
@@ -372,11 +424,19 @@ def test_drawing_twice_in_one_turn_is_rejected():
 
 
 def test_no_moves_after_the_game_is_over():
-    game = make_game()
+    game = UnoGame(["ME", "A"], random.Random(3))
     set_up(game, [("red", "5")], ("red", "9"))
     game.play("ME", ("red", "5"))
     with pytest.raises(IllegalMove):
         game.draw("A")
+
+
+def test_a_player_who_finished_cannot_play_any_more():
+    game = make_game()
+    set_up(game, [("red", "5")], ("red", "9"))
+    game.play("ME", ("red", "5"))
+    with pytest.raises(IllegalMove):
+        game.draw("ME")
 
 
 # ---- bots
@@ -530,7 +590,7 @@ def test_saying_uno_plays_the_waiting_card_and_wins():
     set_up(game, [("red", "1"), ("blue", "1")], ("red", "9"))
     game.play("ME", [("red", "1"), ("blue", "1")])
     assert game.call_uno("ME")
-    assert game.winner == "ME"
+    assert game.out == ["ME"]
     assert game.hands["ME"] == [] and game.top == ("blue", "1") and game.held is None
 
 
@@ -549,22 +609,39 @@ def test_three_equal_cards_as_the_whole_hand_also_wait_for_uno():
     game.play("ME", [("red", "4"), ("blue", "4"), ("green", "4")])
     assert game.hands["ME"] == [("green", "4")] and game.top == ("blue", "4")
     game.call_uno("ME")
-    assert game.winner == "ME"
+    assert game.out == ["ME"]
 
 
 def test_a_single_last_card_still_wins_straight_away():
     game = make_game()
     set_up(game, [("red", "1")], ("red", "9"))
     game.play("ME", ("red", "1"))
-    assert game.winner == "ME" and game.held is None
+    assert game.out == ["ME"] and game.held is None
 
 
 def test_a_bot_with_two_equal_last_cards_also_says_uno_first():
     game = make_game()
     _bot_to_play(game, [("red", "1"), ("blue", "1")], ("red", "9"))
     game.bot_turn("A", forget_uno=0.0, twins=1.0)
-    assert game.winner == "A"
+    assert game.out == ["A"]
     game = make_game()
     _bot_to_play(game, [("red", "1"), ("blue", "1")], ("red", "9"))
     game.bot_turn("A", forget_uno=1.0, twins=1.0)
-    assert game.winner is None and len(game.hands["A"]) == 3
+    assert game.out == [] and len(game.hands["A"]) == 3
+
+
+def test_going_out_on_a_turn_that_came_back_round_passes_the_turn_on():
+    """Three skips with four players come back to ME; saying UNO then puts the last card down: A plays next."""
+    game = make_game()
+    set_up(game, [("red", "skip"), ("blue", "skip"), ("green", "skip"), ("yellow", "skip")], ("red", "9"))
+    game.play("ME", [("red", "skip"), ("blue", "skip"), ("green", "skip"), ("yellow", "skip")])
+    assert game.current == "ME" and game.held == ("ME", ("yellow", "skip"))
+    game.call_uno("ME")
+    assert game.out == ["ME"] and game.current == "A"
+
+
+def test_nobody_finishes_twice():
+    for seed in range(300):
+        game = UnoGame(["ME", "A", "B", "C"], random.Random(seed))
+        game.play_out({name: {} for name in game.players})
+        assert game.winner and sorted(game.places) == sorted(game.players), seed

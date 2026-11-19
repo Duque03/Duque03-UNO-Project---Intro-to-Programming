@@ -92,6 +92,33 @@ def test_bot_blocks_an_immediate_loss():
     assert game.winner is None
 
 
+def test_an_easy_bot_sometimes_misses_a_win_and_a_block():
+    """Easy is easy (docs/game-design.md, section 3): it does not always see fours, its own or yours."""
+    from arcade.config import CONNECT4_LEVELS
+    easy = CONNECT4_LEVELS["easy"]
+    missed_win = missed_block = 0
+    for seed in range(60):
+        game = Connect4Game()
+        play(game, [0, 6, 1, 6, 2, 5])  # red (to move) can win in column 3
+        game.turn = "yellow"  # pretend it is the bot's (yellow's) turn with red's three on the board: block?
+        missed_block += game.bot_move(random.Random(seed), **easy) != 3
+        game = Connect4Game()
+        play(game, [0, 6, 1, 6, 2, 5])
+        missed_win += game.bot_move(random.Random(seed), **easy) != 3
+    assert missed_win > 0 and missed_block > 0
+
+
+def test_a_hard_bot_never_misses_a_win_or_a_block():
+    from arcade.config import CONNECT4_LEVELS
+    for seed in range(30):
+        game = Connect4Game()
+        play(game, [0, 6, 1, 6, 2, 5])
+        assert game.bot_move(random.Random(seed), **CONNECT4_LEVELS["hard"]) == 3
+        game = Connect4Game()
+        play(game, [0, 6, 1, 6, 2])  # yellow to move: red threatens column 3
+        assert game.bot_move(random.Random(seed), **CONNECT4_LEVELS["hard"]) == 3
+
+
 @pytest.mark.parametrize("seed", range(10))
 def test_bot_against_bot_always_ends(seed):
     rng = random.Random(seed)

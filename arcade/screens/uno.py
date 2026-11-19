@@ -21,7 +21,7 @@ from arcade.art import cards, scenes
 from arcade.art.pixel import darken, draw_text, key_icon, panel, rgb
 from arcade.config import SCALE, SCREEN_H, SCREEN_W, UNO_LEVELS
 from arcade.logic import cursor
-from arcade.logic.uno import COLOURS, NUMBERS, WILD, IllegalMove, card_name
+from arcade.logic.uno import COLOURS, NUMBERS, WILD, IllegalMove, card_name, ordinal
 from arcade.screens import common
 from arcade.state import S
 
@@ -69,6 +69,10 @@ def draw(game, me, opponents, flash="", choosing=False, picks=(), uno_open=False
 
     # how many cards each opponent holds
     for x, opponent in zip(scenes.seat_positions(len(opponents)), opponents):
+        if opponent["name"] in game.out:  # finished: their place instead of their cards
+            place = ordinal(game.out.index(opponent["name"]) + 1).upper()
+            draw_text(img, (x * SCALE, 216), f"{place}!", 4, "#ffe94a", "mm", shadow="#16122b")
+            continue
         count = len(game.hands[opponent["name"]])
         shown = min(count, 9)
         left = x * SCALE - (shown * 9 + 8) // 2 - 14
@@ -236,18 +240,27 @@ def render() -> None:
         S.flash = "Time's up! You drew and your turn passed"
         st.rerun()
 
-    while not uno_open and game.winner is None and game.current != me:  # the bots play, one visible move at a time
+    champ = S.match["mode"] == "champ"
+    # The bots play, one visible move at a time, while the player is still in (a championship round ends as soon as
+    # someone is out: only 1st place scores).
+    while not uno_open and game.winner is None and game.current != me and me not in game.out \
+            and not (champ and game.out):
         seat = [o["name"] for o in opponents].index(game.current)
         common.show(slot, common.thinking(draw(game, me, opponents)[0], seat, len(opponents)), "uno")
         started = time.time()
         game.bot_turn(game.current, **UNO_LEVELS[bots.level(game.current)])  # each bot plays at its own level
         common.bot_pause(since=started)
 
+    if game.winner is None and (me in game.out or (champ and game.out)):
+        # The player's place is settled: the others finish the game at once instead of the player watching.
+        common.show(slot, draw(game, me, opponents)[0], "uno")
+        time.sleep(1.2)
+        game.play_out({name: UNO_LEVELS[bots.level(name) if name != me else "medium"] for name in game.active})
     if game.winner and S.result is None:
-        if S.match["mode"] == "champ":
+        if champ:
             common.show(slot, draw(game, me, opponents)[0], "uno")
             time.sleep(1.2)
-        match.finish([game.winner])
+        match.finish([game.winner], places=game.places)
         if S.screen != "uno":
             st.rerun()
 

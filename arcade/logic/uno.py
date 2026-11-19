@@ -22,7 +22,8 @@ The official rules, with the team's house rules (task B1):
     drawing until a card can be played; then they may play or pass.
   * House rule, UNO: when a play leaves a player with one card, they must say
     UNO (call_uno) - the screen gives 2 seconds - or draw 2 cards (miss_uno).
-  * The first player with no cards wins.
+  * House rule, places: the first player with no cards finishes 1st and the others play on, without them,
+    until only one player is left: that player comes last. (With two players the game ends at once.)
 Left out on purpose: challenging a Wild Draw Four and keeping score across rounds.
 """
 
@@ -42,6 +43,10 @@ Card = tuple  # (colour, value) e.g. ("red", "7"), ("blue", "skip"), ("wild", "w
 
 class IllegalMove(ValueError):
     """Raised when a player tries something the rules do not allow."""
+
+
+def ordinal(place: int) -> str:
+    return {1: "1st", 2: "2nd", 3: "3rd"}.get(place, f"{place}th")
 
 
 def build_deck() -> list[Card]:
@@ -88,7 +93,8 @@ class UnoGame:
         self.colour: str = first[0]  # colour in play (matters after a wild)
         self.turn = 0
         self.direction = 1
-        self.winner: str | None = None
+        self.winner: str | None = None  # 1st place, set when the game is over (only one player has cards left)
+        self.out: list[str] = []  # the players who have finished, in order: 1st, 2nd, ...
         self.drawn_card: Card | None = None  # the playable card that ended a draw this turn
         self.pending = 0  # cards waiting for the current player (stacked Draw Two / Wild Draw Four)
         self.pending_value: str | None = None  # "draw2" or "wild4": what can be stacked on them
@@ -105,8 +111,27 @@ class UnoGame:
     def top(self) -> Card:
         return self.discard[-1]
 
+    @property
+    def active(self) -> list[str]:
+        """The players still playing (who have not finished), in seat order."""
+        return [p for p in self.players if p not in self.out]
+
+    @property
+    def places(self) -> list[str]:
+        """Everyone from 1st to last, once the game is over (before that, only those who have finished)."""
+        return list(self.out)
+
     def next_player(self, steps: int = 1) -> str:
-        return self.players[(self.turn + self.direction * steps) % len(self.players)]
+        return self.players[self._seat_after(steps)]
+
+    def _seat_after(self, steps: int) -> int:
+        """The seat `steps` players further on in the direction of play, skipping players who have finished."""
+        seat = self.turn
+        for _ in range(steps):
+            seat = (seat + self.direction) % len(self.players)
+            while self.players[seat] in self.out:
+                seat = (seat + self.direction) % len(self.players)
+        return seat
 
     def can_play(self, card: Card) -> bool:
         """Can this card be the first card of a play right now?"""
@@ -168,10 +193,10 @@ class UnoGame:
         if self.uno_due == player:  # they had one card and did not say it, but now they are out or have more
             self.uno_due = None
         if not self.hands[player]:
-            self.winner = player
-            self.last_event = f"{player} is out of cards!"
-            return
-        if len(self.hands[player]) == 1:
+            self._finish(player)
+            if self.winner:
+                return
+        elif len(self.hands[player]) == 1:
             self.uno_due = player
         if held is not None:
             self.held = (player, held)
@@ -182,7 +207,7 @@ class UnoGame:
         if value == "skip":
             steps += count
         elif value == "reverse":
-            if len(self.players) == 2:  # with two players a reverse works like a skip
+            if len(self.active) == 2:  # with two players left a reverse works like a skip
                 steps += count
             elif count % 2:
                 self.direction *= -1
@@ -243,8 +268,10 @@ class UnoGame:
             self.discard.append(card)
             if card[0] != WILD:
                 self.colour = card[0]
-            self.winner = player
-            self.last_event = f"{player}: UNO! ...and the last {card_name(card)}. Out of cards!"
+            self._finish(player)
+            self.last_event = f"{player}: UNO! ...and the last {card_name(card)}. " + self.last_event
+            if not self.winner and self.current == player:  # their skips came back round to them: move on
+                self._advance(1)
         return True
 
     def miss_uno(self, player: str) -> None:
@@ -355,5 +382,30 @@ class UnoGame:
         return given
 
     def _advance(self, steps: int) -> None:
-        self.turn = (self.turn + self.direction * steps) % len(self.players)
+        self.turn = self._seat_after(steps)
         self.drawn_card = None
+
+    def _finish(self, player: str) -> None:
+        """The player has no cards left: they take the next place. With one player left, the game is over."""
+        self.out.append(player)
+        if self.uno_due == player:
+            self.uno_due = None
+        self.last_event = f"{player} is out of cards! {ordinal(len(self.out))} place"
+        if len(self.active) == 1:
+            self.out.append(self.active[0])
+            self.winner = self.out[0]
+            self.last_event = f"{player} is out of cards! Game over"
+
+    def play_out(self, settings: dict[str, dict]) -> None:
+        """Play the rest of the game at once, every player who is still in playing like a bot.
+
+        Used when the player's own place is settled (they finished, or in a championship someone did).
+        settings: for each player still in, the bot_turn chances to play with (see bot_turn).
+        """
+        for _ in range(5000):  # far more turns than any game needs; stops a game that could not end
+            if self.winner:
+                return
+            if self.uno_due and self.uno_due != self.current:
+                self.call_uno(self.uno_due)  # someone who is waiting to say UNO says it
+                continue
+            self.bot_turn(self.current, **settings[self.current])

@@ -32,12 +32,17 @@ def test_every_bot_has_a_level_and_every_level_has_a_bot():
 
 def test_levels_get_stronger_in_order():
     for table in (CHECKERS_LEVELS, CONNECT4_LEVELS):
-        depths = [table[level][0] for level in LEVELS]
-        blunders = [table[level][1] for level in LEVELS]
+        depths = [table[level]["depth"] for level in LEVELS]
+        blunders = [table[level]["blunder"] for level in LEVELS]
         assert depths == sorted(depths) and blunders == sorted(blunders, reverse=True)
+    for key in ("win", "block"):
+        values = [CONNECT4_LEVELS[level][key] for level in LEVELS]
+        assert values == sorted(values) and values[-1] == 1.0  # hard and expert never miss
     for key in ("twins", "stack", "smart"):
         values = [UNO_LEVELS[level][key] for level in LEVELS]
         assert values == sorted(values)
+    forgets = [UNO_LEVELS[level]["forget_uno"] for level in LEVELS]
+    assert forgets == sorted(forgets, reverse=True)
     assert [levels.stars(level) for level in LEVELS] == [1, 2, 3, 4]
 
 
@@ -74,3 +79,16 @@ def test_picking_three_uno_opponents_and_a_fourth_replaces_the_first():
 
 def test_clicking_a_picked_bot_takes_it_back():
     assert levels.toggle(["DEAN", "BARK"], "DEAN", 3) == ["BARK"]
+
+
+# ----- UNO prizes by place (docs/game-design.md, section 3): full, half, a quarter, nothing for last
+
+def test_uno_places_win_full_half_and_a_quarter_of_the_prize():
+    picked = ["easy", "medium", "hard"]  # prize 15
+    assert [levels.place_coins(picked, place) for place in (1, 2, 3, 4)] == [15, 8, 4, 0]
+    assert [levels.place_coins(["expert"] * 3, place) for place in (1, 2, 3, 4)] == [40, 20, 10, 0]
+
+
+def test_a_place_below_one_is_rejected():
+    with pytest.raises(ValueError):
+        levels.place_coins(["easy", "easy", "easy"], 0)
