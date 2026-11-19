@@ -12,22 +12,25 @@ from arcade import player as player_model
 from arcade.art import scenes
 from arcade.config import RARITIES, SLOT_LABELS
 from arcade.logic import store
-from arcade.screens.store import picked_item, preview, tab_picker
+from arcade.screens.store import item_key, picked_item, preview, tab_key, tab_picker
 from arcade.state import S
 
 
 def render() -> None:
     player = S.player
-    ui.picture(scenes.banner("WARDROBE", None, "CLICK AN ITEM TO TRY IT ON"))
+    key = ui.keys("wardrobe", ui.ARROWS)  # read first: this run already shows the move (Left / Right items, Up / Down tabs)
+    tab_key(key, "wardrobe_tab")
+    ui.picture(scenes.banner("WARDROBE", None, "CLICK AN ITEM (OR LEFT / RIGHT) TO TRY IT ON"))
     left, right = st.columns([3, 2], gap="medium")
 
     with left:
         slot = tab_picker("wardrobe_tab")
+        owned = store.owned_items(player, slot)
+        item_key(key, [item["id"] for rarity in RARITIES for item in owned if item["rarity"] == rarity], "wardrobe_focus")
         focus = picked_item("wardrobe_focus", slot)
         if focus is not None and not store.owns(player, focus["id"]):
             focus = None
         look = player_model.look(player)
-        owned = store.owned_items(player, slot)
         sections = []
         for rarity in RARITIES:
             row = []

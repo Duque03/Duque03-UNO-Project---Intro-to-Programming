@@ -9,6 +9,23 @@ Numbers live in `arcade/config.py`.
   with no buttons around it, like a real game. The other screens have their buttons as a strip at the bottom of the
   frame. The frame is as big as the window allows without scrolling (checked at 1280x720, 1366x768, 1920x1080).
 - Every button also has a key. **FULL SCREEN (F)** (top right) shows only the game, like a normal game.
+  **MUSIC (M)** (top left) turns the music on and off.
+- Everything can be done with the mouse or with the keyboard. Where there is something to choose on the picture,
+  the arrow keys move a **yellow highlight** and Space or Enter chooses it, like a click:
+
+  | Screen | Keyboard |
+  |---|---|
+  | Pause menu | Up / Down move the highlight, Enter chooses it. Esc resumes. |
+  | Championship YES / NO | Left / Right move the highlight, Enter chooses it (or Y / N). |
+  | How to play | Left / Right (or 1-4) change tab. Esc goes back. |
+  | Choose your opponent | Left / Right move the highlight, Space picks or un-picks that bot (or 1-5). Enter plays, Esc goes back. |
+  | UNO | Left / Right move along your hand, Space plays that card (or picks it when it has twins, like a click). Enter plays the picked cards, X cancels them. Choosing a wild's colour: Left / Right and Enter (or Space); X cancels. D, P and U as before. |
+  | Checkers | The arrow keys move a cursor on the board (blue, because yellow already marks the pieces); Space or Enter acts like a click on that square. |
+  | Connect Four | Left / Right choose a column; Space, Enter or Down drops the disc. 1-7 drop straight into that column. |
+  | Store | Left / Right choose an item, Up / Down change tab. Enter buys it (or wears it, if it is owned). Esc goes back. |
+  | Wardrobe | Left / Right choose an item, Up / Down change tab. E equips it, U takes it off, Esc goes back. |
+
+  The title screen and the arcade room already work both ways (sections 1 and 2).
 - Changing screen fades in from black, smoothly (the browser does the fade).
 
 ## 1. Title screen

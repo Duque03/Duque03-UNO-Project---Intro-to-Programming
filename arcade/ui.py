@@ -71,6 +71,10 @@ img {{ image-rendering: pixelated; }}
 .st-key-{SCREEN_KEY} img {{ cursor: pointer; }}
 .st-key-{SCREEN_KEY} [data-testid="stElementToolbar"], .st-key-{TITLE_KEY} [data-testid="stElementToolbar"] {{ display: none; }}
 .st-key-click_catcher {{ display: none; }}
+/* keys with no button on screen (arrows, Space, see keys()): the buttons are on the page, so they hear their key,
+   but nobody sees them and they take no room */
+[class*="st-key-keys_"] {{ position: absolute !important; width: 1px !important; height: 1px !important;
+    overflow: hidden !important; clip-path: inset(50%); opacity: 0; pointer-events: none; }}
 
 /* buttons: neon outlines that light up */
 .stButton button, .stFormSubmitButton button {{
@@ -273,6 +277,29 @@ def button(label: str, key: str, shortcut: str | None = None, **kwargs) -> bool:
     """A button that can also be pressed with a keyboard key."""
     kwargs.setdefault("width", "stretch")
     return st.button(label, key=key, shortcut=shortcut, **kwargs)
+
+
+ARROWS = {"Left": "left", "Right": "right", "Up": "up", "Down": "down"}
+
+
+def keys(name: str, mapping: dict[str, str]) -> str | None:
+    """Keys that have no button on screen (the arrow keys, Space): invisible buttons that only listen for them.
+
+    mapping: shortcut -> what it means, for example {"Left": "left", "Space": "choose"}. Returns the meaning of
+    the key pressed in this run, or None. Streamlit listens for a shortcut on the whole page, so a button hears
+    its key while it is hidden (the CSS in _CSS hides every container whose key starts with keys_).
+
+    Call it on every run of the screen, before the picture is drawn. A run that leaves the buttons out removes them
+    from the page, and the keyboard stops working until the next click. Reading the key first lets the same run draw
+    the picture with the highlight already moved (no st.rerun(), which would draw everything twice). To ignore a key
+    (for example during a bot's turn), call it anyway and drop what it returns.
+    """
+    pressed = None
+    with st.container(key=f"keys_{name}"):
+        for shortcut, meaning in mapping.items():
+            if st.button(meaning, key=f"keys_{name}_{meaning}", shortcut=shortcut):
+                pressed = meaning
+    return pressed
 
 
 def hit(regions, point):

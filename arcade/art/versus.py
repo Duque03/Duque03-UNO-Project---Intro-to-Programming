@@ -10,6 +10,8 @@ from arcade.config import LEVEL_COINS, LEVELS, SCREEN_H, SCREEN_W
 
 LEVEL_COLOURS = {"easy": "#3ad678", "medium": "#ffd84a", "hard": "#ff9a3a", "expert": "#ff4f6d"}
 CARD_W, CARD_H, GAP, CARD_TOP = 156, 286, 12, 112
+FOCUS = "#ffe94a"  # the yellow highlight that the arrow keys move
+HINT = "ARROWS + SPACE, 1-5 OR CLICK TO PICK  -  ENTER: PLAY  -  ESC: BACK"
 
 
 _STAR = ["..#..", ".###.", "#####", ".###.", ".#.#."]
@@ -49,8 +51,13 @@ def card(cardinfo: dict, picked: bool, number: int, t: int = 0) -> Image.Image:
 
 
 def panel_picture(background, title: str, cards: list[dict], picked: list[str], needed: int,
-                  prize: int | None, t: int = 0):
-    """The whole picker on top of the (dimmed) room. Returns (image, regions); a region's action is ("pick", name)."""
+                  prize: int | None, t: int = 0, focus: int | None = None):
+    """The whole picker on top of the (dimmed) room. Returns (image, regions); a region's action is ("pick", name).
+
+    focus: the bot the arrow keys are on (a yellow frame around its card), or None.
+    """
+    if focus is not None and not 0 <= focus < len(cards):
+        raise ValueError("the highlight must be on one of the bots")
     img = darken(background.copy() if background else Image.new("RGB", (SCREEN_W, SCREEN_H)), 0.35)
     panel(img, (40, 24, SCREEN_W - 40, SCREEN_H - 24), "#0f0b2a", "#3ad6ff", bw=4)
     draw_text(img, (SCREEN_W // 2, 46), title, 4, "#ffe94a", "mt", shadow="#16122b")
@@ -61,6 +68,8 @@ def panel_picture(background, title: str, cards: list[dict], picked: list[str], 
         chosen = info["name"] in picked
         y = CARD_TOP - (8 if chosen else 0)
         img.paste(card(info, chosen, i + 1, t), (x, y))
+        if i == focus:
+            ImageDraw.Draw(img).rectangle([x - 5, y - 5, x + CARD_W + 4, y + CARD_H + 4], outline=rgb(FOCUS), width=4)
         cx = x + CARD_W // 2
         coin(img, cx - 40, y + CARD_H + 10, 2)
         draw_text(img, (cx - 20, y + CARD_H + 10), f"+{LEVEL_COINS[info['level']]}", 2, "#ffe94a", "lt")
@@ -71,5 +80,5 @@ def panel_picture(background, title: str, cards: list[dict], picked: list[str], 
         left_to_pick = needed - len(picked)
         line, colour = f"PICK {left_to_pick} MORE", "#d9d4ff"
     draw_text(img, (SCREEN_W // 2, 452), line, 3, colour, "mt", shadow="#16122b")
-    draw_text(img, (SCREEN_W // 2, 488), "CLICK OR PRESS 1-5 TO PICK  -  ENTER: PLAY  -  ESC: BACK", 2, "#b9b0e8", "mt")
+    draw_text(img, (SCREEN_W // 2, 488), HINT, 2, "#b9b0e8", "mt")
     return img, regions

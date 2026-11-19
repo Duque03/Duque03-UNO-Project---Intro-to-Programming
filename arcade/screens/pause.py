@@ -7,6 +7,7 @@ import streamlit as st
 from arcade import match, sound, state, ui
 from arcade.art import scenes
 from arcade.config import GAMES
+from arcade.logic import cursor
 from arcade.screens import howto, hub
 from arcade.state import S
 
@@ -37,11 +38,20 @@ def leave_table() -> None:
 
 def render() -> None:
     at_table = S.paused_from in GAMES
-    behind = S.get("pause_behind") if at_table and S.get("pause_behind") is not None else hub.picture(hint=False)[0]
-    img, regions = scenes.menu_panel(behind, "PAUSED", options(S.paused_from))
+    behind = S.get("pause_behind") if at_table and S.get("pause_behind") is not None else hub.still()
+    menu = options(S.paused_from)
+    # The keys are read before drawing, so this one picture already shows where the highlight went (no second run)
+    key = ui.keys("pause", {"Up": "up", "Down": "down", "Enter": "choose"})  # Up / Down move, Enter chooses
+    focus = cursor.clamp(S.get("pause_focus"), len(menu))  # the yellow highlight starts on RESUME
+    if key in ("up", "down"):
+        focus = S.pause_focus = cursor.step(focus, key, len(menu))
+        sound.play("blip")
+    img, regions = scenes.menu_panel(behind, "PAUSED", menu, focus=focus)
     ui.show(ui.screen(), img)
     point = ui.click()
     action = ui.hit(regions, point)
+    if key == "choose":
+        action = ("menu", menu[focus]["action"])
     bar = st.columns(5 if at_table else 4)
     with bar[0]:
         resume = ui.button("Resume", "pause_resume", "Esc", type="primary")
@@ -55,6 +65,8 @@ def render() -> None:
             quit_table = ui.button("Leave table", "pause_leave_table")
     with bar[-1]:
         leave = ui.button("Leave arcade", "pause_leave")
+    if action or resume or wardrobe or how or quit_table or leave:
+        S.pause_focus = None  # the menu opens on RESUME again next time
 
     if resume or action == ("menu", "resume"):
         state.go(S.paused_from or "hub")

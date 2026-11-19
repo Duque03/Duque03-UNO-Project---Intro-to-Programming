@@ -10,7 +10,7 @@ from arcade import bots, match, phrases, state, ui
 from arcade import player as player_model
 from arcade.art import scenes
 from arcade.config import CHAMPIONSHIP_PRIZE, GAME_LABELS
-from arcade.logic import championship
+from arcade.logic import championship, cursor
 from arcade.screens import hub
 from arcade.state import S
 
@@ -23,7 +23,7 @@ RULES = [
 
 
 def _backdrop():
-    return hub.picture(hint=False)[0]
+    return hub.still()  # the room is kept as a picture while the bubbles are on top (see hub.still)
 
 
 def render_intro() -> None:
@@ -31,11 +31,17 @@ def render_intro() -> None:
     lines = phrases.CHAMPIONSHIP_INTRO
     page = S.get("intro_page", 0)
     last = page == len(lines) - 1
+    choices = [{"label": "YES", "action": "yes", "key": "Y", "fill": "#c8f7c5"}, {"label": "NO", "action": "no", "key": "N"}]
+    # On the last page Left / Right move the highlight and Enter chooses. Read before drawing, so this picture
+    # already shows the move. (Only on that page: on the others Enter is NEXT.)
+    key = ui.keys("intro", {"Left": "left", "Right": "right", "Enter": "choose"}) if last else None
+    focus = cursor.clamp(S.get("intro_focus"), len(choices))  # the yellow highlight starts on YES
+    if key in ("left", "right"):
+        focus = S.intro_focus = cursor.step(focus, key, len(choices))
     img = scenes.dialog_bubble(_backdrop(), lines[page], page + 1, len(lines), with_coins=(page == 3), footer=not last)
     regions = []
     if last:
-        regions = scenes.choice_buttons(img, [{"label": "YES", "action": "yes", "key": "Y", "fill": "#c8f7c5"},
-                                              {"label": "NO", "action": "no", "key": "N"}], y=320)
+        regions = scenes.choice_buttons(img, choices, y=320, focus=focus)
         if not S.player["champ_intro_seen"]:
             S.player["champ_intro_seen"] = True  # from now on the table offers "Start" and "Rules"
             state.save()
@@ -51,10 +57,14 @@ def render_intro() -> None:
             S.intro_page = page + 1
             st.rerun()
         return
+    if key == "choose":
+        action = ("choice", choices[focus]["action"])
     with bar[0]:
         yes = ui.button("Yes", "intro_yes", "Y", type="primary")
     with bar[1]:
         no = ui.button("No", "intro_no", "N")
+    if yes or no or action:
+        S.intro_focus = None
     if yes or action == ("choice", "yes"):
         match.begin_championship()
         st.rerun()

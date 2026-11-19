@@ -11,6 +11,7 @@ from arcade import bots, match, state, ui
 from arcade.art import scenes
 from arcade.art.pixel import draw_text, panel
 from arcade.config import CONNECT4_LEVELS, SCREEN_W
+from arcade.logic import cursor
 from arcade.logic.connect4 import COLS, DRAW, RED, ROWS, YELLOW, IllegalMove
 from arcade.screens import common
 from arcade.state import S
@@ -21,8 +22,11 @@ BOARD_Y = 234
 _DISC = {RED: ((226, 65, 60), (255, 150, 140)), YELLOW: ((242, 194, 48), (255, 236, 150))}
 
 
-def draw(game, opponent, flash="", falling=None):
-    """Returns (picture, regions). falling=(row, col) draws the last disc higher up while it drops."""
+def draw(game, opponent, flash="", falling=None, column=None):
+    """Returns (picture, regions). falling=(row, col) draws the last disc higher up while it drops.
+
+    column: the column the arrow keys are on (a yellow frame and a bigger arrow), or None.
+    """
     my_turn = game.winner is None and game.turn == RED
     img = scenes.table_scene("connect4", [opponent], opponent["name"] if game.winner is None and not my_turn else None)
     d = ImageDraw.Draw(img)
@@ -54,8 +58,12 @@ def draw(game, opponent, flash="", falling=None):
     if my_turn:
         for col in game.legal_columns():
             x = BOARD_X + col * CELL
-            draw_text(img, (x + CELL // 2, BOARD_Y - 14), "V", 2, "#ffe94a", "mb", shadow="#16122b")
+            draw_text(img, (x + CELL // 2, BOARD_Y - 14), "V", 3 if col == column else 2, "#ffe94a", "mb",
+                      shadow="#16122b")
             regions.append(((x, BOARD_Y - 34, x + CELL - 1, BOARD_Y + height), ("col", col)))
+        if column is not None:  # the yellow frame the arrow keys move (also on a full column: Space is refused there)
+            x = BOARD_X + column * CELL
+            d.rectangle([x + 1, BOARD_Y - 4, x + CELL - 2, BOARD_Y + height + 3], outline=scenes.FOCUS, width=3)
 
     panel(img, (30, 250, 290, 322), "#16122b", "#e2413c", shadow=False)
     draw_text(img, (48, 268), "YOU", 2, "#ff9a94", "lt")
@@ -67,7 +75,8 @@ def draw(game, opponent, flash="", falling=None):
         draw_text(img, (160, 350), flash.upper(), 2, "#ff8a8a", "mt", shadow="#16122b")
     elif my_turn:
         draw_text(img, (160, 350), "YOUR TURN:", 2, "#ffe94a", "mt", shadow="#16122b")
-        draw_text(img, (160, 372), "CLICK A COLUMN", 2, "#ffe94a", "mt", shadow="#16122b")
+        draw_text(img, (160, 372), "CLICK A COLUMN,", 2, "#ffe94a", "mt", shadow="#16122b")
+        draw_text(img, (160, 394), "OR ARROWS + SPACE", 2, "#ffe94a", "mt", shadow="#16122b")
     for i, line in enumerate(("FOUR IN A ROW", "WINS. A FULL", "BOARD IS A TIE.")):
         draw_text(img, (SCREEN_W - 160, 350 + i * 22), line, 2, "#d9d4ff", "mt", shadow="#16122b")
     return img, regions
@@ -79,6 +88,13 @@ def render() -> None:
     opponent = match.opponents()[0]
     slot = ui.screen()
     bot_was_playing = game.winner is None and game.turn == YELLOW
+    # The keys come first, on every run, and are read before drawing (see uno.py). Left / Right move the frame;
+    # Space, Enter or Down drop the disc there; 1-7 drop straight into a column. Only on the player's turn.
+    keys = {"Left": "left", "Right": "right", "Space": "space", "Enter": "enter", "Down": "down"}
+    keys.update({str(col + 1): f"col{col + 1}" for col in range(COLS)})
+    key = ui.keys("connect4", keys)
+    if bot_was_playing:
+        key = None
     if common.run_clock(game.winner is None and game.turn == RED):
         game.random_move(state.rng())  # 15 seconds went by: a random column for the player
         common.restart_clock()
@@ -102,8 +118,14 @@ def render() -> None:
         if S.screen != "connect4":
             st.rerun()
 
-    common.run_clock(game.winner is None and game.turn == RED)  # the bot is done: the player's 15 seconds start
-    img, regions = draw(game, opponent, S.flash)
+    my_turn = game.winner is None and game.turn == RED
+    common.run_clock(my_turn)  # the bot is done: the player's 15 seconds start
+    if not my_turn:
+        key = None
+    column = cursor.clamp(S.get("c4_column", COLS // 2), COLS) if my_turn else None  # starts in the middle
+    if key in ("left", "right"):
+        column = S.c4_column = cursor.step(column, key, COLS, wrap=False)
+    img, regions = draw(game, opponent, S.flash, column=column)
     img, regions = common.with_result(img, regions)
     common.show(slot, img, "connect4")
     point = None if bot_was_playing else ui.click()  # a click made during the bot's turn does not count
@@ -116,7 +138,13 @@ def render() -> None:
     common.rules_button(bar[2], "connect4")
     common.pause_button(bar[3], "connect4")
 
+    if key in ("space", "enter", "down"):
+        action = ("col", column)
+    elif key and key.startswith("col"):
+        action = ("col", int(key[3:]) - 1)
+
     if action and action[0] == "col" and game.winner is None and game.turn == RED:
+        S.c4_column = action[1]  # the frame follows a click or a number too
         try:
             game.drop(action[1])
             S.flash = ""

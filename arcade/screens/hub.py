@@ -44,6 +44,22 @@ def picture(prompts=(), glow=None, overrides=None, hint=True):
     return scenes.hub_scene(state.hub_actors(overrides), S.player["coins"], prompts, locked, glow, t=t, hint=hint)
 
 
+def still():
+    """The room as a still picture, behind a menu (pause, How to play, the championship bubbles).
+
+    Drawing the whole room takes a while, and it would happen again on every key press in the menu, so the picture
+    is kept until something in it changes: the player's clothes or coins, or where anyone stands.
+    """
+    hub, player = S.hub, S.player
+    sign = (tuple(player["equipped"].items()), player["coins"], tuple(hub["pos"]), hub["dir"],
+            tuple(sorted((name, tuple(bot["pos"]), bot["dir"]) for name, bot in hub["bots"].items())),
+            championship.is_unlocked(player))
+    kept = S.get("_still_room")
+    if kept is None or kept[0] != sign:
+        S["_still_room"] = kept = (sign, picture(hint=False)[0])
+    return kept[1]
+
+
 def _bot_spots() -> list:
     """Where the bots stand: the player cannot walk through them (A5)."""
     return [bot["pos"] for bot in S.hub["bots"].values()]

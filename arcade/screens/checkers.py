@@ -11,6 +11,7 @@ from arcade import bots, match, state, ui
 from arcade.art import scenes
 from arcade.art.pixel import draw_text, panel
 from arcade.config import CHECKERS_LEVELS, SCREEN_W
+from arcade.logic import cursor
 from arcade.logic.checkers import BOTTOM, DRAW, SIZE, TOP, IllegalMove, owner
 from arcade.screens import common
 from arcade.state import S
@@ -18,6 +19,7 @@ from arcade.state import S
 CELL = 38
 BOARD_X = (SCREEN_W - SIZE * CELL) // 2
 BOARD_Y = 222
+CURSOR = (58, 214, 255)  # the keyboard cursor is blue: on this board yellow already marks the pieces you can move
 
 
 def _piece(d, img, x, y, piece):
@@ -30,8 +32,11 @@ def _piece(d, img, x, y, piece):
         draw_text(img, (x + CELL // 2, y + CELL // 2 - 1), "K", 2, "#ffe94a", "mm", shadow="#16122b")
 
 
-def draw(game, opponent, selected=None, flash=""):
-    """Returns (picture, clickable regions)."""
+def draw(game, opponent, selected=None, flash="", cursor_cell=None):
+    """Returns (picture, clickable regions).
+
+    cursor_cell: the square the arrow keys are on (a blue frame: yellow already marks the pieces), or None.
+    """
     my_turn = game.winner is None and game.turn == BOTTOM
     img = scenes.table_scene("checkers", [opponent], opponent["name"] if game.winner is None and not my_turn else None)
     d = ImageDraw.Draw(img)
@@ -67,6 +72,9 @@ def draw(game, opponent, selected=None, flash=""):
                 d.rectangle([x + 13, y + 13, x + CELL - 14, y + CELL - 14], fill=(124, 255, 58))
                 d.rectangle([x, y, x + CELL - 1, y + CELL - 1], outline=(124, 255, 58), width=3)
             regions.append(((x, y, x + CELL - 1, y + CELL - 1), ("cell", row, col)))
+    if cursor_cell is not None:  # the keyboard cursor, on top of everything on the board
+        x, y = BOARD_X + cursor_cell[1] * CELL, BOARD_Y + cursor_cell[0] * CELL
+        d.rectangle([x - 3, y - 3, x + CELL + 2, y + CELL + 2], outline=CURSOR, width=4)
 
     # score cards left and right of the board
     panel(img, (30, 250, 290, 344), "#16122b", "#e2413c", shadow=False)
@@ -84,9 +92,10 @@ def draw(game, opponent, selected=None, flash=""):
         if game.chain:
             hint = "Keep jumping!"
         elif selected:
-            hint = "Now click a green square"
+            hint = "Now pick a green square"
         else:
-            hint = "You must capture" if capture else "Your turn: click a piece"
+            hint = "You must capture" if capture else "Your turn: pick a piece"
+        hint += " (click, or arrows + Space)"
         colour = "#ffe94a"
     if hint:
         for i, line in enumerate(_split(hint.upper())):
@@ -113,6 +122,11 @@ def render() -> None:
     opponent = match.opponents()[0]
     slot = ui.screen()
     bot_was_playing = game.winner is None and game.turn == TOP
+    # The keys come first, on every run, and are read before drawing (see uno.py). The arrow keys move the cursor one
+    # square; Space or Enter is a click on that square. They only count on the player's turn, like a click.
+    key = ui.keys("checkers", {**ui.ARROWS, "Space": "space", "Enter": "enter"})
+    if bot_was_playing:
+        key = None
     if common.run_clock(game.winner is None and game.turn == BOTTOM):
         while game.winner is None and game.turn == BOTTOM:  # 15 seconds went by: random moves (every jump)
             game.random_move(state.rng())
@@ -144,10 +158,22 @@ def render() -> None:
         if S.screen != "checkers":
             st.rerun()
 
-    common.run_clock(game.winner is None and game.turn == BOTTOM)  # the bot is done: the player's 15 seconds start
+    my_turn = game.winner is None and game.turn == BOTTOM
+    common.run_clock(my_turn)  # the bot is done: the player's 15 seconds start
+    if not my_turn:
+        key = None
     if game.chain:
         S.selected = game.chain
-    img, regions = draw(game, opponent, S.selected, S.flash)
+    here = None  # the keyboard cursor: it starts on a piece that can move
+    if my_turn:
+        here = S.get("checkers_cursor")
+        if here is None:
+            movable = sorted({move[0] for move in game.legal_moves()})
+            here = S.selected or (movable[0] if movable else (SIZE - 1, 0))
+        if key in cursor.BOARD_KEYS:
+            here = cursor.on_board(here, key, SIZE, SIZE)
+        here = S.checkers_cursor = tuple(here)
+    img, regions = draw(game, opponent, S.selected, S.flash, cursor_cell=here)
     img, regions = common.with_result(img, regions)
     common.show(slot, img, "checkers")
     point = None if bot_was_playing else ui.click()  # a click made during the bot's turn does not count
@@ -160,9 +186,13 @@ def render() -> None:
     common.rules_button(bar[2], "checkers")
     common.pause_button(bar[3], "checkers")
 
+    if key in ("space", "enter"):  # a click on the square the cursor is on
+        action = ("cell", *here)
+
     if not action or game.winner or game.turn != BOTTOM:
         return
     square = (action[1], action[2])
+    S.checkers_cursor = square  # the cursor follows a click too
     try:
         if S.selected and square in {move[1] for move in game.moves_from(S.selected)}:
             game.move(S.selected, square)
