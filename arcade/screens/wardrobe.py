@@ -12,13 +12,13 @@ from arcade import player as player_model
 from arcade.art import scenes
 from arcade.config import RARITIES, SLOT_LABELS
 from arcade.logic import store
-from arcade.screens.store import picked_item, preview, tab_picker
+from arcade.screens.store import arrow_keys, picked_item, preview, tab_picker
 from arcade.state import S
 
 
 def render() -> None:
     player = S.player
-    ui.picture(scenes.banner("WARDROBE", None, "CLICK AN ITEM TO TRY IT ON"))
+    ui.picture(scenes.banner("WARDROBE", None, "CLICK AN ITEM (OR LEFT / RIGHT) TO TRY IT ON"))
     left, right = st.columns([3, 2], gap="medium")
 
     with left:
@@ -40,6 +40,8 @@ def render() -> None:
                                       badge="WEARING" if worn else "OWNED", badge_kind="worn" if worn else "owned"))
             sections.append(tiles.section(rarity, row))
         empty = f"You do not own any {SLOT_LABELS[slot].lower()} items yet. Buy some in the store."
+        arrow_keys("wardrobe", slot, [tile["id"] for section in sections for tile in section["tiles"]],
+                   "wardrobe_focus", "wardrobe_tab")  # Left / Right: items you own, Up / Down: tabs
         clicked = tiles.grid(sections, key="wardrobe_grid", empty=empty)
         if clicked is not None and clicked != S.get("wardrobe_focus"):
             S.wardrobe_focus = clicked

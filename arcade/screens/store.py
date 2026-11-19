@@ -12,7 +12,7 @@ from arcade import catalog, state, tiles, ui
 from arcade import player as player_model
 from arcade.art import scenes, sprites
 from arcade.config import RARITIES, SLOT_LABELS, SLOTS
-from arcade.logic import store
+from arcade.logic import cursor, store
 from arcade.state import S
 
 # How a tile's badge looks for each store.status()
@@ -20,12 +20,31 @@ BADGES = {"worn": ("WEARING", "worn"), "owned": ("OWNED", "owned")}
 
 
 def tab_picker(key: str) -> str:
-    """Hair / Shirt / Name switch. Remembers the last tab if the player un-selects it."""
-    choice = st.segmented_control("Tab", SLOTS, format_func=SLOT_LABELS.get, default=S.get(key + "_last", "hair"),
+    """Hair / Shirt / Name switch. Remembers the last tab if the player un-selects it. Up / Down change it too."""
+    wanted = S.pop(key + "_next", None)  # asked for by Up / Down in the run before (see arrow_keys)
+    if wanted in SLOTS:
+        S[key] = wanted  # set before the switch is drawn, the only moment Streamlit allows it
+    default = None if key in S else S.get(key + "_last", "hair")  # (a default as well would make Streamlit warn)
+    choice = st.segmented_control("Tab", SLOTS, format_func=SLOT_LABELS.get, default=default,
                                   key=key, label_visibility="collapsed", width="stretch")
     choice = choice or S.get(key + "_last", "hair")
     S[key + "_last"] = choice
     return choice
+
+
+def arrow_keys(name: str, slot: str, ids: list[str], focus_key: str, tab_key: str) -> None:
+    """Left / Right show the item next to the one on show (like a click on it); Up / Down change tab.
+
+    ids: the items of this tab in the order they are on screen.
+    """
+    key = ui.keys(name, ui.ARROWS)
+    if key in ("left", "right") and ids:
+        here = ids.index(S[focus_key]) if S.get(focus_key) in ids else None
+        S[focus_key] = ids[cursor.step(here, key, len(ids))]
+        st.rerun()
+    if key in ("up", "down"):
+        S[tab_key + "_next"] = SLOTS[cursor.step(SLOTS.index(slot), key, len(SLOTS))]
+        st.rerun()
 
 
 def picked_item(key: str, slot: str) -> dict | None:
@@ -54,7 +73,7 @@ def _tile(player: dict, item: dict, look: tuple, focus: dict | None) -> dict:
 
 def render() -> None:
     player = S.player
-    ui.picture(scenes.banner("STORE", player["coins"], "CLICK AN ITEM TO TRY IT ON"))
+    ui.picture(scenes.banner("STORE", player["coins"], "CLICK AN ITEM (OR LEFT / RIGHT) TO TRY IT ON"))
     left, right = st.columns([3, 2], gap="medium")
 
     with left:
@@ -63,6 +82,8 @@ def render() -> None:
         look = player_model.look(player)
         sections = [tiles.section(rarity, [_tile(player, item, look, focus) for item in catalog.by_slot(slot, rarity)])
                     for rarity in RARITIES]
+        arrow_keys("store", slot, [tile["id"] for section in sections for tile in section["tiles"]],
+                   "store_focus", "store_tab")
         clicked = tiles.grid(sections, key="store_grid")
         if clicked is not None and clicked != S.get("store_focus"):
             S.store_focus = clicked
@@ -78,13 +99,13 @@ def render() -> None:
             st.markdown(f"<p class='store-item'><b class='rarity-{focus['rarity']}'>{focus['name']}</b>"
                         f" &middot; {focus['rarity']} &middot; {focus['price']} coins</p>", unsafe_allow_html=True)
         buy = wear = False
-        if status in ("affordable", "too_expensive"):
-            buy = ui.button(f"Buy for {focus['price']} coins", "store_buy", type="primary",
+        if status in ("affordable", "too_expensive"):  # Enter buys (a greyed-out button ignores it)
+            buy = ui.button(f"Buy for {focus['price']} coins", "store_buy", "Enter", type="primary",
                             disabled=status == "too_expensive")
             if status == "too_expensive":
                 st.caption(f"You need {store.coins_missing(player, focus['id'])} more coins. Win games to earn them.")
         elif status == "owned":
-            wear = ui.button("Wear it now", "store_wear", type="primary")
+            wear = ui.button("Wear it now", "store_wear", "Enter", type="primary")
         elif status == "worn":
             ui.button("You are wearing it", "store_worn", disabled=True)
         back = ui.button("Back to the arcade", "store_back", "Esc")

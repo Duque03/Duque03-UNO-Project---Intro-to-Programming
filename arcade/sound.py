@@ -5,9 +5,9 @@ sound files and nothing heavy is sent: Python only queues the *name* of a sound
 with play(), and render() (called once at the end of every run in app.py)
 hands the last few names to SOUND_JS, which plays the ones it has not played yet.
 
-The music is a short original loop. M turns it on and off; the browser
-remembers the choice (localStorage). Browsers only allow sound after the first
-click or key press, so the music starts then.
+The music is a short original loop. M, or the MUSIC button at the top left,
+turns it on and off; the browser remembers the choice (localStorage). Browsers
+only allow sound after the first click or key press, so the music starts then.
 """
 
 from __future__ import annotations
@@ -102,6 +102,12 @@ export default function (component) {
         }, 60);
     };
     const stopMusic = () => { clearInterval(A.musicTimer); A.musicTimer = null; };
+    const toggleMusic = () => {  // the M key and the MUSIC button
+        A.musicOn = !A.musicOn;
+        try { localStorage.setItem("arcadeMusic", A.musicOn ? "on" : "off"); } catch (e) {}
+        if (A.musicOn) startMusic(); else stopMusic();
+        if (A.label) A.label();
+    };
 
     if (!A.started) {  // only once per page, even though Streamlit calls this function on every run
         A.started = true;
@@ -114,13 +120,24 @@ export default function (component) {
         document.addEventListener("keydown", (event) => {
             const tag = (event.target.tagName || "").toLowerCase();
             const key = (event.key || "").toLowerCase();
-            if (key === "m" && tag !== "input" && tag !== "textarea" && !event.ctrlKey && !event.metaKey) {
-                A.musicOn = !A.musicOn;
-                try { localStorage.setItem("arcadeMusic", A.musicOn ? "on" : "off"); } catch (e) {}
-                if (A.musicOn) startMusic(); else stopMusic();
-            }
+            if (key === "m" && tag !== "input" && tag !== "textarea" && !event.ctrlKey && !event.metaKey) toggleMusic();
             wake();
         });
+        // The MUSIC button (top left, like FULL SCREEN at the top right): the mouse can do what M does.
+        // It goes on the page itself, because this component's own box is hidden.
+        const button = document.createElement("button");
+        button.className = "arcade-music";
+        button.style.cssText = "position:fixed;top:10px;left:14px;z-index:1000;cursor:pointer;"
+            + "font:1.05rem 'Jersey 10',monospace;letter-spacing:.04em;color:#f3ead2;background:rgba(13,10,31,.85);"
+            + "border:2px solid rgba(58,214,255,.5);border-radius:10px;padding:4px 10px;";
+        A.label = () => { button.textContent = A.musicOn ? "MUSIC: ON (M)" : "MUSIC: OFF (M)"; };
+        button.addEventListener("click", (event) => {
+            event.stopPropagation();
+            toggleMusic();
+            button.blur();  // so a later Space or Enter does not press it again
+        });
+        document.body.appendChild(button);
+        A.label();
     }
 
     A.effect = (name) => { const effect = EFFECTS[name]; if (effect && context()) effect(); };  // for the title screen

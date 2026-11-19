@@ -7,6 +7,7 @@ import streamlit as st
 from arcade import controls, sound, state, ui
 from arcade.art import scenes
 from arcade.config import GAMES
+from arcade.logic import cursor
 from arcade.screens import hub
 from arcade.state import S
 
@@ -51,6 +52,9 @@ def render() -> None:
 
     if action and action[0] == "tab":
         chosen = action[1]
+    key = ui.keys("howto", {"Left": "left", "Right": "right"})  # Left / Right go to the tab next to this one
+    if key:
+        chosen = controls.TAB_KEYS[cursor.step(controls.TAB_KEYS.index(tab), key, len(controls.TAB_KEYS))]
     if chosen in controls.TAB_KEYS and chosen != tab:
         S.howto_tab = chosen
         sound.play("blip")

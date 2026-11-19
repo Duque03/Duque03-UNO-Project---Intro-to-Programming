@@ -89,7 +89,12 @@ changing these files, and change them in a small pull request of their own.
   `rules`, `pause`, `cut_done`, `need`), handled in `screens/hub.py`; Python checks every position with `room.read_pos`.
   To move the player from Python, change `S.hub["pos"]`: the browser jumps there on the next run.
 - **Clicks made during a bot's turn are ignored** (see `bots_were_playing` in the table screens). Keep that
-  when you change a table screen.
+  when you change a table screen. The same goes for keys: the table screens only listen for them on the player's turn.
+- **Everything works with the mouse and with the keyboard** (`docs/game-design.md`, section 0). Keys that have no
+  button on screen (the arrows, Space) come from `ui.keys()`: buttons with a Streamlit shortcut that stay on the page
+  but are made invisible by the `keys_` rule in `ui._CSS`, so they still hear their key. The arrow keys move a yellow
+  highlight (`arcade/logic/cursor.py`); Space or Enter does what a click on it does. A new choice on a screen needs
+  both a click and a key.
 - **The title screen is drawn in the browser too** (`arcade/title_view.py`): Python paints the pieces once
   (`arcade/art/title_layers.py`, including a sheet of the pixel font's letters) and the browser animates them and draws
   the menu and the name and PIN boxes. It sends `howto` or `submit` (name, PIN) with a number; `screens/title.py`
@@ -102,7 +107,7 @@ changing these files, and change them in a small pull request of their own.
 - **The only JavaScript is `INPUT_JS` and `FULLSCREEN_JS` in `arcade/ui.py`, `SOUND_JS` in `arcade/sound.py`,
   `ROOM_JS` in `arcade/room.py`, `TITLE_JS` in `arcade/title_view.py` and `JS` in `arcade/tiles.py`.** `INPUT_JS` reports clicks on the game picture.
   `FULLSCREEN_JS` is the FULL SCREEN button (and the F key) and sends nothing back. `SOUND_JS` only plays sounds by
-  name and never sends anything back. `ROOM_JS` moves and draws the room; it numbers every press of E, I and Esc and
+  name (and draws the MUSIC button, which does what M does) and never sends anything back. `ROOM_JS` moves and draws the room; it numbers every press of E, I and Esc and
   sends it again until Python has handled it (`room.new_press`), so a press is never lost. The `tiles.py` script draws
   the item grid of the store and the wardrobe and reports which item was clicked. Python checks every value it
   receives before using it (`tiles.grid` only accepts ids that exist in `catalog.py`).

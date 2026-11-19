@@ -848,8 +848,20 @@ def draw_button(img, box, label, scale=3, fill="#ffffff", ink=INK, key=None):
     return tuple(int(v) for v in box)
 
 
-def menu_panel(img, title, options):
-    """A light-blue menu with one big button per option. Returns (image, regions)."""
+FOCUS = "#ffe94a"  # the yellow highlight that the arrow keys move (docs/game-design.md, section 0)
+
+
+def _check_focus(focus, count) -> None:
+    if focus is not None and not 0 <= focus < count:
+        raise ValueError("the highlight must be on one of the buttons")
+
+
+def menu_panel(img, title, options, focus=None):
+    """A light-blue menu with one big button per option. Returns (image, regions).
+
+    focus: the option the arrow keys are on (painted yellow), or None.
+    """
+    _check_focus(focus, len(options))
     out = darken(img, 0.6)
     h = 110 + len(options) * 74
     x0, x1 = 250, SCREEN_W - 250
@@ -860,21 +872,25 @@ def menu_panel(img, title, options):
     y = y0 + 96
     for index, option in enumerate(options):
         box = draw_button(out, (x0 + 40, y, x1 - 40, y + 54), option["label"], 3 if len(option["label"]) < 16 else 2,
-                          key=option.get("key"))
+                          fill=FOCUS if index == focus else "#ffffff", key=option.get("key"))
         regions.append((box, ("menu", option["action"])))
         y += 74
     return out, regions
 
 
-def choice_buttons(img, options, y=330):
-    """A row of buttons (for example YES / NO) on top of a picture. Returns regions."""
+def choice_buttons(img, options, y=330, focus=None):
+    """A row of buttons (for example YES / NO) on top of a picture. Returns regions.
+
+    focus: the button the arrow keys are on (painted yellow), or None.
+    """
+    _check_focus(focus, len(options))
     regions = []
     width, gap = 200, 40
     total = len(options) * width + (len(options) - 1) * gap
     x = (SCREEN_W - total) // 2
-    for option in options:
-        box = draw_button(img, (x, y, x + width, y + 54), option["label"], 3, option.get("fill", "#ffffff"),
-                          key=option.get("key"))
+    for index, option in enumerate(options):
+        fill = FOCUS if index == focus else option.get("fill", "#ffffff")
+        box = draw_button(img, (x, y, x + width, y + 54), option["label"], 3, fill, key=option.get("key"))
         regions.append((box, ("choice", option["action"])))
         x += width + gap
     return regions

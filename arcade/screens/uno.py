@@ -19,11 +19,13 @@ from PIL import ImageDraw
 from arcade import bots, match, sound, ui
 from arcade.art import cards, scenes
 from arcade.art.pixel import darken, draw_text, key_icon, panel, rgb
-from arcade.config import SCALE, SCREEN_W, UNO_LEVELS
+from arcade.config import SCALE, SCREEN_H, SCREEN_W, UNO_LEVELS
+from arcade.logic import cursor
 from arcade.logic.uno import COLOURS, NUMBERS, WILD, IllegalMove, card_name
 from arcade.screens import common
 from arcade.state import S
 
+FOCUS = scenes.FOCUS  # the yellow frame the arrow keys move
 HAND_Y, PILE_Y, DRAW_X, DISCARD_X = 434, 250, 384, 494
 UNO_SECONDS = 2.0  # time to press UNO after going down to one card
 UNO_GRACE = 0.35  # the click needs a moment to travel to the server
@@ -53,8 +55,12 @@ def _uno_left() -> float:
     return max(0.0, deadline - time.time()) if deadline else 0.0
 
 
-def draw(game, me, opponents, flash="", choosing=False, picks=(), uno_open=False):
-    """Returns (picture, clickable regions)."""
+def draw(game, me, opponents, flash="", choosing=False, picks=(), uno_open=False, focus=None, colour_focus=None):
+    """Returns (picture, clickable regions).
+
+    focus: the card of the hand (position in the sorted hand) the arrow keys are on; colour_focus: the colour
+    (position in COLOURS) while choosing a wild's colour. Both get a yellow frame; None draws none.
+    """
     my_turn = game.winner is None and game.current == me and not uno_open
     img = scenes.table_scene("uno", opponents, None if game.winner else game.current)
     d = ImageDraw.Draw(img)
@@ -103,7 +109,7 @@ def draw(game, me, opponents, flash="", choosing=False, picks=(), uno_open=False
     elif my_turn and game.pending:
         common.message(img, f"Answer with the same draw card or draw {game.pending}", 392, "#ffe94a")
     elif my_turn:
-        common.message(img, "Your turn: click a glowing card or the deck", 392, "#ffe94a")
+        common.message(img, "Your turn: play a glowing card (click or Space) or draw (D)", 392, "#ffe94a")
 
     # my hand
     playable = set(game.playable_cards(me)) if my_turn else set()
@@ -123,6 +129,10 @@ def draw(game, me, opponents, flash="", choosing=False, picks=(), uno_open=False
             draw_text(img, (bx + 11, by + 11), str(order), 2, "#ffe94a", "mm")
         right = x + (step if i < count - 1 else cards.CARD_W)
         regions.append(((x, y, right, HAND_Y + cards.CARD_H), ("card", i)))
+        if i == focus:
+            focus_box = (x - 2, y - 2, right + 1, SCREEN_H - 1)
+    if focus is not None and 0 <= focus < count:  # the yellow frame the arrow keys move (on top of the cards)
+        d.rectangle(focus_box, outline=FOCUS, width=3)
 
     if uno_open:  # house rule: say UNO in time
         x0, y0, x1, y1 = UNO_BOX
@@ -142,9 +152,10 @@ def draw(game, me, opponents, flash="", choosing=False, picks=(), uno_open=False
         regions = [((0, 0, SCREEN_W, 540), ("cancel",))]
         for i, colour in enumerate(COLOURS):
             x = 318 + i * 84
-            d.rectangle([x, 246, x + 71, 317], fill=(22, 18, 43))
+            d.rectangle([x, 246, x + 71, 317], fill=FOCUS if i == colour_focus else (22, 18, 43))
             d.rectangle([x + 6, 252, x + 65, 311], fill=rgb(cards.COLOUR_HEX[colour]))
             regions.append(((x, 246, x + 71, 317), ("colour", colour)))
+        draw_text(img, (SCREEN_W // 2, 330), "ARROWS + ENTER  -  X: CANCEL", 2, "#3b3560", "mt")
     return img, regions
 
 
@@ -169,10 +180,39 @@ def _play(game, me, chosen, colour=None) -> None:
         return
     game.play(me, chosen, colour)
     S.uno_pick, S.pending_wild, S.flash = [], None, ""
+    S.uno_focus = None  # next turn the frame starts on the first card that can be played
     if game.held and game.held[0] == me:
         S.flash = "Press UNO! and your last card goes down"
     if game.uno_due == me:
         S.uno_deadline = time.time() + UNO_SECONDS
+
+
+def _choose_colour(bar, game, me, action, focus) -> None:
+    """The colour of a wild: a click on a colour, or Left / Right and Enter (or Space). X or a click elsewhere cancels."""
+    with bar[0]:
+        enter = ui.button("Choose colour", "uno_colour", "Enter", type="primary")
+    with bar[2]:
+        cancel = ui.button("Cancel", "uno_cancel", "X")
+    common.pause_button(bar[3], "uno")
+    key = ui.keys("uno_colour", {"Left": "left", "Right": "right", "Space": "choose"})
+    if key in ("left", "right"):
+        S.uno_colour_focus = cursor.step(focus, key, len(COLOURS))
+        st.rerun()
+    if enter or key == "choose":
+        action = ("colour", COLOURS[focus])
+    elif cancel:
+        action = ("cancel",)
+    if not action:
+        return
+    S.uno_colour_focus = None
+    try:
+        if action[0] == "colour":
+            _play(game, me, S.pending_wild, action[1])
+        else:  # ("cancel",): X, or a click outside the colours
+            S.pending_wild = None
+    except IllegalMove as problem:
+        S.flash, S.uno_pick, S.pending_wild = str(problem), [], None
+    st.rerun()
 
 
 def render() -> None:
@@ -186,7 +226,7 @@ def render() -> None:
     slot = ui.screen()
     bots_were_playing = game.winner is None and game.current != me and not uno_open
     if common.run_clock(not bots_were_playing and game.winner is None and not uno_open):
-        S.pending_wild, S.uno_pick = None, []  # 15 seconds went by: draw and pass for the player
+        S.pending_wild, S.uno_pick, S.uno_focus = None, [], None  # 15 seconds went by: draw and pass for the player
         game.auto_turn(me)
         common.restart_clock()
         S.flash = "Time's up! You drew and your turn passed"
@@ -209,8 +249,17 @@ def render() -> None:
 
     my_turn = game.winner is None and game.current == me and not uno_open
     common.run_clock(my_turn)  # the bots are done: the player's 15 seconds start
+    hand = sorted_hand(game.hands[me])
+    focus = colour_focus = None
+    if my_turn and S.pending_wild is None:  # the yellow frame on the hand: Left / Right move it, Space plays
+        playable = game.playable_cards(me)
+        useful = [can_add(game.hands[me], picks, i) if picks else card in playable for i, card in enumerate(hand)]
+        focus = cursor.first(useful) if S.get("uno_focus") is None else cursor.clamp(S.uno_focus, len(hand))
+        S.uno_focus = focus
+    elif S.pending_wild is not None:
+        colour_focus = cursor.clamp(S.get("uno_colour_focus"), len(COLOURS))
     img, regions = draw(game, me, opponents, S.flash, choosing=S.pending_wild is not None, picks=picks,
-                        uno_open=uno_open)
+                        uno_open=uno_open, focus=focus, colour_focus=colour_focus)
     img, regions = common.with_result(img, regions)
     common.show(slot, img, "uno")
     point = None if bots_were_playing else ui.click()  # a click made during the bots' turn does not count
@@ -236,6 +285,9 @@ def render() -> None:
             S.uno_deadline = None
             st.rerun()
         return
+    if S.pending_wild is not None:  # choosing a wild's colour has its own buttons and keys
+        _choose_colour(bar, game, me, None if bots_were_playing else action, colour_focus)
+        return
     with bar[0]:
         draw_label = f"Draw {game.pending} cards" if game.pending else "Draw a card"
         draw_pressed = ui.button(draw_label, "uno_draw", "D", disabled=not my_turn or game.drawn_card is not None or bool(picks))
@@ -255,16 +307,17 @@ def render() -> None:
         common.rules_button(bar[2], "uno")
     common.pause_button(bar[3], "uno")
 
+    # Left / Right move the yellow frame along the hand; Space is a click on that card (keys only count on your turn)
+    key = ui.keys("uno", {"Left": "left", "Right": "right", "Space": "card"}) if my_turn and not bots_were_playing else None
+    if key in ("left", "right"):
+        S.uno_focus = cursor.step(focus, key, len(hand))
+        st.rerun()
+    if key == "card" and focus is not None:
+        action = ("card", focus)
+
     acted = True
     try:
-        if S.pending_wild is not None:
-            if action and action[0] == "colour":
-                _play(game, me, S.pending_wild, action[1])
-            elif action == ("cancel",):
-                S.pending_wild = None
-            else:
-                acted = False
-        elif cancel_pressed:
+        if cancel_pressed:
             S.uno_pick = []
         elif play_pressed or (action == ("play",) and picks):
             _play(game, me, picked_cards(game.hands[me], picks))
@@ -275,13 +328,15 @@ def render() -> None:
             if game.drawn_card:
                 many = f"{len(drawn)} cards" if len(drawn) > 1 else "a card"
                 S.flash = f"You drew {many}: play the {card_name(game.drawn_card)} or pass"
+                S.uno_focus = sorted_hand(game.hands[me]).index(game.drawn_card)  # the frame jumps to that card
             else:
-                S.flash = ""
+                S.flash, S.uno_focus = "", None
         elif pass_pressed:
             game.pass_turn(me)
-            S.flash = ""
+            S.flash, S.uno_focus = "", None
         elif action and action[0] == "card" and my_turn:
             index = action[1]
+            S.uno_focus = index  # the frame follows a click too
             hand = sorted_hand(game.hands[me])
             card = hand[index]
             if index in picks:  # click a picked card again: take it (and the ones after it) back
