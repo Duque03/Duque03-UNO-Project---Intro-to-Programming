@@ -344,11 +344,14 @@ export default function (component) {
         requestAnimationFrame(frame);
     }
 
-    function free(x, y) {
+    function free(x, y, ignoreBots = false) {
+        // Can the player stand here? The floor map says where walls and furniture are; bots block too
+        // unless ignoreBots (used to walk out from under a bot that shuffled onto the player).
         const d = G.data, map = G.maps[d.map];
         if (!map) return false;
         const ix = Math.round(x), iy = Math.round(y);
         if (ix < 0 || iy < 0 || ix >= map.w || iy >= map.h || map.blocked[iy * map.w + ix]) return false;
+        if (ignoreBots) return true;
         const [bw, bh] = map.body;
         for (const b of Object.values(G.bots)) {
             const ox = (ix - b.tx) / bw, oy = (iy - b.ty) / bh;
@@ -393,6 +396,17 @@ export default function (component) {
         ctx.fillStyle = "#f3ead2"; ctx.fillRect(x + 13, y + 10, 6, h - 20); ctx.fillRect(x + w - 19, y + 10, 6, h - 20);
     }
 
+    function nearestFloor(x, y) {  // the closest spot where the player may stand (walls and furniture only)
+        for (let r = 1; r <= 90; r++) {
+            for (let dy = -r; dy <= r; dy++) {
+                for (let dx = -r; dx <= r; dx++) {
+                    if (Math.max(Math.abs(dx), Math.abs(dy)) === r && free(x + dx, y + dy, true)) return [x + dx, y + dy];
+                }
+            }
+        }
+        return null;
+    }
+
     function zoneAt(x, y) {
         const map = G.maps[G.data.map];
         if (!map) return 0;
@@ -426,13 +440,19 @@ export default function (component) {
         }
         const length = Math.hypot(vx, vy);
         let moved = false;
+        const map = G.maps[d.map];
+        if (map && !free(G.x, G.y, true)) {  // never inside a wall or a table, never off the floor
+            const inside = [Math.max(0, Math.min(map.w - 1, Math.round(G.x))), Math.max(0, Math.min(map.h - 1, Math.round(G.y)))];
+            const spot = free(inside[0], inside[1], true) ? inside : nearestFloor(inside[0], inside[1]);
+            if (spot) { [G.x, G.y] = spot; G.target = null; }
+        }
         if (length > 0) {
             vx /= length; vy /= length;
             const step = d.speed * dt;
-            const stuck = !free(G.x, G.y);  // a bot shuffled onto us: let the player walk out
+            const underBot = !free(G.x, G.y);  // a bot shuffled onto us: walk out, ignoring bots but not furniture
             const before = [G.x, G.y];
-            if (vx && (stuck || free(G.x + vx * step, G.y))) G.x += vx * step;
-            if (vy && (stuck || free(G.x, G.y + vy * step))) G.y += vy * step;
+            if (vx && free(G.x + vx * step, G.y, underBot)) G.x += vx * step;
+            if (vy && free(G.x, G.y + vy * step, underBot)) G.y += vy * step;
             moved = G.x !== before[0] || G.y !== before[1];
             if (faceKey) G.dir = faceKey;
             else if (moved) G.dir = Math.abs(vx) > Math.abs(vy) ? (vx > 0 ? "right" : "left") : (vy > 0 ? "down" : "up");
@@ -479,6 +499,7 @@ export default function (component) {
     function draw(t) {
         const d = G.data, ctx = G.canvas.getContext("2d");
         G.missing = new Set();
+        if (!G.maps[d.map]) G.missing.add(d.map);  // no floor map (the browser lost it): ask Python for it again
         ctx.setTransform(1, 0, 0, 1, 0, 0);
         ctx.imageSmoothingEnabled = false;
         ctx.globalAlpha = 1;
