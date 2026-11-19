@@ -115,3 +115,22 @@ def test_points_for_someone_outside_the_championship_are_rejected():
 def test_championship_needs_exactly_three_bots():
     with pytest.raises(ValueError):
         ch.new_championship("ME", ["A", "B"])
+
+
+def _saved(name, championships, wins=0):
+    return {"name": name, "championships": championships, "wins": {"uno": wins, "checkers": 0, "connect4": 0}}
+
+
+def test_best_player_has_the_most_championships():
+    players = [_saved("ANA", 1, wins=30), _saved("BRUNO", 3), _saved("CARLA", 2)]
+    assert ch.best_player(players)["name"] == "BRUNO"
+
+
+def test_a_tie_in_championships_goes_to_more_wins_then_to_the_name():
+    assert ch.best_player([_saved("ANA", 2, wins=5), _saved("BRUNO", 2, wins=9)])["name"] == "BRUNO"
+    assert ch.best_player([_saved("ZE", 2, wins=5), _saved("ANA", 2, wins=5)])["name"] == "ANA"
+
+
+def test_nobody_is_best_player_before_a_championship_is_won():
+    assert ch.best_player([]) is None
+    assert ch.best_player([_saved("ANA", 0, wins=50)]) is None

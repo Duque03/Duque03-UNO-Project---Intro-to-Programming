@@ -123,6 +123,8 @@ export default function (component) {
         });
     }
 
+    A.effect = (name) => { const effect = EFFECTS[name]; if (effect && context()) effect(); };  // for the title screen
+
     const cues = (component.data && component.data.cues) || [];
     for (const cue of cues) {
         if (typeof cue.id !== "number" || cue.id <= A.lastCue) continue;
