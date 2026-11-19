@@ -138,6 +138,12 @@ def finish(winners: list[str], tied: bool = False, places: list[str] | None = No
             S.result = {"title": "GAME OVER", "line": rng.choice(phrases.LOSE_LINES), "coins": 0}
         return
 
+    if match["game"] == "uno" and places:  # all four played to the last player: points by place
+        championship.record_uno_round(S.champ, places)
+        S.score_animated = False
+        ui.fade_next()
+        S.screen = "champ_score"
+        return
     results = [(list(winners), tied)]
     if match["others"]:  # the other two bots "play" at the same time
         a, b = match["others"]

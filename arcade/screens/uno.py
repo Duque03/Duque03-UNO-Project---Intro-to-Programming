@@ -241,21 +241,19 @@ def render() -> None:
         st.rerun()
 
     champ = S.match["mode"] == "champ"
-    # The bots play, one visible move at a time, while the player is still in (a championship round ends as soon as
-    # someone is out: only 1st place scores).
-    while not uno_open and game.winner is None and game.current != me and me not in game.out \
-            and not (champ and game.out):
+    # The bots play, one visible move at a time, while the player is still in.
+    while not uno_open and game.winner is None and game.current != me and me not in game.out:
         seat = [o["name"] for o in opponents].index(game.current)
         common.show(slot, common.thinking(draw(game, me, opponents)[0], seat, len(opponents)), "uno")
         started = time.time()
         game.bot_turn(game.current, **UNO_LEVELS[bots.level(game.current)])  # each bot plays at its own level
         common.bot_pause(since=started)
 
-    if game.winner is None and (me in game.out or (champ and game.out)):
+    if game.winner is None and me in game.out:
         # The player's place is settled: the others finish the game at once instead of the player watching.
         common.show(slot, draw(game, me, opponents)[0], "uno")
         time.sleep(1.2)
-        game.play_out({name: UNO_LEVELS[bots.level(name) if name != me else "medium"] for name in game.active})
+        game.play_out({name: UNO_LEVELS[bots.level(name)] for name in game.active})
     if game.winner and S.result is None:
         if champ:
             common.show(slot, draw(game, me, opponents)[0], "uno")

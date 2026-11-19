@@ -14,6 +14,7 @@ SCREEN_W, SCREEN_H = BASE_W * SCALE, BASE_H * SCALE
 CHAMPIONSHIP_PRIZE = 50
 POINTS_WIN = 2
 POINTS_TIE = 1
+UNO_CHAMP_POINTS = {1: 2, 2: 1}  # the championship's UNO round is played to the last player: 1st 2 points, 2nd 1
 
 # Store prices by rarity
 PRICES = {"common": 20, "rare": 100, "legendary": 500}
