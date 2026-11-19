@@ -13,6 +13,12 @@ def test_leave_table_only_at_a_table():
         assert "leave_table" not in [option["action"] for option in pause.options(elsewhere)]
 
 
+def test_play_online_only_from_the_room():
+    assert "online" in [option["action"] for option in pause.options("hub")]
+    for table in ("uno", "checkers", "connect4"):
+        assert "online" not in [option["action"] for option in pause.options(table)]
+
+
 def test_the_menu_list_itself_is_not_changed():
     before = list(pause.OPTIONS)
     pause.options("uno")
