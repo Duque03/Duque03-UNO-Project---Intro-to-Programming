@@ -22,12 +22,13 @@ BOARD_Y = 234
 _DISC = {RED: ((226, 65, 60), (255, 150, 140)), YELLOW: ((242, 194, 48), (255, 236, 150))}
 
 
-def draw(game, opponent, flash="", falling=None, column=None):
+def draw(game, opponent, flash="", falling=None, column=None, me=RED):
     """Returns (picture, regions). falling=(row, col) draws the last disc higher up while it drops.
 
     column: the column the arrow keys are on (a yellow frame and a bigger arrow), or None.
+    me: the side of the player looking at the screen (online, the second player is yellow).
     """
-    my_turn = game.winner is None and game.turn == RED
+    my_turn = game.winner is None and game.turn == me
     img = scenes.table_scene("connect4", [opponent], opponent["name"] if game.winner is None and not my_turn else None)
     d = ImageDraw.Draw(img)
     regions = []
@@ -65,12 +66,12 @@ def draw(game, opponent, flash="", falling=None, column=None):
             x = BOARD_X + column * CELL
             d.rectangle([x + 1, BOARD_Y - 4, x + CELL - 2, BOARD_Y + height + 3], outline=scenes.FOCUS, width=3)
 
-    panel(img, (30, 250, 290, 322), "#16122b", "#e2413c", shadow=False)
-    draw_text(img, (48, 268), "YOU", 2, "#ff9a94", "lt")
-    draw_text(img, (48, 292), "RED", 3, "#ffffff", "lt")
-    panel(img, (SCREEN_W - 290, 250, SCREEN_W - 30, 322), "#16122b", "#f2c230", shadow=False)
-    draw_text(img, (SCREEN_W - 272, 268), opponent["name"], 2, "#ffe9a0", "lt")
-    draw_text(img, (SCREEN_W - 272, 292), "YELLOW", 3, "#ffffff", "lt")
+    them = YELLOW if me == RED else RED
+    for x0, side, label in ((30, me, "YOU"), (SCREEN_W - 290, them, opponent["name"])):
+        edge, light = ("#e2413c", "#ff9a94") if side == RED else ("#f2c230", "#ffe9a0")
+        panel(img, (x0, 250, x0 + 260, 322), "#16122b", edge, shadow=False)
+        draw_text(img, (x0 + 18, 268), label, 2, light, "lt")
+        draw_text(img, (x0 + 18, 292), side.upper(), 3, "#ffffff", "lt")
     if flash:
         draw_text(img, (160, 350), flash.upper(), 2, "#ff8a8a", "mt", shadow="#16122b")
     elif my_turn:

@@ -18,13 +18,14 @@ OPTIONS = [
     {"label": "LEAVE ARCADE", "action": "leave"},
 ]
 LEAVE_TABLE = {"label": "LEAVE TABLE", "action": "leave_table"}
+PLAY_ONLINE = {"label": "PLAY ONLINE", "action": "online"}
 
 
 def options(paused_from: str | None) -> list[dict]:
-    """The menu. At a game table there is one more choice: leave the table (task B4)."""
+    """The menu. At a game table there is one more choice: leave the table (task B4). In the room: play online."""
     if paused_from in GAMES:
         return OPTIONS[:3] + [LEAVE_TABLE] + OPTIONS[3:]
-    return list(OPTIONS)
+    return OPTIONS[:3] + [PLAY_ONLINE] + OPTIONS[3:]
 
 
 def leave_table() -> None:
@@ -52,20 +53,22 @@ def render() -> None:
     action = ui.hit(regions, point)
     if key == "choose":
         action = ("menu", menu[focus]["action"])
-    bar = st.columns(5 if at_table else 4)
+    bar = st.columns(5)
     with bar[0]:
         resume = ui.button("Resume", "pause_resume", "Esc", type="primary")
     with bar[1]:
         wardrobe = ui.button("Wardrobe", "pause_wardrobe")
     with bar[2]:
         how = ui.button("How to play", "pause_howto", "H")
-    quit_table = False
-    if at_table:
-        with bar[3]:
+    quit_table = go_online = False
+    with bar[3]:
+        if at_table:
             quit_table = ui.button("Leave table", "pause_leave_table")
+        else:
+            go_online = ui.button("Play online", "pause_online", "O")
     with bar[-1]:
         leave = ui.button("Leave arcade", "pause_leave")
-    if action or resume or wardrobe or how or quit_table or leave:
+    if action or resume or wardrobe or how or quit_table or go_online or leave:
         S.pause_focus = None  # the menu opens on RESUME again next time
 
     if resume or action == ("menu", "resume"):
@@ -80,6 +83,11 @@ def render() -> None:
         st.rerun()
     if at_table and (quit_table or action == ("menu", "leave_table")):
         leave_table()
+        st.rerun()
+    if not at_table and (go_online or action == ("menu", "online")):  # create or join a lobby with friends
+        state.save()
+        ui.fade_next()
+        state.go("online")
         st.rerun()
     if leave or action == ("menu", "leave"):
         state.save()  # progress is kept for next time

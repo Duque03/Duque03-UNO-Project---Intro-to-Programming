@@ -44,8 +44,10 @@ Numbers live in `arcade/config.py`.
   alphabetical order). Nobody stands there until someone has won a championship, and it changes as people play.
 - Menu choices make arcade sounds (a coin when you confirm, a blip when you move), and the chosen option has a
   spinning coin on each side.
-- The menu is drawn in the picture, like a real game: **PLAY** or **HOW TO PLAY** (arrow keys or W S to choose,
-  Enter to confirm, Esc to go back, or the mouse). PLAY asks **NEW PLAYER** or **I HAVE AN ACCOUNT** (or BACK).
+- The menu is drawn in the picture, like a real game: **PLAY OFFLINE**, **PLAY ONLINE** or **HOW TO PLAY** (arrow
+  keys or W S to choose, Enter to confirm, Esc to go back, or the mouse). Both PLAY choices ask **NEW PLAYER** or
+  **I HAVE AN ACCOUNT** (or BACK). PLAY OFFLINE flies into the arcade; PLAY ONLINE goes to the online menu
+  (section 8).
 - Then a panel with the boxes to type in (titled **ENTER YOUR NAME** for a new player, like an arcade high score):
   name and PIN (dots instead of digits). Arrow keys or Tab move between the
   boxes and the CREATE / LOG IN and BACK buttons. A refusal is written in red in the panel and the PIN boxes empty.
@@ -158,7 +160,8 @@ Numbers live in `arcade/config.py`.
 
 ## 5. Pause menu and wardrobe
 
-- Esc opens a light-blue menu: **Resume**, **Wardrobe**, **How to play**, **Leave arcade** (and **Leave table** at a table).
+- Esc opens a light-blue menu: **Resume**, **Wardrobe**, **How to play**, **Leave arcade**, and **Play online** in the
+  room (O) or **Leave table** at a table.
 - The wardrobe has the same three tabs and shows only owned items, with the character shown large on the right.
 - Clicking an item previews it. **E** equips it and the item gets a green pixel tick. **U** takes it off and the default look returns.
 - **Leave arcade** returns to the title screen. Progress is kept.
@@ -179,3 +182,25 @@ Numbers live in `arcade/config.py`.
 ## 7. Saved progress
 
 Saved per player name: coins, owned cosmetics, equipped cosmetics, wins per game, championships won, and whether the championship introduction has been seen. Progress survives leaving the arcade and restarting the app.
+
+## 8. Playing online with friends
+
+- Everyone plays on their own phone or laptop, at the game's web address. No bots online: only the people in the lobby.
+- **Online menu**: **Create lobby** (N) gives a 4-letter code (no I or O, which look like 1 and 0). Friends type it in
+  the box and press **Join** (or Enter). **Arcade** (A) goes back to playing offline; **Log out** (Esc) to the title.
+- **Lobby**: up to **4 players**, shown with their own skins and name tags. The code is shown big, and as text with a
+  copy button to paste into a message. Whoever created the lobby is the **host** (a crown): they pick the game, **UNO**
+  (2 to 4 players), **Checkers** or **Connect Four** (exactly 2), and press **Start** when the number of players fits.
+  The others see the host's choice and wait. Nobody can join while a game is being played.
+- **At the table** each player sees the game from their own seat, with the same pictures as in the arcade: in UNO the
+  others sit across the table in turn order; in checkers and Connect Four the host is red and moves first, and the
+  second player's checkers board is turned round so their pieces are at the bottom. The same rules as offline (UNO
+  places included). Moves out of turn are refused; a yellow frame shows whose turn it is.
+- Each player has **15 seconds** a turn (shown under the table for everyone). When time runs out the game plays for them,
+  as offline. In UNO, a player down to one card has 3 seconds to say UNO (U) or draws 2.
+- Each browser looks for changes about once a second, so a friend's move shows up within about a second.
+- Prizes: winning pays **15 coins** (like a medium bot); in UNO 1st / 2nd / 3rd get 15 / 8 / 4. Online wins do not count
+  towards opening the championship cabinet (that is about beating the arcade's bots).
+- **Lobby** (Enter) after a game goes back to the lobby, where the host can start another game. **Leave** (Esc) leaves:
+  a game in progress then ends for everyone with no winner, and the next player becomes the host. The last player to
+  leave closes the lobby.

@@ -201,6 +201,7 @@ SCREEN_TRACKS = {
     "hub": "room", "store": "room", "wardrobe": "room", "versus": "room",
     "champ_intro": "room", "champ_rules": "room", "champ_score": "room", "champ_final": "room",
     "uno": "uno", "checkers": "checkers", "connect4": "connect4",
+    "online": "title", "lobby": "title",  # an online game plays its own game's tune (screens/online_table.py)
 }
 
 

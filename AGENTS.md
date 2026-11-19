@@ -116,6 +116,12 @@ changing these files, and change them in a small pull request of their own.
   sends it again until Python has handled it (`room.new_press`), so a press is never lost. The `tiles.py` script draws
   the item grid of the store and the wardrobe and reports which item was clicked. Python checks every value it
   receives before using it (`tiles.grid` only accepts ids that exist in `catalog.py`).
+- **Online lobbies live on the server, not in a session** (`arcade/logic/lobby.py`, shared through
+  `st.cache_resource` in `arcade/online.py`). Every player's session reads and changes the same `Lobbies` object, which
+  has a lock, so never keep a lobby or its game in `st.session_state`: keep only the code (`S.lobby_code`) and ask
+  `online.lobbies().get(code)` for a fresh copy on every run. Moves go through `lobbies.act()`, which checks whose
+  turn it is and the game's rules. The screens (`screens/online.py`, `screens/online_table.py`) look at the lobby's
+  version once a second (a fragment) and draw again only when it changed.
 - **Every screen is drawn inside one container, `game_frame`** (app.py), which `ui.py` styles as the glowing frame
   with the buttons at the bottom. A new screen gets the frame for free.
 - **Streamlit fades the page while the script runs** (`data-stale`). `ui.py` switches that off, because in a game
@@ -139,3 +145,6 @@ changing these files, and change them in a small pull request of their own.
 - Walking happens in the browser and Python only hears about it when the player stops, changes zone or presses a
   key, so the position Python knows can be a fraction of a second old (every action re-sends it).
 - In the championship, the two bots that are not playing you do not really play: their result is drawn at random.
+- Online lobbies are kept in the server's memory: if the server restarts (or the free host puts the app to sleep after
+  hours with no visitors), open lobbies are gone. Saved players are not: they are in the database.
+- Online moves reach the other players within about a second, because each browser asks the server once a second.

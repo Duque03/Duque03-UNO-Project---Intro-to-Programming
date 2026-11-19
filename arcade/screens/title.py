@@ -43,6 +43,13 @@ def _sign_in(value: dict, number: int) -> None:
         sound.play("lose")
         st.rerun()
     S.title_error = None
+    if value.get("where") == "online":  # PLAY ONLINE: straight to the online menu (create or join a lobby)
+        state.start_session(player)
+        S.screen = "online"
+        ui.fade_next()
+        sound.play("start")
+        st.toast(f"Welcome, {player['name']}!" if is_new else f"Welcome back, {player['name']}!")
+        st.rerun()
     S.title_pending = {"player": player, "new": is_new}
     S.title_enter = number  # the browser flies into the arcade (and plays the start sound), then sends "entered"
     st.rerun()

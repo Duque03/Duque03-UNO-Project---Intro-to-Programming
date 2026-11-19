@@ -1,0 +1,319 @@
+"""An online game: UNO, checkers or Connect Four against the other people in the lobby (no bots).
+
+The game itself lives in the lobby, on the server (arcade/logic/lobby.py); every move goes through
+online.lobbies().act(), which checks it. This screen draws the table from this player's seat with the same pictures
+as the arcade (the other players sit across the table, in turn order) and looks for changes once a second.
+"""
+
+from __future__ import annotations
+
+import time
+
+import streamlit as st
+
+from arcade import online, sound, state, ui
+from arcade.art import scenes
+from arcade.logic import cursor
+from arcade.logic.checkers import SIZE
+from arcade.logic.checkers import IllegalMove as CheckersIllegal
+from arcade.logic.connect4 import COLS
+from arcade.logic.connect4 import IllegalMove as Connect4Illegal
+from arcade.logic.lobby import LobbyError, online_coins
+from arcade.logic.uno import COLOURS, WILD, ordinal
+from arcade.logic.uno import IllegalMove as UnoIllegal
+from arcade.screens import checkers as checkers_screen
+from arcade.screens import connect4 as connect4_screen
+from arcade.screens import online as online_screens
+from arcade.screens import uno as uno_screen
+from arcade.state import S
+
+PROBLEMS = (LobbyError, UnoIllegal, CheckersIllegal, Connect4Illegal)
+
+
+def _act(move: str, **args) -> None:
+    """Send a move to the lobby. A refused move is shown in red; the game does not change."""
+    try:
+        online.lobbies().act(S.lobby_code, S.player["name"], move, **args)
+        S.online_flash = ""
+    except PROBLEMS as problem:
+        S.online_flash = str(problem)
+        sound.play("lose")
+    st.rerun()
+
+
+@st.fragment(run_every=1.0)
+def _watch(code: str, seen: int, turn: str | None, deadline: float | None, me: str) -> None:
+    """Once a second: the time left for whoever is playing, and a new picture as soon as the game changes."""
+    if online.lobbies().version(code) != seen:
+        st.rerun(scope="app")
+    if turn and deadline:
+        left = max(0, int(deadline - time.time() + 0.99))
+        who = "YOUR TURN" if turn == me else f"{turn}'S TURN"
+        colour = "#ff4f6d" if left <= 5 else "#3ad6ff"
+        st.markdown(f"<div style='text-align:right;font:1.15rem \"Jersey 10\",monospace;color:{colour};"
+                    f"letter-spacing:.05em'>{who}: {left}s</div>", unsafe_allow_html=True)
+
+
+def _finish(lobby, me: str) -> None:
+    """The game is over: coins once per game, and the result box on top of the table."""
+    paid = S.setdefault("online_paid", set())
+    key = (lobby.code, lobby.round)
+    coins = online_coins(lobby.result, me)
+    if key not in paid:
+        paid.add(key)
+        if coins:
+            S.player["coins"] += coins
+            state.save()
+        places = lobby.result.get("places")
+        won = (places and places[0] == me) or lobby.result.get("winner") == me
+        sound.play("win" if won else "tie" if lobby.result.get("left") else "lose")
+
+
+def _result_text(lobby, me: str) -> tuple[str, str]:
+    result = lobby.result
+    if result.get("left"):
+        return "GAME OVER", f"{result['left']} left the game. Nobody wins this one."
+    if result.get("places"):
+        places = result["places"]
+        place = places.index(me) + 1
+        line = "  ".join(f"{ordinal(i + 1).upper()} {'YOU' if n == me else n}" for i, n in enumerate(places))
+        title = "VICTORY!" if place == 1 else "LAST PLACE" if place == len(places) else f"{ordinal(place).upper()} PLACE!"
+        return title, line
+    if result.get("winner") is None:
+        return "TIE!", "Nobody made four in a row."
+    return ("VICTORY!", "You beat your friend!") if result["winner"] == me else ("GAME OVER", f"{result['winner']} wins!")
+
+
+def render() -> None:
+    code, me = S.get("lobby_code"), S.player["name"]
+    try:
+        lobby = online.lobbies().get(code)
+    except LobbyError:
+        S.online_message = "That lobby has closed."
+        online_screens.leave()
+        st.rerun()
+    if me not in lobby.names():
+        online_screens.leave()
+        st.rerun()
+    if lobby.table is None:
+        S.screen = "lobby"
+        st.rerun()
+    S["_track"] = lobby.game  # the game's own music (arcade/music.py)
+    S.setdefault("online_flash", "")
+    if lobby.round != S.get("online_round_seen"):  # a new game: start with nothing picked or highlighted
+        S.online_round_seen = lobby.round
+        for key in ("ouno_pick", "ouno_wild", "ouno_focus", "ouno_colour", "ock_sel", "ock_cur", "oc4_col"):
+            S.pop(key, None)
+        S.online_flash = ""
+
+    over = lobby.result is not None
+    turn = lobby.current()
+    mine = turn == me and not over
+    if over:
+        _finish(lobby, me)
+    draw = {"uno": _uno, "checkers": _checkers, "connect4": _connect4}[lobby.game]
+    draw(lobby, me, mine, over)
+    _watch(code, lobby.version, turn, lobby.deadline, me)
+
+
+def _bar_end(bar, lobby, me: str, over: bool) -> None:
+    """The last buttons of every online table: back to the lobby when the game is over, and Leave."""
+    if over:
+        with bar[0]:
+            back = ui.button("Lobby", "otable_lobby", "Enter", type="primary")
+        if back:
+            S.online_round_done = lobby.round
+            ui.fade_next()
+            S.screen = "lobby"
+            st.rerun()
+    with bar[-1]:
+        out = ui.button("Leave", "otable_leave", "Esc")
+    if out:
+        online_screens.leave()
+        st.rerun()
+
+
+def _show(img, regions, lobby, me, over):
+    if over:
+        title, line = _result_text(lobby, me)
+        img = scenes.result_panel(img, title, line, online_coins(lobby.result, me))
+        regions = []
+    ui.show(ui.screen(), img)
+    return regions
+
+
+# ---------------------------------------------------------------- UNO
+
+def _uno(lobby, me: str, mine: bool, over: bool) -> None:
+    game = lobby.table
+    seat = lobby.seats.index(me)
+    opponents = [lobby.player(lobby.seats[(seat + k) % len(lobby.seats)]) for k in range(1, len(lobby.seats))]
+    hand = uno_screen.sorted_hand(game.hands[me])
+    picks = [i for i in S.get("ouno_pick") or [] if i < len(hand)]
+    wild = S.get("ouno_wild")
+    uno_open = game.uno_due == me and not over
+    key = ui.keys("ouno", {"Left": "left", "Right": "right", "Space": "space"})  # on every run (see AGENTS.md)
+    if not mine:
+        key = None if not uno_open else key
+    if uno_open and lobby.uno_deadline:
+        S.uno_deadline = min(lobby.uno_deadline, time.time() + uno_screen.UNO_SECONDS)  # for the UNO! box's bar
+
+    focus = colour_focus = None
+    if mine and wild is None:
+        playable = game.playable_cards(me)
+        useful = [uno_screen.can_add(game.hands[me], picks, i) if picks else c in playable for i, c in enumerate(hand)]
+        focus = cursor.first(useful) if S.get("ouno_focus") is None else cursor.clamp(S.ouno_focus, len(hand))
+        if key in ("left", "right"):
+            focus = cursor.step(focus, key, len(hand))
+            sound.play("blip")
+        S.ouno_focus = focus
+    elif mine:
+        colour_focus = cursor.clamp(S.get("ouno_colour"), len(COLOURS))
+        if key in ("left", "right"):
+            colour_focus = cursor.step(colour_focus, key, len(COLOURS))
+            sound.play("blip")
+        S.ouno_colour = colour_focus
+    flash = S.online_flash or ("" if mine or over else f"Waiting for {lobby.current()}...")
+    img, regions = uno_screen.draw(game, me, opponents, flash, choosing=wild is not None, picks=picks,
+                                   uno_open=uno_open, focus=focus, colour_focus=colour_focus)
+    regions = _show(img, regions, lobby, me, over)
+    point = ui.click() if (mine or uno_open) and not over else None
+    action = ui.hit(regions, point)
+
+    bar = st.columns([1.3, 1, 1, 1, 1, 1])
+    if over:
+        _bar_end(bar, lobby, me, over)
+        return
+    with bar[0]:
+        play = ui.button("Play" if wild is None else "Choose colour", "ouno_play", "Enter", type="primary",
+                         disabled=not mine or (not picks and wild is None))
+    with bar[1]:
+        draw = ui.button("Draw", "ouno_draw", "D", disabled=not mine or game.drawn_card is not None or bool(picks))
+    with bar[2]:
+        passed = ui.button("Pass", "ouno_pass", "P", disabled=not mine or game.drawn_card is None)
+    with bar[3]:
+        uno = ui.button("UNO!", "ouno_uno", "U", type="primary" if uno_open else "secondary")
+    with bar[4]:
+        cancel = ui.button("Cancel", "ouno_cancel", "X", disabled=not mine or (not picks and wild is None))
+    _bar_end(bar, lobby, me, over)
+
+    if uno or action == ("uno",):
+        sound.play("coin")
+        _act("uno")
+    if not mine:
+        return
+    if cancel or (wild is not None and action == ("cancel",)):
+        S.ouno_pick, S.ouno_wild = [], None
+        st.rerun()
+    if wild is not None:  # choosing the colour of a wild
+        if play or key == "space":
+            action = ("colour", COLOURS[colour_focus])
+        if action and action[0] == "colour":
+            S.ouno_wild, S.ouno_pick, S.ouno_focus = None, [], None
+            _act("play", cards=wild, colour=action[1])
+        return
+    if draw or action == ("draw",):
+        S.ouno_pick = []
+        _act("draw")
+    if passed:
+        _act("pass")
+    if key == "space" and focus is not None:
+        action = ("card", focus)
+    if play or action == ("play",):
+        _play_cards(uno_screen.picked_cards(game.hands[me], picks))
+    if action and action[0] == "card":
+        index = action[1]
+        card = hand[index]
+        if picks:
+            if uno_screen.can_add(game.hands[me], picks, index):
+                S.ouno_pick = picks + [index]
+            elif index in picks:
+                S.ouno_pick = [i for i in picks if i != index]
+            st.rerun()
+        if card not in game.playable_cards(me):
+            S.online_flash = "That card does not match"
+            st.rerun()
+        twins = game.partners(me, card) if game.drawn_card is None else []
+        if twins:
+            S.ouno_pick = [index]  # it has twins: pick more of them, or press Play
+            st.rerun()
+        _play_cards([card])
+
+
+def _play_cards(cards: list) -> None:
+    if not cards:
+        return
+    if cards[-1][0] == WILD:
+        S.ouno_wild = [list(c) for c in cards]
+        st.rerun()
+    S.ouno_pick, S.ouno_focus = [], None
+    _act("play", cards=[list(c) for c in cards])
+
+
+# ---------------------------------------------------------------- Connect Four
+
+def _connect4(lobby, me: str, mine: bool, over: bool) -> None:
+    game = lobby.table
+    side = lobby.side_of(me)
+    friend = lobby.player(next(n for n in lobby.seats if n != me))
+    key = ui.keys("oc4", {"Left": "left", "Right": "right", "Space": "drop", "Down": "down"})
+    column = cursor.clamp(S.get("oc4_col", COLS // 2), COLS) if mine else None
+    if mine and key in ("left", "right"):
+        column = cursor.step(column, key, COLS)
+        sound.play("blip")
+    if mine:
+        S.oc4_col = column
+    flash = S.online_flash or ("" if mine or over else f"Waiting for {friend['name']}...")
+    img, regions = connect4_screen.draw(game, friend, flash, column=column, me=side)
+    regions = _show(img, regions, lobby, me, over)
+    action = ui.hit(regions, ui.click() if mine else None)
+    bar = st.columns([1.3, 1, 1, 1, 1])
+    _bar_end(bar, lobby, me, over)
+    if mine and key in ("drop", "down"):
+        action = ("col", column)
+    if mine and action and action[0] == "col":
+        sound.play("blip")
+        _act("drop", col=action[1])
+
+
+# ---------------------------------------------------------------- checkers
+
+def _checkers(lobby, me: str, mine: bool, over: bool) -> None:
+    game = lobby.table
+    side = lobby.side_of(me)
+    turned = side != lobby.side_of(lobby.seats[0])
+    friend = lobby.player(next(n for n in lobby.seats if n != me))
+    key = ui.keys("ock", {"Up": "up", "Down": "down", "Left": "left", "Right": "right", "Space": "space"})
+    selected = tuple(S.ock_sel) if S.get("ock_sel") and mine else None
+    if game.chain:
+        selected = tuple(game.chain)
+    cell = tuple(S.get("ock_cur") or (SIZE - 1, 0))
+    if mine and key in ("up", "down", "left", "right"):  # the arrows move the cursor as the board is seen
+        dr, dc = {"up": (-1, 0), "down": (1, 0), "left": (0, -1), "right": (0, 1)}[key]
+        if turned:
+            dr, dc = -dr, -dc
+        cell = (min(SIZE - 1, max(0, cell[0] + dr)), min(SIZE - 1, max(0, cell[1] + dc)))
+        S.ock_cur = cell
+        sound.play("blip")
+    flash = S.online_flash or ("" if mine or over else f"Waiting for {friend['name']}...")
+    img, regions = checkers_screen.draw(game, friend, selected, flash, cursor_cell=cell if mine else None, me=side)
+    regions = _show(img, regions, lobby, me, over)
+    action = ui.hit(regions, ui.click() if mine else None)
+    bar = st.columns([1.3, 1, 1, 1, 1])
+    _bar_end(bar, lobby, me, over)
+    if not mine:
+        return
+    if key == "space":
+        action = ("cell", *cell)
+    if not action or action[0] != "cell":
+        return
+    square = (action[1], action[2])
+    S.ock_cur = square
+    legal = game.legal_moves()
+    if selected and any(m[0] == selected and m[1] == square for m in legal):
+        S.ock_sel = None
+        sound.play("blip")
+        _act("move", start=selected, end=square)
+    if any(m[0] == square for m in legal) and not game.chain:
+        S.ock_sel = square
+    st.rerun()

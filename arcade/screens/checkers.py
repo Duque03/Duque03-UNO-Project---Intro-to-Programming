@@ -32,12 +32,18 @@ def _piece(d, img, x, y, piece):
         draw_text(img, (x + CELL // 2, y + CELL // 2 - 1), "K", 2, "#ffe94a", "mm", shadow="#16122b")
 
 
-def draw(game, opponent, selected=None, flash="", cursor_cell=None):
+def draw(game, opponent, selected=None, flash="", cursor_cell=None, me=BOTTOM):
     """Returns (picture, clickable regions).
 
     cursor_cell: the square the arrow keys are on (a blue frame: yellow already marks the pieces), or None.
+    me: the side of the player looking at the screen. Online, the second player plays the black (top) pieces and
+    sees the board turned round, so their pieces are at the bottom too. Squares and regions stay board squares.
     """
-    my_turn = game.winner is None and game.turn == BOTTOM
+    my_turn = game.winner is None and game.turn == me
+    turned = me == TOP
+
+    def at(row, col):  # where a board square is drawn
+        return (SIZE - 1 - row, SIZE - 1 - col) if turned else (row, col)
     img = scenes.table_scene("checkers", [opponent], opponent["name"] if game.winner is None and not my_turn else None)
     d = ImageDraw.Draw(img)
     regions = []
@@ -52,7 +58,8 @@ def draw(game, opponent, selected=None, flash="", cursor_cell=None):
     recent = set(game.last_move[:2]) if game.last_move else set()
     for row in range(SIZE):
         for col in range(SIZE):
-            x, y = BOARD_X + col * CELL, BOARD_Y + row * CELL
+            shown_row, shown_col = at(row, col)
+            x, y = BOARD_X + shown_col * CELL, BOARD_Y + shown_row * CELL
             dark_square = (row + col) % 2 == 1
             colour = (86, 120, 70) if dark_square else (236, 224, 190)
             if dark_square and (row, col) in recent:
@@ -73,16 +80,17 @@ def draw(game, opponent, selected=None, flash="", cursor_cell=None):
                 d.rectangle([x, y, x + CELL - 1, y + CELL - 1], outline=(124, 255, 58), width=3)
             regions.append(((x, y, x + CELL - 1, y + CELL - 1), ("cell", row, col)))
     if cursor_cell is not None:  # the keyboard cursor, on top of everything on the board
-        x, y = BOARD_X + cursor_cell[1] * CELL, BOARD_Y + cursor_cell[0] * CELL
+        shown_row, shown_col = at(*cursor_cell)
+        x, y = BOARD_X + shown_col * CELL, BOARD_Y + shown_row * CELL
         d.rectangle([x - 3, y - 3, x + CELL + 2, y + CELL + 2], outline=CURSOR, width=4)
 
     # score cards left and right of the board
-    panel(img, (30, 250, 290, 344), "#16122b", "#e2413c", shadow=False)
-    draw_text(img, (48, 268), "YOU - RED", 2, "#ff9a94", "lt")
-    draw_text(img, (48, 298), f"{game.count(BOTTOM)} PIECES", 3, "#ffffff", "lt")
-    panel(img, (SCREEN_W - 290, 250, SCREEN_W - 30, 344), "#16122b", "#8d8fa3", shadow=False)
-    draw_text(img, (SCREEN_W - 272, 268), f"{opponent['name']} - BLACK", 2, "#c9ccd6", "lt")
-    draw_text(img, (SCREEN_W - 272, 298), f"{game.count(TOP)} PIECES", 3, "#ffffff", "lt")
+    them = BOTTOM if turned else TOP
+    for x0, side, label in ((30, me, "YOU"), (SCREEN_W - 290, them, opponent["name"])):
+        red = side == BOTTOM
+        panel(img, (x0, 250, x0 + 260, 344), "#16122b", "#e2413c" if red else "#8d8fa3", shadow=False)
+        draw_text(img, (x0 + 18, 268), f"{label} - {'RED' if red else 'BLACK'}", 2, "#ff9a94" if red else "#c9ccd6", "lt")
+        draw_text(img, (x0 + 18, 298), f"{game.count(side)} PIECES", 3, "#ffffff", "lt")
 
     hint = ""
     if flash:

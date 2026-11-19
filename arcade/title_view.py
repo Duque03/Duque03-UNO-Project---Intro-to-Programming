@@ -7,13 +7,13 @@ picture to the browser once per session. TITLE_JS animates them 60 times a secon
 floor grid sliding towards you, the five regulars dancing) and draws the menu on top, in the game's pixel
 font, like in a real game:
 
-    PLAY / HOW TO PLAY  ->  NEW PLAYER / I HAVE AN ACCOUNT / BACK  ->  name and PIN boxes
+    PLAY OFFLINE / PLAY ONLINE / HOW TO PLAY  ->  NEW PLAYER / I HAVE AN ACCOUNT / BACK  ->  name and PIN boxes
 
 Arrow keys (or W S) choose, Enter confirms, Esc goes back; the mouse works too. The browser only tells
 Python two things (read them from the value mount() returns):
 
     howto    HOW TO PLAY was chosen: {n}
-    submit   the name and PIN were sent: {mode: "new" or "login", name, pin, pin2, n}
+    submit   the name and PIN were sent: {mode: "new" or "login", where: "offline" or "online", name, pin, pin2, n}
     entered  the camera finished flying into the arcade after a sign-in Python accepted: {n}
     need     the browser is missing some pictures (it reloaded): their keys
 
@@ -143,7 +143,9 @@ export default function (component) {
 
     // ---------------------------------------------------------------- what the menus do
     const MENUS = {
-        menu: [["PLAY", () => go("account")], ["HOW TO PLAY", () => act("howto", {})]],
+        menu: [["PLAY OFFLINE", () => { G.where = "offline"; go("account"); }],
+               ["PLAY ONLINE", () => { G.where = "online"; go("account"); }],
+               ["HOW TO PLAY", () => act("howto", {})]],
         account: [["NEW PLAYER", () => go("new")], ["I HAVE AN ACCOUNT", () => go("login")], ["BACK", () => go("menu")]],
     };
     const formItems = () => G.step === "new" ? ["name", "pin", "pin2", "submit", "back"] : ["name", "pin", "submit", "back"];
@@ -176,7 +178,8 @@ export default function (component) {
         }
         if (G.step === "new" && f.pin2 !== f.pin) { G.error = "THE TWO PINS ARE NOT THE SAME"; G.fields.pin2 = ""; G.focus = 2; return; }
         G.error = "";
-        act("submit", { mode: G.step, name: f.name, pin: f.pin, pin2: G.step === "new" ? f.pin2 : "" });
+        act("submit", { mode: G.step, where: G.where || "offline", name: f.name, pin: f.pin,
+                        pin2: G.step === "new" ? f.pin2 : "" });
     }
     function activateFormItem(item) {
         if (item === "submit") submit();
@@ -447,7 +450,7 @@ export default function (component) {
     }
 
     function drawMenu(ctx, t) {
-        const items = MENUS[G.step], y0 = G.step === "menu" ? 262 : 240, gap = 48;
+        const items = MENUS[G.step], y0 = items.length === 2 ? 262 : 240, gap = 48;
         items.forEach(([label], i) => {
             const y = y0 + i * gap, chosen = i === G.sel, s = 2, w = textWidth(label, s);
             const bob = chosen ? Math.round(Math.sin(t * 6) * 1) * 2 : 0;
