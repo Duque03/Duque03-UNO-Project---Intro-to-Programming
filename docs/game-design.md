@@ -172,10 +172,12 @@ Numbers live in `arcade/config.py`.
 - Once unlocked the prompt is **START CHAMPIONSHIP [E]**.
 - The first time only, a light-blue bubble explains the rules, one sentence per press of Enter, ending with "Are you ready?" and **Yes** / **No**. No returns to the room.
 - From the second time on, the prompt also offers **RULES [I]**.
-- Three bots are picked at random. Round 1 is UNO with all four players; it ends as soon as someone is out, because
-  only 1st place scores. In rounds 2 (checkers) and 3 (Connect Four) the player is drawn against one bot and the other two bots play each other (their result is simulated).
-- A win is worth 2 points, a tie 1 point each. The maximum is 6.
-- After each round a scoreboard shows "Winner: NAME" (or "Winners"), each player's head and name, a horizontal bar that grows with their points, and the number.
+- Three bots are picked at random. Round 1 is UNO with all four players, played until only one player is left (like
+  free play: once the player is out, the bots finish it at once). In rounds 2 (checkers) and 3 (Connect Four) the
+  player is drawn against one bot and the other two bots play each other (their result is simulated).
+- UNO round: 1st place gets 2 points, 2nd 1 point, 3rd and 4th nothing. Checkers and Connect Four: a win is worth
+  2 points, a tie 1 point each. The maximum is 6.
+- After each round a scoreboard shows "Winner: NAME" (or "Winners"; after UNO "1st: NAME (+2)" and the 2nd), each player's head and name, a horizontal bar that grows with their points, and the number.
 - After round 3 the final board shows one of 20 champion sentences (or one of 20 losing sentences). The champion is whoever has the most points. Sharing first place counts.
 - Winning pays **50 coins**. Enter returns the player to the middle of the room.
 

@@ -134,3 +134,27 @@ def test_a_tie_in_championships_goes_to_more_wins_then_to_the_name():
 def test_nobody_is_best_player_before_a_championship_is_won():
     assert ch.best_player([]) is None
     assert ch.best_player([_saved("ANA", 0, wins=50)]) is None
+
+
+
+def test_the_uno_round_gives_points_by_place():
+    champ = ch.new_championship("ME", ["A", "B", "C"])
+    ch.record_uno_round(champ, ["B", "ME", "C", "A"])
+    assert champ["points"] == {"ME": 1, "A": 0, "B": 2, "C": 0}
+    assert champ["last_places"] == ["B", "ME", "C", "A"] and champ["round"] == 1
+    assert ch.current_game(champ) == "checkers"
+
+
+def test_an_uno_round_without_everyone_placed_is_refused():
+    champ = ch.new_championship("ME", ["A", "B", "C"])
+    with pytest.raises(ValueError):
+        ch.record_uno_round(champ, ["B", "ME", "C"])
+    assert champ["round"] == 0 and sum(champ["points"].values()) == 0
+
+
+def test_the_maximum_is_still_six_points():
+    champ = ch.new_championship("ME", ["A", "B", "C"])
+    ch.record_uno_round(champ, ["ME", "A", "B", "C"])
+    ch.record_round(champ, [(["ME"], False)])
+    ch.record_round(champ, [(["ME"], False)])
+    assert champ["points"]["ME"] == ch.MAX_POINTS == 6 and champ["last_places"] is None

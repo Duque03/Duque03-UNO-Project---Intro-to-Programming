@@ -95,6 +95,10 @@ def _rows(champ) -> list[dict]:
 
 
 def _round_title(champ) -> tuple[str, str]:
+    if champ.get("last_places"):  # the UNO round, played to the last player
+        places = champ["last_places"]
+        return (f"1ST: {places[0]} (+2)",
+                f"ROUND {champ['round']} OF 3 - {GAME_LABELS['uno']}   2ND: {places[1]} (+1)")
     winners, tied = champ["last_winners"], champ["last_tied"]
     parts = []
     if winners:

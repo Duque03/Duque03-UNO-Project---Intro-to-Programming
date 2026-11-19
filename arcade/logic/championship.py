@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import random
 
-from arcade.config import GAMES, POINTS_TIE, POINTS_WIN
+from arcade.config import GAMES, POINTS_TIE, POINTS_WIN, UNO_CHAMP_POINTS
 
 ROUNDS = list(GAMES)
 MAX_POINTS = POINTS_WIN * len(ROUNDS)
@@ -32,6 +32,7 @@ def new_championship(me: str, bot_names: list[str]) -> dict:
         "pairs": [],
         "last_winners": [],
         "last_tied": [],
+        "last_places": None,  # the UNO round: everyone's place, 1st to last
     }
 
 
@@ -67,13 +68,26 @@ def record_round(champ: dict, results: list[tuple[list[str], bool]]) -> None:
     if is_over(champ):
         raise ValueError("The championship is already over.")
     champ["before"] = dict(champ["points"])
-    champ["last_winners"], champ["last_tied"] = [], []
+    champ["last_winners"], champ["last_tied"], champ["last_places"] = [], [], None
     for names, tied in results:
         for name in names:
             if name not in champ["points"]:
                 raise ValueError(f"{name} is not in this championship.")
             champ["points"][name] += POINTS_TIE if tied else POINTS_WIN
             (champ["last_tied"] if tied else champ["last_winners"]).append(name)
+    champ["round"] += 1
+
+
+def record_uno_round(champ: dict, places: list[str]) -> None:
+    """The UNO round, played until only one player is left: 1st gets 2 points, 2nd 1 point, the others nothing."""
+    if is_over(champ):
+        raise ValueError("The championship is already over.")
+    if sorted(places) != sorted(champ["players"]):
+        raise ValueError("Every player needs exactly one place.")
+    champ["before"] = dict(champ["points"])
+    for place, name in enumerate(places, start=1):
+        champ["points"][name] += UNO_CHAMP_POINTS.get(place, 0)
+    champ["last_winners"], champ["last_tied"], champ["last_places"] = [places[0]], [], list(places)
     champ["round"] += 1
 
 
