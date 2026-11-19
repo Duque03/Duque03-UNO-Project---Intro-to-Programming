@@ -88,12 +88,12 @@ def draw(game, me, opponents, flash="", choosing=False, picks=(), uno_open=False
     label = f"DRAW {game.pending}!" if game.pending else f"DECK {len(game.deck)}"
     draw_text(img, (DRAW_X + cards.CARD_W // 2, PILE_Y + cards.CARD_H + 8), label, 1,
               "#d9d4ff" if not game.pending else "#ff8a8a", "mt")
-    if my_turn and game.drawn_card is None and not picks:
+    if my_turn and game.can_draw(me):
         regions.append(((DRAW_X - 5, PILE_Y - 5, DRAW_X + cards.CARD_W, PILE_Y + cards.CARD_H), ("draw",)))
     for i, card in enumerate(game.discard[-3:-1]):  # the cards just below show when several were played
         cards.draw_card(img, DISCARD_X - 8 + i * 4, PILE_Y - 6 + i * 3, card)
     cards.draw_card(img, DISCARD_X, PILE_Y, game.top)
-    if my_turn and picks:
+    if my_turn:  # the picked cards go down when the pile is clicked (with nothing picked, nothing happens)
         regions.append(((DISCARD_X, PILE_Y, DISCARD_X + cards.CARD_W, PILE_Y + cards.CARD_H), ("play",)))
     box_x = DISCARD_X + cards.CARD_W + 24
     draw_text(img, (box_x, PILE_Y + 2), "COLOUR", 1, "#d9d4ff", "lt")
@@ -108,24 +108,25 @@ def draw(game, me, opponents, flash="", choosing=False, picks=(), uno_open=False
     if flash:
         common.message(img, flash, 392, "#ff8a8a")
     elif my_turn and picks:
-        common.message(img, f"{len(picks)} picked: add more {card_name(('x', hand[picks[0]][1])).split(' ', 1)[-1]} "
-                            "or press Play (Enter)", 392, "#ffe94a")
+        kind = card_name(('x', hand[picks[0]][1])).split(' ', 1)[-1]
+        common.message(img, f"{len(picks)} picked: add more {kind} or click the pile (Enter) to play", 392, "#ffe94a")
     elif my_turn and game.pending:
         common.message(img, f"Answer with the same draw card or draw {game.pending}", 392, "#ffe94a")
+    elif my_turn and game.draws:
+        common.message(img, "Pick a card and click the pile, draw again (D) or pass (P)" if game.can_draw(me)
+                       else "Pick a card and click the pile, or pass (P)", 392, "#ffe94a")
     elif my_turn:
-        common.message(img, "Your turn: play a glowing card (click or Space) or draw (D)", 392, "#ffe94a")
+        common.message(img, "Your turn: pick a card (click or Space), then click the pile (Enter)", 392, "#ffe94a")
 
-    # my hand
-    playable = set(game.playable_cards(me)) if my_turn else set()
+    # my hand: nothing glows; a picked card stands up a little
     count = len(hand)
     step = min(cards.CARD_W + 6, (860 - cards.CARD_W) / max(1, count - 1))
     left = (SCREEN_W - (step * (count - 1) + cards.CARD_W)) / 2
     for i, card in enumerate(hand):
         x = left + i * step
         picked = i in picks
-        ok = can_add(game.hands[me], list(picks), i) if picks else card in playable
-        y = HAND_Y - (22 if picked else 12 if ok else 0)
-        cards.draw_card(img, x, y, card, dim=my_turn and not (ok or picked), glow=ok or picked)
+        y = HAND_Y - (22 if picked else 0)
+        cards.draw_card(img, x, y, card)
         if picked:
             order = list(picks).index(i) + 1
             bx, by = x + cards.CARD_W - 26, y + cards.CARD_H - 30  # the order it was picked in, inside the card
@@ -269,9 +270,8 @@ def render() -> None:
     hand = sorted_hand(game.hands[me])
     focus = colour_focus = None
     if my_turn and S.pending_wild is None:  # the yellow frame on the hand: Left / Right move it, Space plays
-        playable = game.playable_cards(me)
-        useful = [can_add(game.hands[me], picks, i) if picks else card in playable for i, card in enumerate(hand)]
-        focus = cursor.first(useful) if S.get("uno_focus") is None else cursor.clamp(S.uno_focus, len(hand))
+        # The frame starts on the first card, never on a card that fits: that would give the answer away.
+        focus = cursor.clamp(S.get("uno_focus"), len(hand))
         if key in ("left", "right"):
             focus = cursor.step(focus, key, len(hand))
             sound.play("blip")
@@ -314,21 +314,16 @@ def render() -> None:
         return
     with bar[0]:
         draw_label = f"Draw {game.pending} cards" if game.pending else "Draw a card"
-        draw_pressed = ui.button(draw_label, "uno_draw", "D", disabled=not my_turn or game.drawn_card is not None or bool(picks))
+        draw_pressed = ui.button(draw_label, "uno_draw", "D", disabled=not my_turn or not game.can_draw(me))
     with bar[1]:
+        play_pressed = ui.button(f"Play {len(picks)} card{'s' if len(picks) > 1 else ''}" if picks else "Play",
+                                 "uno_play", "Enter", type="primary", disabled=not my_turn or not picks)
+    with bar[2]:
         if picks:
-            play_pressed = ui.button(f"Play {len(picks)} card{'s' if len(picks) > 1 else ''}", "uno_play", "Enter",
-                                     type="primary", disabled=not my_turn)
-            pass_pressed = False
+            cancel_pressed, pass_pressed = ui.button("Cancel", "uno_cancel", "X"), False  # (Streamlit keeps C and R)
         else:
-            play_pressed = False
-            pass_pressed = ui.button("Pass", "uno_pass", "P", disabled=not my_turn or game.drawn_card is None)
-    cancel_pressed = False
-    if picks:
-        with bar[2]:
-            cancel_pressed = ui.button("Cancel", "uno_cancel", "X")  # (Streamlit keeps C and R for itself)
-    else:
-        common.rules_button(bar[2], "uno")
+            cancel_pressed = False
+            pass_pressed = ui.button("Pass", "uno_pass", "P", disabled=not my_turn or not game.draws)
     common.pause_button(bar[3], "uno")
 
     if key == "space" and focus is not None:  # Space: a click on the card the yellow frame is on
@@ -338,38 +333,39 @@ def render() -> None:
     try:
         if cancel_pressed:
             S.uno_pick = []
-        elif play_pressed or (action == ("play",) and picks):
-            _play(game, me, picked_cards(game.hands[me], picks))
+        elif play_pressed or action == ("play",):  # the pile (or Enter): the picked cards go down
+            if not picks:
+                acted = False  # clicking the pile with nothing picked does nothing
+            else:
+                chosen = picked_cards(game.hands[me], picks)
+                if not game.can_play(chosen[0]):
+                    S.flash = f"The {card_name(chosen[0])} does not match the pile"
+                    sound.play("lose")
+                else:
+                    _play(game, me, chosen)
         elif draw_pressed or action == ("draw",):
             drawn = game.draw(me)
             S.uno_pick = []
-            common.restart_clock()  # 15 new seconds to play the drawn card or pass
-            if game.drawn_card:
-                many = f"{len(drawn)} cards" if len(drawn) > 1 else "a card"
-                S.flash = f"You drew {many}: play the {card_name(game.drawn_card)} or pass"
-                S.uno_focus = sorted_hand(game.hands[me]).index(game.drawn_card)  # the frame jumps to that card
+            common.restart_clock()  # 15 new seconds to play, draw again or pass
+            if game.current == me and drawn:
+                S.flash = f"You drew the {card_name(drawn[0])}"
+                S.uno_focus = sorted_hand(game.hands[me]).index(drawn[0])  # the frame jumps to that card
             else:
-                S.flash, S.uno_focus = "", None
+                S.flash, S.uno_focus = ("Nothing to play: your turn passes" if drawn else ""), None
         elif pass_pressed:
             game.pass_turn(me)
             S.flash, S.uno_focus = "", None
         elif action and action[0] == "card" and my_turn:
             index = action[1]
             S.uno_focus = index  # the frame follows a click too
-            hand = sorted_hand(game.hands[me])
-            card = hand[index]
-            if index in picks:  # click a picked card again: take it (and the ones after it) back
-                S.uno_pick = picks[:picks.index(index)]
+            if index in picks:  # a picked card again: it goes back down
+                S.uno_pick = [i for i in picks if i != index]
             elif picks and can_add(game.hands[me], picks, index):
-                S.uno_pick = picks + [index]
-            elif card in game.playable_cards(me):
-                twins = game.partners(me, card) if game.drawn_card is None or card == game.drawn_card else []
-                if twins:
-                    S.uno_pick = [index]  # it has twins: let the player pick them too
-                else:
-                    _play(game, me, [card])
+                S.uno_pick = picks + [index]  # another card with the same number or symbol
             else:
-                S.flash = "That card cannot start a play now"
+                S.uno_pick = [index]  # a new pick
+            S.flash = ""
+            sound.play("blip")
         else:
             acted = False
     except IllegalMove as problem:

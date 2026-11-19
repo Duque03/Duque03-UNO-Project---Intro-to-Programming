@@ -19,7 +19,7 @@ from arcade.logic.checkers import IllegalMove as CheckersIllegal
 from arcade.logic.connect4 import COLS
 from arcade.logic.connect4 import IllegalMove as Connect4Illegal
 from arcade.logic.lobby import LobbyError, online_coins
-from arcade.logic.uno import COLOURS, WILD, ordinal
+from arcade.logic.uno import COLOURS, WILD, card_name, ordinal
 from arcade.logic.uno import IllegalMove as UnoIllegal
 from arcade.screens import checkers as checkers_screen
 from arcade.screens import connect4 as connect4_screen
@@ -160,9 +160,7 @@ def _uno(lobby, me: str, mine: bool, over: bool) -> None:
 
     focus = colour_focus = None
     if mine and wild is None:
-        playable = game.playable_cards(me)
-        useful = [uno_screen.can_add(game.hands[me], picks, i) if picks else c in playable for i, c in enumerate(hand)]
-        focus = cursor.first(useful) if S.get("ouno_focus") is None else cursor.clamp(S.ouno_focus, len(hand))
+        focus = cursor.clamp(S.get("ouno_focus"), len(hand))  # starts on the first card (no hint)
         if key in ("left", "right"):
             focus = cursor.step(focus, key, len(hand))
             sound.play("blip")
@@ -188,9 +186,9 @@ def _uno(lobby, me: str, mine: bool, over: bool) -> None:
         play = ui.button("Play" if wild is None else "Choose colour", "ouno_play", "Enter", type="primary",
                          disabled=not mine or (not picks and wild is None))
     with bar[1]:
-        draw = ui.button("Draw", "ouno_draw", "D", disabled=not mine or game.drawn_card is not None or bool(picks))
+        draw = ui.button("Draw", "ouno_draw", "D", disabled=not mine or not game.can_draw(me))
     with bar[2]:
-        passed = ui.button("Pass", "ouno_pass", "P", disabled=not mine or game.drawn_card is None)
+        passed = ui.button("Pass", "ouno_pass", "P", disabled=not mine or not game.draws)
     with bar[3]:
         uno = ui.button("UNO!", "ouno_uno", "U", type="primary" if uno_open else "secondary")
     with bar[4]:
@@ -219,25 +217,24 @@ def _uno(lobby, me: str, mine: bool, over: bool) -> None:
         _act("pass")
     if key == "space" and focus is not None:
         action = ("card", focus)
-    if play or action == ("play",):
-        _play_cards(uno_screen.picked_cards(game.hands[me], picks))
-    if action and action[0] == "card":
+    if play or action == ("play",):  # the pile (or Enter): the picked cards go down; nothing picked, nothing happens
+        chosen = uno_screen.picked_cards(game.hands[me], picks)
+        if chosen and not game.can_play(chosen[0]):
+            S.online_flash = f"The {card_name(chosen[0])} does not match the pile"
+            sound.play("lose")
+            st.rerun()
+        _play_cards(chosen)
+    if action and action[0] == "card":  # a click picks a card (it stands up); equal cards can join it
         index = action[1]
-        card = hand[index]
-        if picks:
-            if uno_screen.can_add(game.hands[me], picks, index):
-                S.ouno_pick = picks + [index]
-            elif index in picks:
-                S.ouno_pick = [i for i in picks if i != index]
-            st.rerun()
-        if card not in game.playable_cards(me):
-            S.online_flash = "That card does not match"
-            st.rerun()
-        twins = game.partners(me, card) if game.drawn_card is None else []
-        if twins:
-            S.ouno_pick = [index]  # it has twins: pick more of them, or press Play
-            st.rerun()
-        _play_cards([card])
+        if index in picks:
+            S.ouno_pick = [i for i in picks if i != index]
+        elif picks and uno_screen.can_add(game.hands[me], picks, index):
+            S.ouno_pick = picks + [index]
+        else:
+            S.ouno_pick = [index]
+        S.ouno_focus, S.online_flash = index, ""
+        sound.play("blip")
+        st.rerun()
 
 
 def _play_cards(cards: list) -> None:

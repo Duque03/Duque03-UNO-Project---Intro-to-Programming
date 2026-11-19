@@ -16,7 +16,7 @@ def set_up(game, hand, top, colour=None):
     game.colour = colour or top[0]
     game.turn = 0
     game.direction = 1
-    game.drawn_card = None
+    game.drawn_card, game.draws = None, 0
     game.pending, game.pending_value, game.uno_due = 0, None, None
 
 
@@ -157,13 +157,42 @@ def test_playing_out_the_rest_gives_everyone_a_place():
     assert game.winner == "ME" and sorted(game.places) == sorted(game.players) and len(game.places) == 4
 
 
-def test_drawing_goes_on_until_a_card_can_be_played():
+def test_drawing_gives_one_card_and_the_turn_stays():
     game = make_game()
     set_up(game, [("blue", "1")], ("red", "9"))
-    game.deck += [("red", "3"), ("green", "4"), ("green", "3")]  # drawn from the end: green 3, green 4, red 3
-    assert game.draw("ME") == [("green", "3"), ("green", "4"), ("red", "3")]
-    assert game.current == "ME"
-    assert game.playable_cards("ME") == [("red", "3")]
+    game.deck += [("red", "3"), ("green", "4")]  # drawn from the end: green 4, then red 3
+    assert game.draw("ME") == [("green", "4")]
+    assert game.current == "ME" and game.draws == 1
+
+
+def test_a_second_draw_can_find_a_card_to_play():
+    game = make_game()
+    set_up(game, [("blue", "1")], ("red", "9"))
+    game.deck += [("red", "3"), ("green", "4")]
+    game.draw("ME")
+    assert game.draw("ME") == [("red", "3")]
+    assert game.current == "ME" and game.playable_cards("ME") == [("red", "3")]
+    game.play("ME", ("red", "3"))
+    assert game.current == "A"
+
+
+def test_after_two_draws_with_nothing_to_play_the_turn_passes():
+    game = make_game()
+    set_up(game, [("blue", "1")], ("red", "9"))
+    game.deck += [("yellow", "2"), ("green", "4")]
+    game.draw("ME")
+    game.draw("ME")
+    assert game.current == "A" and len(game.hands["ME"]) == 3
+
+
+def test_drawing_is_allowed_even_with_a_card_that_fits():
+    game = make_game()
+    set_up(game, [("red", "1")], ("red", "9"))
+    game.deck.append(("green", "4"))
+    game.draw("ME")
+    assert game.current == "ME" and len(game.hands["ME"]) == 2
+    game.pass_turn("ME")
+    assert game.current == "A"
 
 
 def test_drawing_a_playable_card_lets_you_play_it_or_pass():
@@ -183,8 +212,7 @@ def test_empty_deck_is_refilled_from_the_discard_pile():
     game.discard = [("green", "2"), ("red", "4"), ("red", "9")]
     game.deck = []
     drawn = game.draw("ME")
-    assert set(drawn) <= {("green", "2"), ("red", "4")}
-    assert ("red", "4") in drawn  # the refilled deck holds a playable card, so the draw stops there
+    assert len(drawn) == 1 and drawn[0] in {("green", "2"), ("red", "4")}  # from the refilled deck
     assert game.top == ("red", "9")
 
 
@@ -267,7 +295,7 @@ def test_several_wilds_share_one_colour_and_need_one():
     assert (game.colour, game.current) == ("blue", "A")
 
 
-def test_after_drawing_the_play_starts_with_the_drawn_card_and_may_add_its_twins():
+def test_after_drawing_a_play_still_starts_with_a_card_that_fits():
     game = make_game()
     set_up(game, [("blue", "3"), ("green", "1")], ("red", "9"))
     game.deck.append(("red", "3"))
@@ -414,13 +442,15 @@ def test_passing_without_drawing_is_rejected():
         game.pass_turn("ME")
 
 
-def test_drawing_twice_in_one_turn_is_rejected():
+def test_a_third_draw_in_one_turn_is_rejected():
     game = make_game()
-    set_up(game, [("blue", "1")], ("red", "9"))
-    game.deck.append(("red", "3"))
+    set_up(game, [("red", "1")], ("red", "9"))  # red 1 fits, so two draws do not end the turn
+    game.deck += [("blue", "3"), ("green", "3")]
+    game.draw("ME")
     game.draw("ME")
     with pytest.raises(IllegalMove):
         game.draw("ME")
+    assert len(game.hands["ME"]) == 3 and game.current == "ME"
 
 
 def test_no_moves_after_the_game_is_over():
@@ -559,7 +589,7 @@ def test_time_out_with_cards_stacked_on_you_takes_them_all():
 def test_time_out_after_drawing_just_passes():
     game = make_game()
     set_up(game, [("red", "5")], ("red", "9"))
-    game.drawn_card = ("red", "5")
+    game.draws, game.drawn_card = 1, ("red", "5")
     game.auto_turn("ME")
     assert game.hands["ME"] == [("red", "5")]
     assert game.current == "A"
