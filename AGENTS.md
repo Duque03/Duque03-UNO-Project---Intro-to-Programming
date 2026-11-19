@@ -94,7 +94,10 @@ changing these files, and change them in a small pull request of their own.
   button on screen (the arrows, Space) come from `ui.keys()`: buttons with a Streamlit shortcut that stay on the page
   but are made invisible by the `keys_` rule in `ui._CSS`, so they still hear their key. The arrow keys move a yellow
   highlight (`arcade/logic/cursor.py`); Space or Enter does what a click on it does. A new choice on a screen needs
-  both a click and a key.
+  both a click and a key. Call `ui.keys()` on **every** run of the screen, before drawing the picture: a run that
+  leaves it out (for example the run where the bots move) removes the buttons from the page and the keyboard stops
+  working; to ignore a key, call it and drop the answer. Move the highlight in the same run (no `st.rerun()`), so one
+  key press draws one picture.
 - **The title screen is drawn in the browser too** (`arcade/title_view.py`): Python paints the pieces once
   (`arcade/art/title_layers.py`, including a sheet of the pixel font's letters) and the browser animates them and draws
   the menu and the name and PIN boxes. It sends `howto` or `submit` (name, PIN) with a number; `screens/title.py`

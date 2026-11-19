@@ -38,18 +38,18 @@ def leave_table() -> None:
 
 def render() -> None:
     at_table = S.paused_from in GAMES
-    behind = S.get("pause_behind") if at_table and S.get("pause_behind") is not None else hub.picture(hint=False)[0]
+    behind = S.get("pause_behind") if at_table and S.get("pause_behind") is not None else hub.still()
     menu = options(S.paused_from)
+    # The keys are read before drawing, so this one picture already shows where the highlight went (no second run)
+    key = ui.keys("pause", {"Up": "up", "Down": "down", "Enter": "choose"})  # Up / Down move, Enter chooses
     focus = cursor.clamp(S.get("pause_focus"), len(menu))  # the yellow highlight starts on RESUME
+    if key in ("up", "down"):
+        focus = S.pause_focus = cursor.step(focus, key, len(menu))
+        sound.play("blip")
     img, regions = scenes.menu_panel(behind, "PAUSED", menu, focus=focus)
     ui.show(ui.screen(), img)
     point = ui.click()
     action = ui.hit(regions, point)
-    key = ui.keys("pause", {"Up": "up", "Down": "down", "Enter": "choose"})  # Up / Down move, Enter chooses
-    if key in ("up", "down"):
-        S.pause_focus = cursor.step(focus, key, len(menu))
-        sound.play("blip")
-        st.rerun()
     if key == "choose":
         action = ("menu", menu[focus]["action"])
     bar = st.columns(5 if at_table else 4)

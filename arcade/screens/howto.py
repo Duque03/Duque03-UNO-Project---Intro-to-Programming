@@ -29,13 +29,18 @@ def open_from(screen: str, tab: str | None = None) -> None:
 def render() -> None:
     back_to = S.get("howto_from") or "title"
     tab = S.get("howto_tab") or controls.TAB_KEYS[0]
+    # Left / Right go to the tab next to this one. Read before drawing, so this picture already shows the new tab.
+    key = ui.keys("howto", {"Left": "left", "Right": "right"})
+    if key:
+        tab = S.howto_tab = controls.TAB_KEYS[cursor.step(controls.TAB_KEYS.index(tab), key, len(controls.TAB_KEYS))]
+        sound.play("blip")
     # The panel sits on top of the screen it was opened from.
     if back_to == "title" or not S.player:
         behind = scenes.title_scene(0)
     elif back_to in GAMES and S.get("howto_behind") is not None:
         behind = S.howto_behind
     else:
-        behind = hub.picture(hint=False)[0]
+        behind = hub.still()
     img, regions = scenes.howto_panel(behind, controls.TABS, tab)
     ui.show(ui.screen(), img)
     action = ui.hit(regions, ui.click())
@@ -52,9 +57,6 @@ def render() -> None:
 
     if action and action[0] == "tab":
         chosen = action[1]
-    key = ui.keys("howto", {"Left": "left", "Right": "right"})  # Left / Right go to the tab next to this one
-    if key:
-        chosen = controls.TAB_KEYS[cursor.step(controls.TAB_KEYS.index(tab), key, len(controls.TAB_KEYS))]
     if chosen in controls.TAB_KEYS and chosen != tab:
         S.howto_tab = chosen
         sound.play("blip")

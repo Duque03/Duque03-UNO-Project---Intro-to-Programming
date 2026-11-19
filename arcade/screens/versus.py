@@ -35,16 +35,16 @@ def render() -> None:
     ready = len(picked) == needed
     prize = levels.win_coins([bots.level(name) for name in picked]) if ready else None
     title = f"{GAME_LABELS[game]}: CHOOSE {'YOUR OPPONENT' if needed == 1 else f'{needed} OPPONENTS'}"
-    focus = cursor.clamp(choice.get("focus"), len(bots.BOTS))  # the yellow frame the arrow keys move
+    # Left / Right move the yellow frame. Read before drawing, so this picture already shows the move.
+    key = ui.keys("versus", {"Left": "left", "Right": "right", "Space": "pick"})
+    focus = cursor.clamp(choice.get("focus"), len(bots.BOTS))
+    if key in ("left", "right"):
+        focus = choice["focus"] = cursor.step(focus, key, len(bots.BOTS))
+        sound.play("blip")
     img, regions = versus.panel_picture(choice.get("behind"), title, _cards(), picked, needed, prize, focus=focus)
     ui.show(ui.screen(), img)
     action = ui.hit(regions, ui.click())
 
-    key = ui.keys("versus", {"Left": "left", "Right": "right", "Space": "pick"})
-    if key in ("left", "right"):
-        choice["focus"] = cursor.step(focus, key, len(bots.BOTS))
-        sound.play("blip")
-        st.rerun()
     bar = st.columns([1] * len(bots.BOTS) + [1.6, 1.2])
     clicked = action[1] if action and action[0] == "pick" else None
     if key == "pick":  # Space: like a click on the bot the frame is on

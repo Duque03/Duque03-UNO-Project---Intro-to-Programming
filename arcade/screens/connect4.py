@@ -88,6 +88,13 @@ def render() -> None:
     opponent = match.opponents()[0]
     slot = ui.screen()
     bot_was_playing = game.winner is None and game.turn == YELLOW
+    # The keys come first, on every run, and are read before drawing (see uno.py). Left / Right move the frame;
+    # Space, Enter or Down drop the disc there; 1-7 drop straight into a column. Only on the player's turn.
+    keys = {"Left": "left", "Right": "right", "Space": "space", "Enter": "enter", "Down": "down"}
+    keys.update({str(col + 1): f"col{col + 1}" for col in range(COLS)})
+    key = ui.keys("connect4", keys)
+    if bot_was_playing:
+        key = None
     if common.run_clock(game.winner is None and game.turn == RED):
         game.random_move(state.rng())  # 15 seconds went by: a random column for the player
         common.restart_clock()
@@ -113,7 +120,11 @@ def render() -> None:
 
     my_turn = game.winner is None and game.turn == RED
     common.run_clock(my_turn)  # the bot is done: the player's 15 seconds start
+    if not my_turn:
+        key = None
     column = cursor.clamp(S.get("c4_column", COLS // 2), COLS) if my_turn else None  # starts in the middle
+    if key in ("left", "right"):
+        column = S.c4_column = cursor.step(column, key, COLS, wrap=False)
     img, regions = draw(game, opponent, S.flash, column=column)
     img, regions = common.with_result(img, regions)
     common.show(slot, img, "connect4")
@@ -127,13 +138,6 @@ def render() -> None:
     common.rules_button(bar[2], "connect4")
     common.pause_button(bar[3], "connect4")
 
-    # Left / Right move the frame; Space, Enter or Down drop the disc there; 1-7 drop straight into a column
-    keys = {"Left": "left", "Right": "right", "Space": "space", "Enter": "enter", "Down": "down"}
-    keys.update({str(col + 1): f"col{col + 1}" for col in range(COLS)})
-    key = ui.keys("connect4", keys) if my_turn and not bot_was_playing else None
-    if key in ("left", "right"):
-        S.c4_column = cursor.step(column, key, COLS, wrap=False)
-        st.rerun()
     if key in ("space", "enter", "down"):
         action = ("col", column)
     elif key and key.startswith("col"):

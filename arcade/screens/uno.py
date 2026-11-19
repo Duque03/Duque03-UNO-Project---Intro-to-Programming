@@ -187,18 +187,15 @@ def _play(game, me, chosen, colour=None) -> None:
         S.uno_deadline = time.time() + UNO_SECONDS
 
 
-def _choose_colour(bar, game, me, action, focus) -> None:
-    """The colour of a wild: a click on a colour, or Left / Right and Enter (or Space). X or a click elsewhere cancels."""
+def _choose_colour(bar, game, me, action, focus, key) -> None:
+    """The colour of a wild: a click on a colour, or Left / Right (already applied to focus) and Enter or Space.
+    X or a click elsewhere cancels."""
     with bar[0]:
         enter = ui.button("Choose colour", "uno_colour", "Enter", type="primary")
     with bar[2]:
         cancel = ui.button("Cancel", "uno_cancel", "X")
     common.pause_button(bar[3], "uno")
-    key = ui.keys("uno_colour", {"Left": "left", "Right": "right", "Space": "choose"})
-    if key in ("left", "right"):
-        S.uno_colour_focus = cursor.step(focus, key, len(COLOURS))
-        st.rerun()
-    if enter or key == "choose":
+    if enter or key == "space":
         action = ("colour", COLOURS[focus])
     elif cancel:
         action = ("cancel",)
@@ -225,6 +222,13 @@ def render() -> None:
     uno_open = game.uno_due == me and game.winner is None
     slot = ui.screen()
     bots_were_playing = game.winner is None and game.current != me and not uno_open
+    # The keys come first, on every run: a run that leaves them out removes them from the page (the keyboard would
+    # stop working), and reading them before drawing lets this one picture show the move. Left / Right move the yellow
+    # frame (on the hand, or on the colours of a wild); Space is a click on it. Like a click, a key pressed while the
+    # bots play does not count.
+    key = ui.keys("uno", {"Left": "left", "Right": "right", "Space": "space"})
+    if bots_were_playing:
+        key = None
     if common.run_clock(not bots_were_playing and game.winner is None and not uno_open):
         S.pending_wild, S.uno_pick, S.uno_focus = None, [], None  # 15 seconds went by: draw and pass for the player
         game.auto_turn(me)
@@ -249,15 +253,24 @@ def render() -> None:
 
     my_turn = game.winner is None and game.current == me and not uno_open
     common.run_clock(my_turn)  # the bots are done: the player's 15 seconds start
+    if not my_turn:
+        key = None
     hand = sorted_hand(game.hands[me])
     focus = colour_focus = None
     if my_turn and S.pending_wild is None:  # the yellow frame on the hand: Left / Right move it, Space plays
         playable = game.playable_cards(me)
         useful = [can_add(game.hands[me], picks, i) if picks else card in playable for i, card in enumerate(hand)]
         focus = cursor.first(useful) if S.get("uno_focus") is None else cursor.clamp(S.uno_focus, len(hand))
+        if key in ("left", "right"):
+            focus = cursor.step(focus, key, len(hand))
+            sound.play("blip")
         S.uno_focus = focus
-    elif S.pending_wild is not None:
+    elif S.pending_wild is not None:  # the yellow frame on the colours of a wild
         colour_focus = cursor.clamp(S.get("uno_colour_focus"), len(COLOURS))
+        if key in ("left", "right"):
+            colour_focus = cursor.step(colour_focus, key, len(COLOURS))
+            sound.play("blip")
+        S.uno_colour_focus = colour_focus
     img, regions = draw(game, me, opponents, S.flash, choosing=S.pending_wild is not None, picks=picks,
                         uno_open=uno_open, focus=focus, colour_focus=colour_focus)
     img, regions = common.with_result(img, regions)
@@ -286,7 +299,7 @@ def render() -> None:
             st.rerun()
         return
     if S.pending_wild is not None:  # choosing a wild's colour has its own buttons and keys
-        _choose_colour(bar, game, me, None if bots_were_playing else action, colour_focus)
+        _choose_colour(bar, game, me, None if bots_were_playing else action, colour_focus, key)
         return
     with bar[0]:
         draw_label = f"Draw {game.pending} cards" if game.pending else "Draw a card"
@@ -307,12 +320,7 @@ def render() -> None:
         common.rules_button(bar[2], "uno")
     common.pause_button(bar[3], "uno")
 
-    # Left / Right move the yellow frame along the hand; Space is a click on that card (keys only count on your turn)
-    key = ui.keys("uno", {"Left": "left", "Right": "right", "Space": "card"}) if my_turn and not bots_were_playing else None
-    if key in ("left", "right"):
-        S.uno_focus = cursor.step(focus, key, len(hand))
-        st.rerun()
-    if key == "card" and focus is not None:
+    if key == "space" and focus is not None:  # Space: a click on the card the yellow frame is on
         action = ("card", focus)
 
     acted = True

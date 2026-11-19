@@ -21,7 +21,7 @@ BADGES = {"worn": ("WEARING", "worn"), "owned": ("OWNED", "owned")}
 
 def tab_picker(key: str) -> str:
     """Hair / Shirt / Name switch. Remembers the last tab if the player un-selects it. Up / Down change it too."""
-    wanted = S.pop(key + "_next", None)  # asked for by Up / Down in the run before (see arrow_keys)
+    wanted = S.pop(key + "_next", None)  # asked for by Up / Down earlier in this run (see tab_key)
     if wanted in SLOTS:
         S[key] = wanted  # set before the switch is drawn, the only moment Streamlit allows it
     default = None if key in S else S.get(key + "_last", "hair")  # (a default as well would make Streamlit warn)
@@ -32,19 +32,21 @@ def tab_picker(key: str) -> str:
     return choice
 
 
-def arrow_keys(name: str, slot: str, ids: list[str], focus_key: str, tab_key: str) -> None:
-    """Left / Right show the item next to the one on show (like a click on it); Up / Down change tab.
+def tab_key(key: str | None, tab: str) -> None:
+    """Up / Down: the tab above or below. Call it before tab_picker, which applies it in this same run."""
+    if key in ("up", "down"):
+        here = S.get(tab) or S.get(tab + "_last", "hair")
+        S[tab + "_next"] = SLOTS[cursor.step(SLOTS.index(here), key, len(SLOTS))]
 
-    ids: the items of this tab in the order they are on screen.
+
+def item_key(key: str | None, ids: list[str], focus_key: str) -> None:
+    """Left / Right: show the item next to the one on show, like a click on it. ids: the tab's items in screen order.
+
+    Call it before the tiles and the preview are drawn, so this run already shows the new item.
     """
-    key = ui.keys(name, ui.ARROWS)
     if key in ("left", "right") and ids:
         here = ids.index(S[focus_key]) if S.get(focus_key) in ids else None
         S[focus_key] = ids[cursor.step(here, key, len(ids))]
-        st.rerun()
-    if key in ("up", "down"):
-        S[tab_key + "_next"] = SLOTS[cursor.step(SLOTS.index(slot), key, len(SLOTS))]
-        st.rerun()
 
 
 def picked_item(key: str, slot: str) -> dict | None:
@@ -73,17 +75,18 @@ def _tile(player: dict, item: dict, look: tuple, focus: dict | None) -> dict:
 
 def render() -> None:
     player = S.player
+    key = ui.keys("store", ui.ARROWS)  # read first: this run already shows the move (Left / Right items, Up / Down tabs)
+    tab_key(key, "store_tab")
     ui.picture(scenes.banner("STORE", player["coins"], "CLICK AN ITEM (OR LEFT / RIGHT) TO TRY IT ON"))
     left, right = st.columns([3, 2], gap="medium")
 
     with left:
         slot = tab_picker("store_tab")
+        item_key(key, [item["id"] for rarity in RARITIES for item in catalog.by_slot(slot, rarity)], "store_focus")
         focus = picked_item("store_focus", slot)
         look = player_model.look(player)
         sections = [tiles.section(rarity, [_tile(player, item, look, focus) for item in catalog.by_slot(slot, rarity)])
                     for rarity in RARITIES]
-        arrow_keys("store", slot, [tile["id"] for section in sections for tile in section["tiles"]],
-                   "store_focus", "store_tab")
         clicked = tiles.grid(sections, key="store_grid")
         if clicked is not None and clicked != S.get("store_focus"):
             S.store_focus = clicked

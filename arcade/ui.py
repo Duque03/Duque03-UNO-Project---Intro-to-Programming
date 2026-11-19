@@ -288,6 +288,11 @@ def keys(name: str, mapping: dict[str, str]) -> str | None:
     mapping: shortcut -> what it means, for example {"Left": "left", "Space": "choose"}. Returns the meaning of
     the key pressed in this run, or None. Streamlit listens for a shortcut on the whole page, so a button hears
     its key while it is hidden (the CSS in _CSS hides every container whose key starts with keys_).
+
+    Call it on every run of the screen, before the picture is drawn. A run that leaves the buttons out removes them
+    from the page, and the keyboard stops working until the next click. Reading the key first lets the same run draw
+    the picture with the highlight already moved (no st.rerun(), which would draw everything twice). To ignore a key
+    (for example during a bot's turn), call it anyway and drop what it returns.
     """
     pressed = None
     with st.container(key=f"keys_{name}"):

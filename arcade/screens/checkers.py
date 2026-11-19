@@ -122,6 +122,11 @@ def render() -> None:
     opponent = match.opponents()[0]
     slot = ui.screen()
     bot_was_playing = game.winner is None and game.turn == TOP
+    # The keys come first, on every run, and are read before drawing (see uno.py). The arrow keys move the cursor one
+    # square; Space or Enter is a click on that square. They only count on the player's turn, like a click.
+    key = ui.keys("checkers", {**ui.ARROWS, "Space": "space", "Enter": "enter"})
+    if bot_was_playing:
+        key = None
     if common.run_clock(game.winner is None and game.turn == BOTTOM):
         while game.winner is None and game.turn == BOTTOM:  # 15 seconds went by: random moves (every jump)
             game.random_move(state.rng())
@@ -155,6 +160,8 @@ def render() -> None:
 
     my_turn = game.winner is None and game.turn == BOTTOM
     common.run_clock(my_turn)  # the bot is done: the player's 15 seconds start
+    if not my_turn:
+        key = None
     if game.chain:
         S.selected = game.chain
     here = None  # the keyboard cursor: it starts on a piece that can move
@@ -163,6 +170,8 @@ def render() -> None:
         if here is None:
             movable = sorted({move[0] for move in game.legal_moves()})
             here = S.selected or (movable[0] if movable else (SIZE - 1, 0))
+        if key in cursor.BOARD_KEYS:
+            here = cursor.on_board(here, key, SIZE, SIZE)
         here = S.checkers_cursor = tuple(here)
     img, regions = draw(game, opponent, S.selected, S.flash, cursor_cell=here)
     img, regions = common.with_result(img, regions)
@@ -177,13 +186,7 @@ def render() -> None:
     common.rules_button(bar[2], "checkers")
     common.pause_button(bar[3], "checkers")
 
-    # The arrow keys move the cursor one square; Space or Enter is a click on that square (only on your turn)
-    keys = {**ui.ARROWS, "Space": "space", "Enter": "enter"}
-    key = ui.keys("checkers", keys) if my_turn and not bot_was_playing else None
-    if key in cursor.BOARD_KEYS:
-        S.checkers_cursor = cursor.on_board(here, key, SIZE, SIZE)
-        st.rerun()
-    if key in ("space", "enter"):
+    if key in ("space", "enter"):  # a click on the square the cursor is on
         action = ("cell", *here)
 
     if not action or game.winner or game.turn != BOTTOM:
