@@ -134,13 +134,13 @@ def render() -> None:
         S.selected, S.flash = None, "Time's up! A random move was played"
         st.rerun()
 
-    depth, blunder = CHECKERS_LEVELS[bots.level(opponent["name"])]
+    settings = CHECKERS_LEVELS[bots.level(opponent["name"])]
     first_jump = True
     while game.winner is None and game.turn == TOP:  # bot moves (each jump is shown)
         picture = draw(game, opponent)[0]
         common.show(slot, common.thinking(picture, 0, 1) if first_jump else picture, "checkers")
         started = time.time()
-        game.bot_move(state.rng(), depth, blunder)
+        game.bot_move(state.rng(), **settings)
         if first_jump:
             common.bot_pause(since=started)  # it thinks before its move, then jumps on quickly
         else:

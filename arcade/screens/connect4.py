@@ -104,7 +104,7 @@ def render() -> None:
     if game.winner is None and game.turn == YELLOW:
         common.show(slot, common.thinking(draw(game, opponent)[0], 0, 1), "connect4")
         started = time.time()
-        game.bot_move(state.rng(), *CONNECT4_LEVELS[bots.level(opponent["name"])])
+        game.bot_move(state.rng(), **CONNECT4_LEVELS[bots.level(opponent["name"])])
         common.bot_pause(since=started)
 
     if game.winner and S.result is None:
