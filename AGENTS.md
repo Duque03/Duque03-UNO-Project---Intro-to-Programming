@@ -80,6 +80,9 @@ changing these files, and change them in a small pull request of their own.
   `state.save()`.
 - **`.streamlit/config.toml` sets `fastReruns = false` on purpose.** With the default, a click made while
   the bots are still moving starts a second run next to the first and the bots move twice. Do not change it.
+- **It also switches off Streamlit's message cache** (`[global] minCachedMessageSize`). With the cache, after a dropped
+  connection or an app restart the browser could be asked for a picture it had already thrown away and show
+  "Connection error ... Cached ForwardMsg MISS". Do not lower it.
 - **Pictures are sent inline** (`ui.show`, `ui.picture`, as high-quality WebP). Do not call `st.image` with a Pillow
   image directly: it turns pixel art into blurry JPEG and animation frames can go missing.
 - **The arcade room is drawn in the browser** (`arcade/room.py`), so walking is smooth. Python still owns every
