@@ -220,7 +220,7 @@ def render() -> None:
 
     bar = st.columns([1.4, 1.4, 1.4, 1])
     if S.result:
-        common.continue_button(bar[0], "uno", point is not None)
+        common.result_buttons(bar, "uno", action)  # Continue, or Play again
         return
     if uno_open:
         with bar[0]:

@@ -100,10 +100,12 @@ def message(img, text: str, y: int, colour="#ffffff", scale=2) -> None:
 
 
 def with_result(img, regions):
-    """Cover the table with the end-of-game pop-up when a free-play game is over."""
+    """Cover the table with the end-of-game pop-up when a free-play game is over.
+
+    Its regions: PLAY AGAIN, and the rest of the picture (a click there continues)."""
     if not S.result:
         return img, regions
-    return scenes.result_panel(img, S.result["title"], S.result["line"], S.result["coins"]), []
+    return scenes.result_panel_again(img, S.result["title"], S.result["line"], S.result["coins"])
 
 
 def pause_button(column, screen: str) -> None:
@@ -127,10 +129,16 @@ def rules_button(column, screen: str) -> None:
             st.rerun()
 
 
-def continue_button(column, screen: str, clicked_picture: bool) -> None:
-    """After the pop-up: Enter (or a click) walks back into the arcade."""
-    with column:
-        pressed = ui.button("Continue", f"{screen}_continue", "Enter", type="primary")
-    if pressed or clicked_picture:
+def result_buttons(bar, screen: str, action) -> None:
+    """After the pop-up. Continue (Enter, or a click on the picture) walks back into the arcade.
+    Play again (A, or a click on PLAY AGAIN) starts the same game against the same bots straight away."""
+    with bar[0]:
+        leave = ui.button("Continue", f"{screen}_continue", "Enter", type="primary")
+    with bar[1]:
+        again = ui.button("Play again", f"{screen}_again", "A")
+    if again or action == ("again",):
+        match.play_again()
+        st.rerun()
+    if leave or action == ("continue",):
         match.back_to_hub()
         st.rerun()

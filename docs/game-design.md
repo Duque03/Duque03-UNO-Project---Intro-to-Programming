@@ -73,6 +73,8 @@ Numbers live in `arcade/config.py`.
   - loss: one of 20 sentences, picked at random;
   - tie (Connect Four only): a tie message and no coins.
 - Enter closes the box and returns to the room.
+- **Play again** (A, or a click on PLAY AGAIN in the box) starts the same game straight away, at the same table,
+  against the same bots, for the same prize. It is only offered in free play: a championship goes on to its scoreboard.
 
 ### UNO
 - 108 cards, 7 each, the first card on the table is a number.
