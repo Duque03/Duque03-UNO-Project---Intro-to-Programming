@@ -23,7 +23,7 @@ def test_bots_stay_close_to_home():
 
 def test_bots_never_step_onto_the_player_or_each_other():
     rng, state = random.Random(2), _start()
-    player = (HOMES["JOY"][0] + 6, HOMES["JOY"][1])  # standing right next to JOY
+    player = (HOMES["BARK"][0] + 6, HOMES["BARK"][1])  # standing right next to BARK
     for _ in range(300):
         before = state
         state = idle.idle_tick(state, HOMES, player, rng)

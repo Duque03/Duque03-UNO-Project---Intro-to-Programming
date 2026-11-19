@@ -42,15 +42,15 @@ def test_levels_get_stronger_in_order():
 
 
 def test_a_good_pick_is_accepted():
-    levels.check_pick("checkers", ["JOY"], bots.BOT_NAMES)
-    levels.check_pick("uno", ["JOY", "TURBO", "GLITCH"], bots.BOT_NAMES)
+    levels.check_pick("checkers", ["DEAN"], bots.BOT_NAMES)
+    levels.check_pick("uno", ["DEAN", "BARK", "JOHN"], bots.BOT_NAMES)
 
 
 @pytest.mark.parametrize("game,names", [
     ("checkers", []),                          # nobody picked
-    ("connect4", ["JOY", "BYTE"]),             # one too many
-    ("uno", ["JOY", "TURBO"]),                 # one too few
-    ("uno", ["JOY", "JOY", "TURBO"]),          # the same bot twice
+    ("connect4", ["DEAN", "MANHOSA"]),             # one too many
+    ("uno", ["DEAN", "BARK"]),                 # one too few
+    ("uno", ["DEAN", "DEAN", "BARK"]),          # the same bot twice
     ("checkers", ["NOBODY"]),                  # not a bot
 ])
 def test_a_bad_pick_is_refused(game, names):
@@ -60,17 +60,17 @@ def test_a_bad_pick_is_refused(game, names):
 
 
 def test_picking_one_opponent_replaces_the_last_one():
-    assert levels.toggle([], "JOY", 1) == ["JOY"]
-    assert levels.toggle(["JOY"], "BYTE", 1) == ["BYTE"]
+    assert levels.toggle([], "DEAN", 1) == ["DEAN"]
+    assert levels.toggle(["DEAN"], "MANHOSA", 1) == ["MANHOSA"]
 
 
 def test_picking_three_uno_opponents_and_a_fourth_replaces_the_first():
     picked = []
-    for name in ("JOY", "TURBO", "BYTE"):
+    for name in ("DEAN", "BARK", "MANHOSA"):
         picked = levels.toggle(picked, name, 3)
-    assert picked == ["JOY", "TURBO", "BYTE"]
-    assert levels.toggle(picked, "GLITCH", 3) == ["TURBO", "BYTE", "GLITCH"]
+    assert picked == ["DEAN", "BARK", "MANHOSA"]
+    assert levels.toggle(picked, "JOHN", 3) == ["BARK", "MANHOSA", "JOHN"]
 
 
 def test_clicking_a_picked_bot_takes_it_back():
-    assert levels.toggle(["JOY", "TURBO"], "JOY", 3) == ["TURBO"]
+    assert levels.toggle(["DEAN", "BARK"], "DEAN", 3) == ["BARK"]

@@ -63,11 +63,34 @@ def test_every_name_tag_can_be_drawn_with_a_long_name():
 def test_bots_wear_items_that_exist():
     for bot in bots.BOTS + [bots.SHOPKEEPER]:
         for slot in ("hair", "shirt"):
-            assert catalog.get(bot[slot])["slot"] == slot
-        if "tag" in bot:
+            item = catalog.get(bot[slot]) or catalog.BOT_ONLY.get(bot[slot])
+            assert item is not None and item["slot"] == slot, bot["name"]
+        if bot.get("tag"):
             assert catalog.get(bot["tag"])["slot"] == "name"
     looks = {bots.look(bot) for bot in bots.BOTS}
     assert len(looks) == len(bots.BOTS)
+
+
+def test_the_bots_own_looks_are_not_sold_in_the_store():
+    sold = {item["id"] for item in catalog.ITEMS}
+    assert catalog.BOT_ONLY and not sold & set(catalog.BOT_ONLY)
+    assert catalog.get("bot_dog") is None  # nobody can buy or wear the dog
+
+
+def test_the_dog_is_drawn_on_four_legs_and_every_bot_has_four_views():
+    for bot in bots.BOTS:
+        for direction in ("down", "up", "left", "right"):
+            for step in (0, 1, 2):
+                img = sprites.sprite(*bots.look(bot), direction, step)
+                assert img.getbbox() is not None, (bot["name"], direction, step)
+    dog = sprites.sprite(*bots.look(bots.get("BARK")), "left", 0)
+    person = sprites.sprite(*bots.look(bots.get("JOHN")), "left", 0)
+    assert dog.getbbox()[2] - dog.getbbox()[0] > person.getbbox()[2] - person.getbbox()[0]  # longer than tall
+
+
+def test_there_is_one_bot_per_level_from_easiest_to_hardest():
+    assert [bot["level"] for bot in bots.BOTS] == ["easy", "medium", "hard", "expert"]
+    assert bots.BOT_NAMES == ["DEAN", "BARK", "MANHOSA", "JOHN"]
 
 
 def test_showcase_shows_three_views_and_the_tag():

@@ -18,7 +18,7 @@ Python two things (read them from the value mount() returns):
     need     the browser is missing some pictures (it reloaded): their keys
 
 It starts like an arcade machine waiting for a player: the logo drops in and PRESS ENTER blinks. Clicking a
-bot (or pressing 1 to 5) makes it jump and say something. The player with the most championships, if any,
+bot (or pressing 1 to 4) makes it jump and say something. The player with the most championships, if any,
 dances on a gold podium with a crown, so the screen changes as people play.
 
 Every event carries a number n. Python handles each number once and sends back the last one it handled
@@ -38,8 +38,8 @@ from arcade.config import NAME_MAX, SCALE
 from arcade.room import Scene, _look_key, _tag_key
 
 FEET_Y = 176 * SCALE  # where the bots stand on the big picture
-BOT_X = (84 * SCALE, 122 * SCALE, 160 * SCALE, 198 * SCALE, 236 * SCALE)
-SPOT_COLOURS = ("#3ad6ff", "#ff4fa3", "#ffe94a", "#7cff3a", "#b07aff")
+BOT_X = (100 * SCALE, 140 * SCALE, 180 * SCALE, 220 * SCALE)  # one per bot, easiest on the left
+SPOT_COLOURS = ("#3ad6ff", "#ff4fa3", "#ffe94a", "#b07aff")
 
 
 @lru_cache(maxsize=16)
@@ -190,7 +190,7 @@ export default function (component) {
         if (!G.canvas || !G.canvas.isConnected || e.ctrlKey || e.metaKey || e.altKey) return;
         const key = e.key || "", k = key.toLowerCase();
         if (G.flyT0) return stop(e);  // flying into the arcade
-        if (!inForm() && /^[1-5]$/.test(key)) { poke(Number(key) - 1); return stop(e); }
+        if (!inForm() && /^[1-9]$/.test(key) && Number(key) <= d.bots.length) { poke(Number(key) - 1); return stop(e); }
         if (!G.attractDone) {
             if (k === "enter" || k === " ") { start(); return stop(e); }
             return;
@@ -436,11 +436,11 @@ export default function (component) {
             ctx.fillStyle = `rgba(0, 0, 0, ${Math.max(0, (fly - 0.55) / 0.45)})`; ctx.fillRect(0, 0, 960, 540);
         } else if (!G.attractDone) {
             if (intro >= 1 && Math.floor(t * 2.2) % 2 === 0) text(ctx, "PRESS ENTER", 480, 270, 2, "#ffe94a");
-            text(ctx, "CLICK A BOT (OR 1-5) TO MAKE IT DANCE  -  M: MUSIC", 18, 516, 1, "#b9b0e8", "left", 2);
+            text(ctx, "CLICK A BOT (OR 1-4) TO MAKE IT DANCE  -  M: MUSIC", 18, 516, 1, "#b9b0e8", "left", 2);
         } else {
             if (inForm()) drawForm(ctx, t); else drawMenu(ctx, t);
             text(ctx, inForm() ? "TYPE  -  ARROWS: MOVE  -  ENTER: OK  -  ESC: BACK"
-                               : "ARROWS: CHOOSE  -  ENTER: OK  -  1-5: POKE A BOT  -  M: MUSIC", 18, 516, 1, "#b9b0e8", "left", 2);
+                               : "ARROWS: CHOOSE  -  ENTER: OK  -  1-4: POKE A BOT  -  M: MUSIC", 18, 516, 1, "#b9b0e8", "left", 2);
         }
 
         if (G.missing.size && t - G.lastNeed > 1.5) { G.lastNeed = t; G.send("need", Array.from(G.missing)); }

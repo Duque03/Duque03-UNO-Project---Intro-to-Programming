@@ -11,7 +11,7 @@ from arcade.config import LEVEL_COINS, LEVELS, SCREEN_H, SCREEN_W
 LEVEL_COLOURS = {"easy": "#3ad678", "medium": "#ffd84a", "hard": "#ff9a3a", "expert": "#ff4f6d"}
 CARD_W, CARD_H, GAP, CARD_TOP = 156, 286, 12, 112
 FOCUS = "#ffe94a"  # the yellow highlight that the arrow keys move
-HINT = "ARROWS + SPACE, 1-5 OR CLICK TO PICK  -  ENTER: PLAY  -  ESC: BACK"
+HINT = "ARROWS + SPACE, A NUMBER OR CLICK TO PICK  -  ENTER: PLAY  -  ESC: BACK"
 
 
 _STAR = ["..#..", ".###.", "#####", ".###.", ".#.#."]

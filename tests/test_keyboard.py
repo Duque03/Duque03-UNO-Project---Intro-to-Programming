@@ -124,9 +124,9 @@ def test_the_opponent_highlight_only_changes_that_bot():
     plain, regions = versus.panel_picture(None, "PICK", _cards(), [], 1, None)
     lit, _ = versus.panel_picture(None, "PICK", _cards(), [], 1, None, focus=2)
     assert _changed(plain, lit, regions[2][0])
-    assert not _changed(plain, lit, regions[0][0]) and not _changed(plain, lit, regions[4][0])
+    assert not _changed(plain, lit, regions[0][0]) and not _changed(plain, lit, regions[-1][0])
     with pytest.raises(ValueError):
-        versus.panel_picture(None, "PICK", _cards(), [], 1, None, focus=5)
+        versus.panel_picture(None, "PICK", _cards(), [], 1, None, focus=len(_cards()))
 
 
 def test_the_opponent_hint_fits_in_the_panel():

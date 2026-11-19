@@ -108,6 +108,19 @@ def _build() -> list[dict]:
 ITEMS: list[dict] = _build()
 _BY_ID = {item["id"]: item for item in ITEMS}
 
+# Looks only the bots wear. They are not sold in the store, so they are not in ITEMS.
+BOT_ONLY = {
+    "bot_dean_hair": {"slot": "hair", "spec": {"style": "dean", "c1": "#b9b9c4", "c2": "#1d1a22"}},
+    "bot_dean_suit": {"slot": "shirt", "spec": {"style": "suit", "c1": "#2e3140", "c2": "#f3f3f6", "c3": "#8a1f2e"}},
+    "bot_guard_cap": {"slot": "hair", "spec": {"style": "officer", "c1": "#1f2a4a", "c2": "#f2c94a", "c3": "#16121c"}},
+    "bot_guard_uniform": {"slot": "shirt",
+                          "spec": {"style": "uniform", "c1": "#24315a", "c2": "#f2c94a", "c3": "#16203f"}},
+    "bot_dog": {"slot": "hair", "spec": {"style": "dog", "c1": "#7a4a24", "c2": "#f0d6a8", "c3": "#1d1a22"}},
+    "bot_dog_bandana": {"slot": "shirt", "spec": {"style": "solid", "c1": "#2f6fe0"}},
+    "bot_john_hair": {"slot": "hair", "spec": {"style": "short", "c1": "#4a3020"}},
+    "bot_john_tee": {"slot": "shirt", "spec": {"style": "solid", "c1": "#dcdde3"}},
+}
+
 
 def get(item_id: str) -> dict | None:
     return _BY_ID.get(item_id)
@@ -119,7 +132,7 @@ def by_slot(slot: str, rarity: str | None = None) -> list[dict]:
 
 def spec_for(slot: str, item_id: str | None) -> dict:
     """The drawing recipe for an item, or the default look when nothing is equipped."""
-    item = _BY_ID.get(item_id) if item_id else None
+    item = (_BY_ID.get(item_id) or BOT_ONLY.get(item_id)) if item_id else None
     if item is None or item["slot"] != slot:
         return DEFAULTS[slot]
     return item["spec"]

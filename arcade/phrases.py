@@ -45,7 +45,7 @@ CHAMPION_LINES = [
     "Flawless. The arcade is yours!",
     "Champion! Somebody frame this moment!",
     "You came, you played, you conquered!",
-    "The crowd goes wild! (All five bots.)",
+    "The crowd goes wild! (All four bots.)",
     "A new high score in greatness!",
     "Undisputed ruler of the tables!",
     "Master of cards, kings and four-in-a-rows!",
