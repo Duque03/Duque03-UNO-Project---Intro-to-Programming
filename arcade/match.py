@@ -42,6 +42,17 @@ def prize() -> int:
     return levels.win_coins([bots.level(name) for name in S.match["bots"]])
 
 
+def play_again() -> None:
+    """Play again on the result box (free play only): the same table against the same bots, straight away.
+
+    Everyone is still seated, so there is no walk: the new game fades in from black, like any game that starts.
+    """
+    S.match = levels.rematch(S.match, bots.BOT_NAMES)
+    sound.play("table")
+    ui.fade_next()
+    start_game()
+
+
 def begin_championship() -> None:
     names = state.rng().sample(bots.BOT_NAMES, CHAMPIONSHIP_BOTS)
     S.champ = championship.new_championship(S.player["name"], names)

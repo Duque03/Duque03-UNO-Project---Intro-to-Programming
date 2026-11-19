@@ -28,6 +28,7 @@ TABS = [
             ("P", "PASS AFTER DRAWING"),
             ("CLICK COLOUR", "CHOOSE THE COLOUR OF A WILD"),
             ("ENTER", "BACK TO THE ROOM AT THE END"),
+            ("A", "PLAY AGAIN AT THE END"),
             ("ESC", "PAUSE"),
         ],
     },
@@ -39,6 +40,7 @@ TABS = [
             ("CLICK PIECE", "SELECT ONE OF YOUR RED PIECES"),
             ("CLICK SQUARE", "MOVE IT TO A LIT SQUARE"),
             ("ENTER", "BACK TO THE ROOM AT THE END"),
+            ("A", "PLAY AGAIN AT THE END"),
             ("ESC", "PAUSE"),
         ],
     },
@@ -49,6 +51,7 @@ TABS = [
         "rows": [
             ("CLICK COLUMN", "DROP YOUR DISC IN IT"),
             ("ENTER", "BACK TO THE ROOM AT THE END"),
+            ("A", "PLAY AGAIN AT THE END"),
             ("ESC", "PAUSE"),
         ],
     },

@@ -35,6 +35,21 @@ def check_pick(game: str, names: list[str], known: list[str]) -> None:
         raise BadPick(f"Pick {needed} opponent{'s' if needed > 1 else ''}.")
 
 
+def rematch(match: dict | None, known: list[str]) -> dict:
+    """Play again after a free-play game: a new match at the same table against the same bots (same prize).
+
+    Only free play has a Play again; a championship goes on to its scoreboard. Raises BadPick when the
+    match does not fit. The given match is not changed.
+    """
+    if not match or match.get("mode") != "free":
+        raise BadPick("Play again is only for free play.")
+    if match.get("game") not in BOTS_PER_GAME:
+        raise BadPick("There is no such table.")
+    names = list(match.get("bots") or [])
+    check_pick(match["game"], names, known)
+    return {"game": match["game"], "mode": "free", "bots": names, "others": []}
+
+
 def toggle(picked: list[str], name: str, needed: int) -> list[str]:
     """Click a bot in the picker: picks it, or takes it back if it was picked.
 

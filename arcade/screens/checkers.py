@@ -155,7 +155,7 @@ def render() -> None:
 
     bar = st.columns([1.4, 1.4, 1.4, 1])
     if S.result:
-        common.continue_button(bar[0], "checkers", point is not None)
+        common.result_buttons(bar, "checkers", action)  # Continue, or Play again
         return
     common.rules_button(bar[2], "checkers")
     common.pause_button(bar[3], "checkers")

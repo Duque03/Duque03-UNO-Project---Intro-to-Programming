@@ -656,6 +656,24 @@ def table_scene(kind, opponents, active=None, t=0):
 
 def result_panel(img, title, line, coins=None, footer="ENTER"):
     """The box that appears when a free-play game ends."""
+    out, (x0, y0, x1, y1) = _result_box(img, title, line, coins)
+    _footer_hint(out, SCREEN_W // 2, y1 - 34, footer)
+    return out
+
+
+def result_panel_again(img, title, line, coins=None):
+    """The same box with two choices at the bottom: ENTER continue, A play again. Returns (picture, regions).
+
+    A click on PLAY AGAIN plays again; a click anywhere else on the picture continues, as before.
+    """
+    out, (x0, y0, x1, y1) = _result_box(img, title, line, coins)
+    _footer_hint(out, SCREEN_W // 2 - 140, y1 - 34, "ENTER", "CONTINUE")
+    again = _footer_hint(out, SCREEN_W // 2 + 140, y1 - 34, "A", "PLAY AGAIN")
+    return out, [((0, 0, SCREEN_W, SCREEN_H), ("continue",)), (again, ("again",))]
+
+
+def _result_box(img, title, line, coins):
+    """The end-of-game box on the dimmed table, without its footer. Returns (picture, (x0, y0, x1, y1))."""
     out = darken(img, 0.6)
     lines = wrap(line, 34)
     h = 150 + len(lines) * 30 + (50 if coins else 0)
@@ -675,8 +693,7 @@ def result_panel(img, title, line, coins=None, footer="ENTER"):
         coin(out, cx, y + 6, 4)
         draw_text(out, (cx + 42, y + 8), label, 4, "#c98a12", "lt")
         y += 50
-    _footer_hint(out, SCREEN_W // 2, y0 + h - 34, footer)
-    return out
+    return out, (x0, y0, x1, y0 + h)
 
 
 def confetti(img, box, count: int = 90, seed: int = 5) -> None:
@@ -703,11 +720,13 @@ def sparkle(img, cx, cy, size: int = 3) -> None:
 
 
 def _footer_hint(img, cx, y, key="ENTER", text="CONTINUE"):
+    """A key and what it does, centred on cx. Returns the area around it (left, top, right, bottom), for clicks."""
     tw = text_size(text, 2)[0]
     kw = text_size(key, 2)[0] + 12
     x = cx - (tw + kw + 10) // 2
     key_icon(img, x, y, key, 2, "#ffe94a")
     draw_text(img, (x + kw + 10, y + 12), text, 2, INK, "lm")
+    return (x - 8, y - 8, x + kw + 10 + tw + 8, y + 32)
 
 
 def coin_pyramid(img, cx, bottom, rows=4, unit=3):
