@@ -7,11 +7,12 @@ arcade/screens/ and has a render() function.
 import streamlit as st
 
 from arcade import sound, state, ui
-from arcade.screens import (champ, checkers, connect4, howto, hub, online, online_table, pause, store, title, uno, versus,
-                            wardrobe)
+from arcade.screens import (champ, checkers, connect4, create, howto, hub, online, online_table, pause, store, title, uno,
+                            versus, wardrobe)
 
 SCREENS = {
     "title": title.render,
+    "create": create.render,
     "hub": hub.render,
     "uno": uno.render,
     "checkers": checkers.render,

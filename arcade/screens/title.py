@@ -45,7 +45,10 @@ def _sign_in(value: dict, number: int) -> None:
     S.title_error = None
     if value.get("where") == "online":  # PLAY ONLINE: straight to the online menu (create or join a lobby)
         state.start_session(player)
-        S.screen = "online"
+        if S.screen == "create":  # a new player makes their look first, then goes online
+            S.after_create = "online"
+        else:
+            S.screen = "online"
         ui.fade_next()
         sound.play("start")
         st.toast(f"Welcome, {player['name']}!" if is_new else f"Welcome back, {player['name']}!")

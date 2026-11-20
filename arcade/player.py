@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 
 from arcade.config import GAMES, NAME_MAX, NAME_MIN, SLOTS
+from arcade.logic import looks
 
 _ALLOWED = re.compile(r"^[A-Z0-9 _\-]+$")
 
@@ -38,6 +39,8 @@ def new_player(name: str) -> dict:
         "champ_intro_seen": False,
         "skin": "#f2c9a0",
         "pants": "#2b3a67",
+        "base": dict(looks.DEFAULT),  # the look chosen when the account was made (logic/looks.py)
+        "look_done": True,  # False only for a brand-new account, until the player has made their look
     }
 
 
@@ -46,4 +49,5 @@ def look(player: dict, preview: dict | None = None) -> tuple:
     worn = dict(player["equipped"])
     if preview:
         worn.update(preview)
-    return (player["skin"], player["pants"], worn["hair"], worn["shirt"])
+    base = player.get("base")  # nothing from the store on: the look they made when they created their player
+    return (player["skin"], player["pants"], worn["hair"] or looks.hair_id(base), worn["shirt"] or looks.shirt_id(base))

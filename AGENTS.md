@@ -145,6 +145,10 @@ changing these files, and change them in a small pull request of their own.
 - Players are saved by `arcade/db.py`: in `data/arcade.db` (SQLite, in `.gitignore`) on a laptop, and in a hosted
   PostgreSQL database when a `DATABASE_URL` secret is set (the deployed app). Same table, same three functions.
 - A player is stored as one JSON text per name. New fields get their default from `player.new_player()`.
+- The look a player made when they created their account is `player["base"]` (checked by `logic/looks.py`).
+  `player.look()` turns it into item ids `base:hair:<style>:<colour>` / `base:shirt:<colour>` when nothing from the
+  store is worn, and `catalog.spec_for` draws them (only listed values; anything else draws the default look).
+  `look_done` is False only for a brand-new account, which goes to `screens/create.py` first.
 - Tests use a temporary SQLite file (`tmp_path`), never `data/arcade.db` and never the real online database.
   `tests/test_db_online.py` only runs with `TEST_DATABASE_URL` set to a database that may be wiped.
 - Sign-in goes through `accounts.sign_up` (new player) and `accounts.log_in` (name + PIN). PINs are stored only as salted PBKDF2 hashes; never log,

@@ -58,10 +58,17 @@ Numbers live in `arcade/config.py`.
 - A name that has played before continues with its saved coins, cosmetics, wins and championship status.
 - When the sign-in is accepted, the camera flies forward into the arcade (about one second) and fades to black, and
   the arcade room fades in: the player enters the game without a cut.
+- **Create your player** (only once, right after NEW PLAYER, before the arcade or the online menu): the character
+  stands on the left, the choices on the right: **hair** (boy or girl), **hair colour** (black, ginger, brown,
+  blond), **T-shirt** (9 plain colours, nothing printed) and **skin** (6 tones). A click picks; Up / Down move between
+  the rows and Left / Right change the choice (the yellow arrow only shows while the keys are used). **LET'S PLAY!**
+  (or Enter) saves it. This is the player's base look: store hair and shirts go on top of it, and taking them off
+  brings it back. Only the listed choices can be saved. Players who existed before this screen keep their look
+  (short brown hair, white T-shirt).
 
 ## 2. Arcade room
 
-- Pixel-art room seen from above. The player appears at the bottom, by the door, wearing the default clothes, with the name in a tag above the head.
+- Pixel-art room seen from above. The player appears at the bottom, by the door, wearing their look, with the name in a tag above the head.
 - The player walks with W A S D (or arrow keys, or by clicking) and has four looks: down, up, left, right.
 - Four bots, one per level, each with its own name and look (all our own designs): **DEAN** (easy, a university
   dean in a suit and glasses), **BARK** (medium, a dog with a blue bandana, on four legs), **MANHOSA** (hard, a

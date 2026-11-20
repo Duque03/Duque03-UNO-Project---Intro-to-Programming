@@ -1,6 +1,6 @@
 import pytest
 
-from arcade import db
+from arcade import catalog, db
 from arcade.logic import store
 from arcade.player import InvalidName, clean_name, look, new_player
 
@@ -22,7 +22,10 @@ def test_new_player_starts_with_nothing():
     player = new_player("ANA")
     assert player["coins"] == 0 and player["owned"] == []
     assert player["wins"] == {"uno": 0, "checkers": 0, "connect4": 0}
-    assert look(player) == (player["skin"], player["pants"], None, None)
+    # nothing from the store on: the base look, which for an old save is the old default (short brown hair, white tee)
+    assert look(player) == (player["skin"], player["pants"], "base:hair:short:#5a3a22", "base:shirt:#e9e9ee")
+    assert catalog.spec_for("hair", look(player)[2]) == catalog.DEFAULTS["hair"]
+    assert catalog.spec_for("shirt", look(player)[3]) == catalog.DEFAULTS["shirt"]
 
 
 def test_preview_changes_the_look_without_changing_the_player():

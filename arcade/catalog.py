@@ -15,6 +15,7 @@ from __future__ import annotations
 
 from arcade.art.pixel import readable_on
 from arcade.config import PRICES
+from arcade.logic import looks
 
 # Hair colours used by several styles
 BLACK, BROWN, BLONDE = "#1d1a22", "#5a3a22", "#f0d264"
@@ -132,6 +133,9 @@ def by_slot(slot: str, rarity: str | None = None) -> list[dict]:
 
 def spec_for(slot: str, item_id: str | None) -> dict:
     """The drawing recipe for an item, or the default look when nothing is equipped."""
+    if item_id and item_id.startswith("base:"):  # the player's own base look (logic/looks.py)
+        found = looks.spec(item_id)
+        return found[1] if found and found[0] == slot else DEFAULTS[slot]
     item = (_BY_ID.get(item_id) or BOT_ONLY.get(item_id)) if item_id else None
     if item is None or item["slot"] != slot:
         return DEFAULTS[slot]
