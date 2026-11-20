@@ -28,14 +28,16 @@ from arcade.screens import common
 from arcade.state import S
 
 FOCUS = scenes.FOCUS  # the yellow frame the arrow keys move
-HAND_Y, PILE_Y, DRAW_X, DISCARD_X = 434, 268, 384, 494
+HAND_Y, PILE_Y, DRAW_X, DISCARD_X = 434, 286, 384, 494
 UNO_SECONDS = 2.0  # time to press UNO after going down to one card
 UNO_GRACE = 0.35  # the click needs a moment to travel to the server
 UNO_BOX = (748, 330, 940, 420)  # where the big UNO button is on the picture
 # Animations (milliseconds): the deal, then the roulette that shows who starts; cards drawn and played during the game
 DEAL_GAP, DEAL_FLIGHT, SPIN_MS, LABEL_MS = 90, 300, 2400, 1300
 MOVE_GAP, MOVE_FLIGHT = 280, 420
-SMALL = 16 / cards.CARD_W  # how big the opponents' face-down cards are, next to a whole card
+FAN_W, FAN_H = 22, 32  # the opponents' cards, held up in their hands
+SMALL = FAN_W / cards.CARD_W  # how big those are, next to a whole card
+PILE_H = round(cards.CARD_H * cards.LYING)  # the piles lie flat on the table
 DECK, PILE = (DRAW_X, PILE_Y), (DISCARD_X, PILE_Y)
 _COLOUR_ORDER = {colour: i for i, colour in enumerate(COLOURS + (WILD,))}
 _VALUE_ORDER = {value: i for i, value in enumerate(NUMBERS + ("skip", "reverse", "draw2", "wild", "wild4"))}
@@ -83,62 +85,62 @@ def draw(game, me, opponents, flash="", choosing=False, picks=(), uno_open=False
     regions = []
     common.header(img, "UNO")
 
-    # how many cards each opponent holds: face down on the table in front of them
+    # each opponent holds their cards in a fan, with how many there are on the table in front of them
     for seat, opponent in zip(scenes.table_seats(len(opponents)), opponents):
         if dealing:
             break
-        fx, fy = fan_spot(seat)
+        spots, (lx, ly) = fan_layout(seat, len(game.hands[opponent["name"]]))
         if opponent["name"] in game.out:  # finished: their place instead of their cards
             place = ordinal(game.out.index(opponent["name"]) + 1).upper()
-            draw_text(img, (fx, fy + 12), f"{place}!", 4, "#ffe94a", "mm", shadow="#16122b")
+            draw_text(img, (lx, ly - 30), f"{place}!", 4, "#ffe94a", "mm", shadow="#16122b")
             continue
         count = len(game.hands[opponent["name"]])
-        shown = min(count, 9)
-        left = fx - (shown * 9 + 8) // 2 - 14
-        for i in range(shown):
-            cards.draw_back(img, left + i * 9, fy, 16, 24)
-        draw_text(img, (left + shown * 9 + 16, fy + 12), str(count), 3, "#ffffff", "lm", shadow="#16122b")
+        for x, y in spots:
+            cards.draw_back(img, x, y, FAN_W, FAN_H)
+        draw_text(img, (lx, ly), str(count), 3, "#ffffff", "mt", shadow="#16122b")
         if count == 1:
-            draw_text(img, (fx, fy - 16), "UNO!", 2, "#ff4f6d", "mm", shadow="#16122b")
+            draw_text(img, (lx, spots[0][1] - 18), "UNO!", 2, "#ff4f6d", "mm", shadow="#16122b")
 
-    # draw pile, discard pile, colour in play
-    cards.draw_back(img, DRAW_X - 5, PILE_Y - 5)
-    cards.draw_back(img, DRAW_X, PILE_Y)
-    deck = len(game.deck) + (len(game.discard) + sum(map(len, game.hands.values())) if dealing else 0)
-    label = f"DRAW {game.pending}!" if game.pending else f"DECK {deck}"
-    draw_text(img, (DRAW_X - 14, PILE_Y + cards.CARD_H - 4), label, 1 if not game.pending else 2,
-              "#d9d4ff" if not game.pending else "#ff8a8a", "rb", shadow="#16122b")
+    # the draw pile and the discard pile, lying on the table
+    for layer in (2, 1, 0):
+        cards.draw_lying_back(img, DRAW_X - layer * 2, PILE_Y - layer * 3)
+    if game.pending:
+        draw_text(img, (DRAW_X + cards.CARD_W // 2, PILE_Y - 26), f"DRAW {game.pending}!", 2, "#ff8a8a", "mm",
+                  shadow="#16122b")
     if my_turn and game.can_draw(me):
-        regions.append(((DRAW_X - 5, PILE_Y - 5, DRAW_X + cards.CARD_W, PILE_Y + cards.CARD_H), ("draw",)))
+        regions.append(((DRAW_X - 4, PILE_Y - 6, DRAW_X + cards.CARD_W, PILE_Y + PILE_H), ("draw",)))
     if dealing:  # nothing on the table yet but the deck
         return img, regions
+    if game.top[0] == WILD:  # the colour chosen for a wild: the pile glows in that colour
+        glow = rgb(cards.COLOUR_HEX[game.colour])
+        for grow, strength in ((18, 0.4), (11, 0.75), (6, 1.0)):
+            colour = tuple(round(c * strength + f * (1 - strength)) for c, f in zip(glow, rgb(scenes.FELT["uno"])))
+            d.rounded_rectangle([DISCARD_X - grow, PILE_Y - grow, DISCARD_X + cards.CARD_W + grow,
+                                 PILE_Y + PILE_H + grow], radius=grow + 4, fill=colour)
     for i, card in enumerate(game.discard[-3:-1]):  # the cards just below show when several were played
-        cards.draw_card(img, DISCARD_X - 8 + i * 4, PILE_Y - 6 + i * 3, card)
-    cards.draw_card(img, DISCARD_X, PILE_Y, game.top)
+        cards.draw_lying_card(img, DISCARD_X - 8 + i * 4, PILE_Y - 4 + i * 2, card)
+    cards.draw_lying_card(img, DISCARD_X, PILE_Y, game.top)
     if my_turn:  # the picked cards go down when the pile is clicked (with nothing picked, nothing happens)
-        regions.append(((DISCARD_X, PILE_Y, DISCARD_X + cards.CARD_W, PILE_Y + cards.CARD_H), ("play",)))
-    box_x = DISCARD_X + cards.CARD_W + 24
-    draw_text(img, (box_x, PILE_Y + 2), "COLOUR", 1, "#d9d4ff", "lt")
-    d.rectangle([box_x, PILE_Y + 14, box_x + 39, PILE_Y + 53], fill=(255, 255, 255))
-    d.rectangle([box_x + 4, PILE_Y + 18, box_x + 35, PILE_Y + 49], fill=rgb(cards.COLOUR_HEX[game.colour]))
+        regions.append(((DISCARD_X - 8, PILE_Y - 6, DISCARD_X + cards.CARD_W, PILE_Y + PILE_H), ("play",)))
     if not game.winner:
-        draw_text(img, (box_x, PILE_Y + 64), "NEXT", 1, "#d9d4ff", "lt")
-        draw_text(img, (box_x, PILE_Y + 76), game.next_player(), 2, "#ffffff", "lt", shadow="#16122b")
+        box_x = DISCARD_X + cards.CARD_W + 26
+        draw_text(img, (box_x, PILE_Y + 8), "NEXT", 1, "#d9d4ff", "lt", shadow="#16122b")
+        draw_text(img, (box_x, PILE_Y + 20), game.next_player(), 2, "#ffffff", "lt", shadow="#16122b")
 
-    common.message(img, game.last_event, 382)
+    common.message(img, game.last_event, 368)
     hand = sorted_hand(game.hands[me])
     if flash:
-        common.message(img, flash, 404, "#ff8a8a")
+        common.message(img, flash, 392, "#ff8a8a")
     elif my_turn and picks:
         kind = card_name(('x', hand[picks[0]][1])).split(' ', 1)[-1]
-        common.message(img, f"{len(picks)} picked: add more {kind} or click the pile (Enter) to play", 404, "#ffe94a")
+        common.message(img, f"{len(picks)} picked: add more {kind} or click the pile (Enter) to play", 392, "#ffe94a")
     elif my_turn and game.pending:
-        common.message(img, f"Answer with the same draw card or draw {game.pending}", 404, "#ffe94a")
+        common.message(img, f"Answer with the same draw card or draw {game.pending}", 392, "#ffe94a")
     elif my_turn and game.draws:
         common.message(img, "Pick a card and click the pile, draw again (D) or pass (P)" if game.can_draw(me)
-                       else "Pick a card and click the pile, or pass (P)", 404, "#ffe94a")
+                       else "Pick a card and click the pile, or pass (P)", 392, "#ffe94a")
     elif my_turn:
-        common.message(img, "Your turn: pick a card (click or Space), then click the pile (Enter)", 404, "#ffe94a")
+        common.message(img, "Your turn: pick a card (click or Space), then click the pile (Enter)", 392, "#ffe94a")
 
     # my hand: nothing glows; a picked card stands up a little
     count = len(hand)
@@ -194,19 +196,24 @@ def _my_spot(index: int, count: int, raised: bool = False) -> list:
     return [round(left + index * step), HAND_Y - (22 if raised else 0)]
 
 
-def fan_spot(seat: dict) -> tuple[int, int]:
-    """Where an opponent's face-down cards lie on the table: the middle of the row and its top."""
-    if seat["facing"] == "down":  # across the table: just in front of them
-        return seat["cx"], seat["rim"] + 8
-    return seat["cx"] + (118 if seat["facing"] == "right" else -118), seat["rim"] + 14
+def fan_layout(seat: dict, count: int) -> tuple[list, tuple[int, int]]:
+    """An opponent's cards held up in a fan in front of them: the top-left corner of each card shown (at most 9)
+    and where the number of cards goes (on the table in front of them)."""
+    shown = min(max(count, 1), 9)
+    if seat["facing"] == "down":  # across the table
+        middle, bottom = seat["cx"], seat["rim"] - 2
+    else:  # on a side: the cards are held out towards the middle of the table
+        middle, bottom = seat["cx"] + (46 if seat["facing"] == "right" else -46), seat["rim"] - 6
+    half = (shown - 1) / 2
+    spots = [(round(middle - FAN_W / 2 + (i - half) * 10), bottom - FAN_H + round(abs(i - half) * 1.5))
+             for i in range(min(count, 9))]
+    return spots, (middle, seat["rim"] + 6)
 
 
 def _their_spot(opponents, seat: int, count: int, index: int) -> list:
-    """Top-left corner of an opponent's face-down card number `index` (the row in front of them)."""
-    shown = min(max(count, 1), 9)
-    fx, fy = fan_spot(scenes.table_seats(len(opponents))[seat])
-    left = fx - (shown * 9 + 8) // 2 - 14
-    return [left + min(index, shown - 1) * 9, fy]
+    """Top-left corner of an opponent's card number `index` in their fan, when they hold `count` cards."""
+    spots, _ = fan_layout(scenes.table_seats(len(opponents))[seat], max(count, 1))
+    return list(spots[min(index, len(spots) - 1)])
 
 
 def _seat_boxes(me_count: int, opponents) -> list:
@@ -228,14 +235,17 @@ def deal_plan(game, me, opponents, starter: int) -> dict:
     for r in range(len(hand)):
         sprites[f"mine{r}"] = cards.card_sprite(hand[r])  # the player's cards arrive face up, in order
         moves.append({"img": f"mine{r}", "from": DECK, "to": _my_spot(r, len(hand)), "at": t, "dur": DEAL_FLIGHT,
+                      "h0": cards.LYING,
                       "arc": 30, "stay": True, "sound": "card"})
         t += DEAL_GAP
         for seat, opponent in enumerate(opponents):
             moves.append({"img": "back", "from": DECK, "to": _their_spot(opponents, seat, len(hand), r), "at": t,
+                          "h0": cards.LYING,
                           "dur": DEAL_FLIGHT, "s1": SMALL, "arc": 20, "stay": True, "sound": "card"})
             t += DEAL_GAP
     t += DEAL_FLIGHT + 250
     moves.append({"img": "top", "from": DECK, "to": PILE, "at": t, "dur": 400, "arc": 26, "stay": True,
+                  "h0": cards.LYING, "h1": cards.LYING,
                   "sound": "card"})
     t += 400 + 350
     name = "YOU" if starter == 0 else opponents[starter - 1]["name"]
@@ -276,21 +286,22 @@ def move_plan(before, after, me, opponents, picks=()) -> dict | None:
             if player == me and kind == "drew":
                 i = place(new_hand, card)
                 hide += [] if i is None else [i]
-                move = {"img": name, "from": DECK, "arc": 34,
+                move = {"img": name, "from": DECK, "arc": 34, "h0": cards.LYING,
                         "to": _my_spot(len(new_hand) // 2 if i is None else i, len(new_hand))}
             elif player == me:
                 i = None if new_layout else place(old_hand, card, prefer=picks)
                 hide += [] if i is None else [i]
-                move = {"img": name, "to": PILE, "arc": 40,
+                move = {"img": name, "to": PILE, "arc": 40, "h1": cards.LYING,
                         "from": _my_spot(0, 1) if i is None else _my_spot(i, len(old_hand), i in picks)}
             else:
                 seat, count = seat_of[player], len(before.hands[player]) + drawn.get(player, 0)
                 if kind == "drew":
                     spot = _their_spot(opponents, seat, count, len(before.hands[player]) + j)
-                    move = {"img": "back", "from": DECK, "to": spot, "s1": SMALL, "arc": 22}
+                    move = {"img": "back", "from": DECK, "to": spot, "s1": SMALL, "arc": 22, "h0": cards.LYING}
                 else:
                     spot = _their_spot(opponents, seat, count, count - 1)
-                    move = {"img": name, "from": spot, "to": PILE, "s0": SMALL, "s1": 1, "arc": 30}
+                    move = {"img": name, "from": spot, "to": PILE, "s0": SMALL, "s1": 1, "arc": 30,
+                            "h1": cards.LYING}
             moves.append(dict(move, at=len(moves) * MOVE_GAP, dur=MOVE_FLIGHT, stay=True, sound="card"))
     under = copy.deepcopy(before)
     if new_layout:
