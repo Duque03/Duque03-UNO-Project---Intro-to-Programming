@@ -175,8 +175,9 @@ def _top_bar(img, view, regions) -> None:
     d = ImageDraw.Draw(img)
     d.rectangle([0, 0, SCREEN_W, 55], fill=rgb("#16122b"))
     d.rectangle([0, 56, SCREEN_W, 58], fill=rgb(PINK))
-    draw_text(img, (20, 14), view["title"], 4, "#ffe94a", "lt", shadow="#3b3560")
-    x = 20 + text_size(view["title"], 4)[0] + 16
+    left = 96  # the music and full-screen buttons sit at the top left of the window
+    draw_text(img, (left, 14), view["title"], 4, "#ffe94a", "lt", shadow="#3b3560")
+    x = left + text_size(view["title"], 4)[0] + 16
     if view.get("coins") is not None:  # the coins, in a little box
         label = str(view["coins"])
         w = 46 + text_size(label, 3)[0]
