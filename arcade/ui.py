@@ -47,6 +47,9 @@ _CSS = f"""
    (the picture is the whole game: no frame, no bar of buttons, no header). */
 .block-container {{ max-width: min(100vw, calc(100vh * 16 / 9)) !important; padding: 0 !important; margin: 0 auto; }}
 .stMain {{ min-height: 100vh; display: flex; flex-direction: column; justify-content: center; }}
+/* the picture always fits the window, so nothing ever scrolls: a scrollbar that comes and goes (one pixel too much)
+   made the picture shrink and grow again, and in full screen everything shook from side to side */
+html, body, .stMain, [data-testid="stAppViewContainer"] {{ overflow: hidden !important; }}
 .stApp {{ background: #05030d !important; }}
 [data-testid="stMainBlockContainer"] > div {{ gap: 0 !important; }}
 .st-key-game_frame {{ position: relative; gap: 0 !important; }}
@@ -77,7 +80,7 @@ img {{ image-rendering: pixelated; }}
 .st-key-click_catcher {{ display: none; }}
 /* keys with no button on screen (arrows, Space, see keys()): the buttons are on the page, so they hear their key,
    but nobody sees them and they take no room */
-[class*="st-key-keys_"] {{ position: absolute !important; width: 1px !important; height: 1px !important;
+[class*="st-key-keys_"] {{ position: absolute !important; top: 0; left: 0; width: 1px !important; height: 1px !important;
     overflow: hidden !important; clip-path: inset(50%); opacity: 0; pointer-events: none; }}
 
 /* buttons: neon outlines that light up */

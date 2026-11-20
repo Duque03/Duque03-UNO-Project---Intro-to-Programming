@@ -167,8 +167,9 @@ Numbers live in `arcade/config.py`.
   When both are right or both are wrong, another question comes. As soon as one is right and the other is wrong it is
   over: if the player with UNO was wrong they draw **7 cards**; if the one who cut was wrong the UNO stands, as if it
   had been said (the waiting last card goes down). Nothing happens to the other player either way.
-  - Bots cut the player's UNO too: each bot level has a chance to try and a reaction time (easy rarely and slowly,
-    expert often and fast). A bot down to one card waits a moment before saying UNO (easy longer, expert shorter):
+  - Bots cut the player's UNO too: each bot level has a chance to try and a reaction time, counted from when the
+    UNO button shows (easy rarely and slowly, expert often and fast; even the fastest needs more than a second, so a
+    player who says UNO straight away is never cut). A bot down to one card waits a moment before saying UNO (easy longer, expert shorter):
     that is when the player can cut it. Bots answer right more often the higher their level (easy 55%, medium 70%,
     hard 82%, expert 92%). Bots do not cut each other.
   - Online, any player at the table can cut another's UNO. The game waits during the face-off; the others watch it.
