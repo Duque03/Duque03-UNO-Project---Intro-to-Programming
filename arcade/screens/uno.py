@@ -18,7 +18,7 @@ from collections import Counter
 import streamlit as st
 from PIL import ImageDraw
 
-from arcade import bots, match, sound, table_anim, ui
+from arcade import bots, catalog, match, player, sound, table_anim, ui
 from arcade.art import cards, scenes
 from arcade.art.pixel import darken, draw_text, key_icon, panel, rgb
 from arcade.config import SCALE, SCREEN_H, SCREEN_W, UNO_LEVELS
@@ -35,8 +35,6 @@ UNO_BOX = (748, 330, 940, 420)  # where the big UNO button is on the picture
 # Animations (milliseconds): the deal, then the roulette that shows who starts; cards drawn and played during the game
 DEAL_GAP, DEAL_FLIGHT, SPIN_MS, LABEL_MS = 90, 300, 2400, 1300
 MOVE_GAP, MOVE_FLIGHT = 280, 420
-FAN_W, FAN_H = 22, 32  # the opponents' cards, held up in their hands
-SMALL = FAN_W / cards.CARD_W  # how big those are, next to a whole card
 PILE_H = round(cards.CARD_H * cards.LYING)  # the piles lie flat on the table
 DECK, PILE = (DRAW_X, PILE_Y), (DISCARD_X, PILE_Y)
 _COLOUR_ORDER = {colour: i for i, colour in enumerate(COLOURS + (WILD,))}
@@ -59,6 +57,26 @@ def can_add(hand, picks, index) -> bool:
     return bool(picks) and index not in picks and 0 <= index < len(ordered) and ordered[index][1] == ordered[picks[0]][1]
 
 
+def _my_hands():
+    """The signed-in player's skin and shirt colour, for their hands at the bottom of the table."""
+    try:
+        me = S.get("player")
+    except Exception:  # (drawn outside the app, from a script)
+        return None
+    if not me:
+        return None
+    skin, _, _, shirt = player.look(me)
+    return skin, catalog.spec_for("shirt", shirt).get("c1", "#3a78e8")
+
+
+def _draw_hands(img, count: int, hands) -> None:
+    """The player's hands at the two ends of a row of `count` cards (the thumbs just cover the outer edges)."""
+    left, step = hand_layout(max(count, 1))
+    width, u = step * (max(count, 1) - 1) + cards.CARD_W, cards.HAND_UNIT
+    cards.draw_holding_hand(img, round(left) + 7 - 8 * u, HAND_Y + 34, *hands)
+    cards.draw_holding_hand(img, round(left + width) - 7 - 2 * u, HAND_Y + 34, *hands, right=True)
+
+
 def hand_layout(count: int) -> tuple[float, float]:
     """Where the player's hand starts (x of the first card) and the distance between two cards."""
     step = min(cards.CARD_W + 6, (860 - cards.CARD_W) / max(1, count - 1))
@@ -71,7 +89,7 @@ def _uno_left() -> float:
 
 
 def draw(game, me, opponents, flash="", choosing=False, picks=(), uno_open=False, focus=None, colour_focus=None,
-         hide=(), dealing=False, cut_open=False):
+         hide=(), dealing=False, cut_open=False, hands="me"):
     """Returns (picture, clickable regions).
 
     focus: the card of the hand (position in the sorted hand) the arrow keys are on; colour_focus: the colour
@@ -79,7 +97,11 @@ def draw(game, me, opponents, flash="", choosing=False, picks=(), uno_open=False
     For the animations (see deal_plan and move_plan): hide leaves out these cards of the hand (they are flying);
     dealing draws the table before the cards are dealt (no hands, no pile, nobody's turn yet).
     cut_open shows the CORTA UNO! button (someone else is down to one card and has not said UNO yet).
+    hands: (skin, sleeve colour) for the player's own hands holding the cards (first person); "me" takes them from
+    the signed-in player; None draws no hands.
     """
+    if hands == "me":
+        hands = _my_hands()
     my_turn = game.winner is None and game.current == me and not uno_open and not dealing
     img = scenes.table_scene("uno", opponents, None if game.winner or dealing else game.current)
     d = ImageDraw.Draw(img)
@@ -96,8 +118,9 @@ def draw(game, me, opponents, flash="", choosing=False, picks=(), uno_open=False
             draw_text(img, (lx, ly - 30), f"{place}!", 4, "#ffe94a", "mm", shadow="#16122b")
             continue
         count = len(game.hands[opponent["name"]])
+        w, h = fan_size(seat)
         for x, y in spots:
-            cards.draw_back(img, x, y, FAN_W, FAN_H)
+            cards.draw_back(img, x, y, w, h)
         draw_text(img, (lx, ly), str(count), 3, "#ffffff", "mt", shadow="#16122b")
         if count == 1:
             draw_text(img, (lx, spots[0][1] - 18), "UNO!", 2, "#ff4f6d", "mm", shadow="#16122b")
@@ -110,7 +133,9 @@ def draw(game, me, opponents, flash="", choosing=False, picks=(), uno_open=False
                   shadow="#16122b")
     if my_turn and game.can_draw(me):
         regions.append(((DRAW_X - 4, PILE_Y - 6, DRAW_X + cards.CARD_W, PILE_Y + PILE_H), ("draw",)))
-    if dealing:  # nothing on the table yet but the deck
+    if dealing:  # nothing on the table yet but the deck (and the player's empty hands, ready for the cards)
+        if hands:
+            _draw_hands(img, len(game.hands[me]), hands)
         return img, regions
     if game.top[0] == WILD:  # the colour chosen for a wild: the pile glows in that colour
         glow = rgb(cards.COLOUR_HEX[game.colour])
@@ -161,6 +186,8 @@ def draw(game, me, opponents, flash="", choosing=False, picks=(), uno_open=False
         regions.append(((x, y, right, HAND_Y + cards.CARD_H), ("card", i)))
         if i == focus:
             focus_box = (x - 2, y - 2, right + 1, SCREEN_H - 1)
+    if hands:  # the player's own hands hold the two ends of the row of cards
+        _draw_hands(img, count, hands)
     if focus is not None and 0 <= focus < count:  # the yellow frame the arrow keys move (on top of the cards)
         d.rectangle(focus_box, outline=FOCUS, width=3)
 
@@ -204,18 +231,25 @@ def _my_spot(index: int, count: int, raised: bool = False) -> list:
     return [round(left + index * step), HAND_Y - (22 if raised else 0)]
 
 
+def fan_size(seat: dict) -> tuple[int, int]:
+    """How big an opponent's cards look in their hands (bigger for the ones sitting close to the player)."""
+    return 11 * seat["scale"], 16 * seat["scale"]
+
+
 def fan_layout(seat: dict, count: int) -> tuple[list, tuple[int, int]]:
     """An opponent's cards held up in a fan in front of them: the top-left corner of each card shown (at most 9)
     and where the number of cards goes (on the table in front of them)."""
     shown = min(max(count, 1), 9)
+    w, h = fan_size(seat)
+    gap = 5 * seat["scale"]
     if seat["facing"] == "down":  # across the table
         middle, bottom = seat["cx"], seat["rim"] - 2
     else:  # on a side: the cards are held out towards the middle of the table
-        middle, bottom = seat["cx"] + (46 if seat["facing"] == "right" else -46), seat["rim"] - 6
+        middle, bottom = seat["cx"] + (38 if seat["facing"] == "right" else -38) * seat["scale"], seat["rim"] + 6
     half = (shown - 1) / 2
-    spots = [(round(middle - FAN_W / 2 + (i - half) * 10), bottom - FAN_H + round(abs(i - half) * 1.5))
+    spots = [(round(middle - w / 2 + (i - half) * gap), bottom - h + round(abs(i - half) * seat["scale"]))
              for i in range(min(count, 9))]
-    return spots, (middle, seat["rim"] + 6)
+    return spots, (middle, bottom + 8)
 
 
 def _their_spot(opponents, seat: int, count: int, index: int) -> list:
@@ -224,13 +258,18 @@ def _their_spot(opponents, seat: int, count: int, index: int) -> list:
     return list(spots[min(index, len(spots) - 1)])
 
 
+def _their_scale(opponents, seat: int) -> float:
+    """How big an opponent's held cards are, next to a whole card (for the flying cards)."""
+    return fan_size(scenes.table_seats(len(opponents))[seat])[0] / cards.CARD_W
+
+
 def _seat_boxes(me_count: int, opponents) -> list:
     """The places the roulette lights up: the player's hand first, then the opponents from left to right."""
     left, step = hand_layout(me_count)
     width = step * (me_count - 1) + cards.CARD_W
     boxes = [[round(left) - 16, HAND_Y - 14, round(width) + 32, SCREEN_H - HAND_Y + 10]]
-    return boxes + [[seat["cx"] - 66, seat["head"] - 14, 132, seat["rim"] - seat["head"] + 22]
-                    for seat in scenes.table_seats(len(opponents))]
+    return boxes + [[seat["cx"] - 33 * seat["scale"], seat["head"] + 4 * seat["scale"], 66 * seat["scale"],
+                     seat["rim"] - seat["head"] - 4 * seat["scale"] + 16] for seat in scenes.table_seats(len(opponents))]
 
 
 def deal_plan(game, me, opponents, starter: int) -> dict:
@@ -248,8 +287,8 @@ def deal_plan(game, me, opponents, starter: int) -> dict:
         t += DEAL_GAP
         for seat, opponent in enumerate(opponents):
             moves.append({"img": "back", "from": DECK, "to": _their_spot(opponents, seat, len(hand), r), "at": t,
-                          "h0": cards.LYING,
-                          "dur": DEAL_FLIGHT, "s1": SMALL, "arc": 20, "stay": True, "sound": "card"})
+                          "h0": cards.LYING, "dur": DEAL_FLIGHT, "s1": _their_scale(opponents, seat), "arc": 20,
+                          "stay": True, "sound": "card"})
             t += DEAL_GAP
     t += DEAL_FLIGHT + 250
     moves.append({"img": "top", "from": DECK, "to": PILE, "at": t, "dur": 400, "arc": 26, "stay": True,
@@ -305,10 +344,12 @@ def move_plan(before, after, me, opponents, picks=()) -> dict | None:
                 seat, count = seat_of[player], len(before.hands[player]) + drawn.get(player, 0)
                 if kind == "drew":
                     spot = _their_spot(opponents, seat, count, len(before.hands[player]) + j)
-                    move = {"img": "back", "from": DECK, "to": spot, "s1": SMALL, "arc": 22, "h0": cards.LYING}
+                    move = {"img": "back", "from": DECK, "to": spot, "s1": _their_scale(opponents, seat), "arc": 22,
+                            "h0": cards.LYING}
                 else:
                     spot = _their_spot(opponents, seat, count, count - 1)
-                    move = {"img": name, "from": spot, "to": PILE, "s0": SMALL, "s1": 1, "arc": 30,
+                    move = {"img": name, "from": spot, "to": PILE, "s0": _their_scale(opponents, seat), "s1": 1,
+                            "arc": 30,
                             "h1": cards.LYING}
             moves.append(dict(move, at=len(moves) * MOVE_GAP, dur=MOVE_FLIGHT, stay=True, sound="card"))
     under = copy.deepcopy(before)
