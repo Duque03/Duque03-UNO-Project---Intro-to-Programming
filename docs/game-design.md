@@ -5,11 +5,12 @@ Numbers live in `arcade/config.py`.
 
 ## 0. The game screen
 
-- Every screen sits inside one glowing frame. The title screen and the arcade room are only the game picture,
-  with no buttons around it, like a real game. The other screens have their buttons as a strip at the bottom of the
-  frame. The frame is as big as the window allows without scrolling (checked at 1280x720, 1366x768, 1920x1080).
-- Every button also has a key. **FULL SCREEN (F)** (top right) shows only the game, like a normal game.
-  **MUSIC (M)** (top left) turns the music on and off.
+- The game is always just the game picture, filling the window (16:9, as big as the window allows, in the middle,
+  without scrolling; checked at 1366x768, 1920x1080 and a taller 1000x900). There is no frame, no header and no row of
+  buttons: every button is drawn on the picture and also has a key. The countdown of a turn sits on the picture, at
+  the top in the middle.
+- Two small icons in the top-left corner: the note turns the music on and off (M), the arrow shows only the game,
+  like a normal game (F, full screen).
 - Music: five original chiptune tunes, all our own (`arcade/music.py`): a driving anthem on the title screen, a light,
   bouncy tune in the arcade room (also the store, wardrobe and championship), and one for each game (a funky party
   tune for UNO, a calm one for checkers, a hopping one for Connect Four). Changing screen fades from one to the

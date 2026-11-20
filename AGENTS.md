@@ -121,8 +121,8 @@ changing these files, and change them in a small pull request of their own.
   and online (`Lobby.duel`, moved on by `Lobbies._tick`). While a face-off runs, nothing else in the game moves.
 - **The only JavaScript is `INPUT_JS` and `FULLSCREEN_JS` in `arcade/ui.py`, `SOUND_JS` in `arcade/sound.py`,
   `ROOM_JS` in `arcade/room.py`, `TITLE_JS` in `arcade/title_view.py` and `ANIM_JS` in `arcade/table_anim.py`.** `ANIM_JS` only draws (and plays the card sounds through `SOUND_JS`) and never sends anything back. `INPUT_JS` reports clicks on the game picture.
-  `FULLSCREEN_JS` is the FULL SCREEN button (and the F key) and sends nothing back. `SOUND_JS` only plays sounds by
-  name (and draws the MUSIC button, which does what M does) and never sends anything back. Its tunes come from
+  `FULLSCREEN_JS` is the small full-screen icon (and the F key) and sends nothing back. `SOUND_JS` only plays sounds
+  by name (and draws the small music icon, which does what M does) and never sends anything back. Its tunes come from
   `arcade/music.py`, written into the script once (`__SCORE__`); each run only sends the name of the tune the screen
   wants (`music.track_for`). To change a tune, edit its text in `music.py`; `tests/test_music.py` checks it fits. `ROOM_JS` moves and draws the room; it numbers every press of E, I and Esc and
   sends it again until Python has handled it (`room.new_press`), so a press is never lost. Python checks every value
@@ -134,8 +134,9 @@ changing these files, and change them in a small pull request of their own.
   `online.lobbies().get(code)` for a fresh copy on every run. Moves go through `lobbies.act()`, which checks whose
   turn it is and the game's rules. The screens (`screens/online.py`, `screens/online_table.py`) look at the lobby's
   version once a second (a fragment) and draw again only when it changed.
-- **Every screen is drawn inside one container, `game_frame`** (app.py), which `ui.py` styles as the glowing frame.
-  A new screen gets the frame for free.
+- **Every screen is drawn inside one container, `game_frame`** (app.py), which `ui.py` makes fill the window: the
+  16:9 picture as big as the window allows, nothing around it. The countdown (`common.clock_bar`, and the online
+  `_watch`) goes in a container keyed `game_clock`, which the CSS lays on the picture at the top.
 - **There is no row of buttons under the picture** (Miguel's call: everything is on the screen). A screen's buttons go
   in `ui.bar(name, widths)`, which hides them but keeps their keys, and every action also gets a click region on the
   picture (for the tables: `common.corner_buttons` for RULES / PAUSE / LEAVE, the deck, the pile, PASS).

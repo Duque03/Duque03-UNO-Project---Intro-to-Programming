@@ -47,7 +47,6 @@ def draw(game, opponent, selected=None, flash="", cursor_cell=None, me=BOTTOM):
     img = scenes.table_scene("checkers", [opponent], opponent["name"] if game.winner is None and not my_turn else None)
     d = ImageDraw.Draw(img)
     regions = []
-    common.header(img, "CHECKERS")
 
     size = SIZE * CELL
     d.rectangle([BOARD_X - 10, BOARD_Y - 10, BOARD_X + size + 9, BOARD_Y + size + 9], fill=(52, 32, 18))

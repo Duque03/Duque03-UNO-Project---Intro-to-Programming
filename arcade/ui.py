@@ -43,16 +43,16 @@ _CSS = f"""
 .stApp, .stApp p, .stApp label, .stApp input, .stApp button, [data-testid="stToast"] {{
     font-family: "Jersey 10", monospace !important;
 }}
-/* the game is as big as the window allows: the frame (picture 16:9 + the strip of buttons) fits in the height */
-.block-container {{ max-width: min(97vw, calc((100vh - 150px) * 16 / 9)); padding: .5rem .6rem .3rem .6rem; }}
-
-/* Everything of the game sits inside one glowing frame, like an arcade screen: the picture on top and the
-   buttons as a control strip at the bottom, inside the frame (app.py puts every screen in game_frame). */
-.st-key-game_frame {{
-    background: linear-gradient(180deg, #140f36, #0b0820); border: 2px solid rgba(58, 214, 255, .6);
-    border-radius: 18px; padding: 10px 12px 12px 12px; gap: 8px !important;
-    box-shadow: 0 0 24px rgba(58, 214, 255, .35), 0 0 60px rgba(255, 79, 163, .22), inset 0 0 40px rgba(0, 0, 0, .55);
-}}
+/* The game fills the window: the 16:9 picture is as big as the window allows, in the middle, with nothing around it
+   (the picture is the whole game: no frame, no bar of buttons, no header). */
+.block-container {{ max-width: min(100vw, calc(100vh * 16 / 9)) !important; padding: 0 !important; margin: 0 auto; }}
+.stMain {{ min-height: 100vh; display: flex; flex-direction: column; justify-content: center; }}
+.stApp {{ background: #05030d !important; }}
+[data-testid="stMainBlockContainer"] > div {{ gap: 0 !important; }}
+.st-key-game_frame {{ position: relative; gap: 0 !important; }}
+/* the countdown of a turn (or of a face-off answer) sits on the picture, at the top in the middle */
+.st-key-game_clock {{ position: absolute !important; top: 1.2%; left: 50%; transform: translateX(-50%); width: 36%;
+    z-index: 4; pointer-events: none; }}
 .st-key-game_frame .stButton button {{ min-height: 2.4rem; padding: 0 .6rem; background: rgba(13, 10, 31, .9); }}
 .st-key-game_frame .stButton button p {{ font-size: 1.2rem; }}
 .st-key-game_frame [data-testid="stHorizontalBlock"] {{ gap: .5rem; }}
@@ -67,12 +67,12 @@ header[data-testid="stHeader"], [data-testid="stToolbar"], [data-testid="stDecor
 img {{ image-rendering: pixelated; }}
 
 /* the game picture: the frame around it glows (see game_frame), the picture itself just has round corners */
-.st-key-{SCREEN_KEY} img, .st-key-{TITLE_KEY} img {{ border-radius: 10px; }}
+.st-key-{SCREEN_KEY} img, .st-key-{TITLE_KEY} img {{ border-radius: 0; display: block; }}
 .st-key-{SCREEN_KEY} img {{ cursor: pointer; }}
 /* animations are drawn on a see-through canvas laid exactly over the picture (arcade/table_anim.py) */
 .st-key-{SCREEN_KEY}_stage {{ position: relative; gap: 0 !important; }}
 .st-key-{SCREEN_KEY}_anim {{ position: absolute !important; inset: 0; z-index: 3; pointer-events: none; }}
-.st-key-{SCREEN_KEY}_anim canvas {{ border-radius: 10px; }}
+.st-key-{SCREEN_KEY}_anim canvas {{ border-radius: 0; }}
 .st-key-{SCREEN_KEY} [data-testid="stElementToolbar"], .st-key-{TITLE_KEY} [data-testid="stElementToolbar"] {{ display: none; }}
 .st-key-click_catcher {{ display: none; }}
 /* keys with no button on screen (arrows, Space, see keys()): the buttons are on the page, so they hear their key,
@@ -133,14 +133,14 @@ export default function (component) {{
 """
 _input_catcher = st.components.v2.component("arcade_input_catcher", js=INPUT_JS)
 
-# The full-screen button (top right) and the F key: the browser shows only the game, like a normal game.
+# The full-screen button (a small icon in the top-left corner) and the F key: the browser shows only the game.
 FULLSCREEN_CSS = """
 button.fullscreen {
-    position: fixed; top: 10px; right: 14px; z-index: 1000; cursor: pointer;
-    font: 1.05rem "Jersey 10", monospace; letter-spacing: .04em; color: #f3ead2;
-    background: rgba(13, 10, 31, .85); border: 2px solid rgba(58, 214, 255, .5); border-radius: 10px; padding: 4px 10px;
+    position: fixed; top: 8px; left: 48px; z-index: 1000; cursor: pointer; width: 32px; height: 32px; padding: 0;
+    font: 1.2rem "Jersey 10", monospace; line-height: 1; color: #f3ead2; opacity: .45;
+    background: rgba(13, 10, 31, .7); border: 2px solid rgba(58, 214, 255, .5); border-radius: 6px;
 }
-button.fullscreen:hover { border-color: #3ad6ff; box-shadow: 0 0 12px rgba(58, 214, 255, .5); }
+button.fullscreen:hover { opacity: 1; border-color: #3ad6ff; }
 """
 FULLSCREEN_JS = r"""
 export default function (component) {
@@ -151,7 +151,10 @@ export default function (component) {
     parentElement.appendChild(button);
     const toggle = () => document.fullscreenElement ? document.exitFullscreen()
                                                     : document.documentElement.requestFullscreen().catch(() => {});
-    const label = () => { button.textContent = document.fullscreenElement ? "EXIT FULL SCREEN (F)" : "FULL SCREEN (F)"; };
+    const label = () => {  // a small icon: four corners out (full screen) or in (back to the window); F does the same
+        button.textContent = document.fullscreenElement ? "\u2199" : "\u2197";
+        button.title = document.fullscreenElement ? "Exit full screen (F)" : "Full screen (F)";
+    };
     button.addEventListener("click", toggle);
     document.addEventListener("fullscreenchange", label);
     if (!window.__arcadeFullscreenKey) {
