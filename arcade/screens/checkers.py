@@ -159,6 +159,7 @@ def render() -> None:
             match.finish([me if game.winner == BOTTOM else opponent["name"]])
         if S.screen != "checkers":
             st.rerun()
+        common.podium_now(slot, draw(game, opponent)[0])  # the winner (and the loser) on the podium
 
     my_turn = game.winner is None and game.turn == BOTTOM
     common.run_clock(my_turn)  # the bot is done: the player's 15 seconds start

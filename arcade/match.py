@@ -13,7 +13,6 @@ from arcade.config import (
     CHAMPIONSHIP_BOTS, SIMULATED_TIE_CHANCE,
 )
 from arcade.logic import championship, levels
-from arcade.logic import uno as uno_rules
 from arcade.logic.checkers import CheckersGame
 from arcade.logic.connect4 import Connect4Game
 from arcade.logic.uno import UnoGame
@@ -122,6 +121,8 @@ def finish(winners: list[str], tied: bool = False, places: list[str] | None = No
     sound.play("tie" if tied else "win" if me in winners else "lose")  # A7
     if match["mode"] == "free":
         won = not tied and me in winners
+        bot = match["bots"][0]
+        order = [me, bot] if won or tied else [bot, me]  # everyone on the podium (arcade/art/podium.py)
         if won:
             coins = prize()
             S.player["coins"] += coins
@@ -132,6 +133,7 @@ def finish(winners: list[str], tied: bool = False, places: list[str] | None = No
             S.result = {"title": "TIE!", "line": rng.choice(phrases.TIE_LINES), "coins": 0}
         else:
             S.result = {"title": "GAME OVER", "line": rng.choice(phrases.LOSE_LINES), "coins": 0}
+        S.result.update(podium=standings_for(order), tied=tied)
         return
 
     if match["game"] == "uno" and places:  # all four played to the last player: points by place
@@ -157,15 +159,13 @@ def _finish_with_places(places: list[str]) -> None:
     me = S.player["name"]
     place = places.index(me) + 1
     coins = levels.place_coins([bots.level(name) for name in S.match["bots"]], place)
-    standings = "  ".join(f"{uno_rules.ordinal(i + 1).upper()} {'YOU' if name == me else name}"
-                          for i, name in enumerate(places))
-    if place == 1:
+    if place == 1:  # (everyone's place shows on the podium; the line is a word for the player)
         S.player["wins"][S.match["game"]] += 1
-        line = f"{state.rng().choice(phrases.WIN_LINES)} {standings}"
+        line = state.rng().choice(phrases.WIN_LINES)
     elif place == len(places):
-        line = f"{state.rng().choice(phrases.LOSE_LINES)} {standings}"
+        line = state.rng().choice(phrases.LOSE_LINES)
     else:
-        line = standings
+        line = ""
     S.player["coins"] += coins
     state.save()
     sound.play("win" if place == 1 else "lose" if place == len(places) else "tie")

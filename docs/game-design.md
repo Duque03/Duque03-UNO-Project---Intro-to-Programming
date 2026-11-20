@@ -113,7 +113,10 @@ Numbers live in `arcade/config.py`.
   passes; in checkers and Connect Four a random legal move is played (every jump of a chain). Drawing a card in UNO
   or jumping again in checkers starts a fresh 15 seconds. Pausing or opening the rules stops the clock; it starts
   again from 15 on return.
-- When the game ends a box appears:
+- When the game ends everyone stands on a **podium** (pixel art, also online): the winner on the gold step under a
+  spotlight with a medal, the loser on the silver step beside it (a tie: both on two equal gold steps), the title on a
+  red ribbon, the coins, and a line on the stage. They drop onto their steps one by one, the winner last; confetti
+  when the player wins. What it says:
   - win: "Congratulations!! You won!" and the coins of the bot's level: **easy 5, medium 15, hard 25, expert 40**;
   - UNO is played until only one player is left, so it has places. The prize is the average of the three bots'
     coins, rounded (easy + medium + hard = 15): **1st** wins all of it, **2nd** half, **3rd** a quarter (halves round
@@ -125,8 +128,8 @@ Numbers live in `arcade/config.py`.
     game at once instead of the player watching;
   - loss: one of 20 sentences, picked at random;
   - tie (Connect Four only): a tie message and no coins.
-- Enter closes the box and returns to the room.
-- **Play again** (A, or a click on PLAY AGAIN in the box) starts the same game straight away, at the same table,
+- Enter (or a click) closes the podium and returns to the room.
+- **Play again** (A, or a click on PLAY AGAIN) starts the same game straight away, at the same table,
   against the same bots, for the same prize. It is only offered in free play: a championship goes on to its scoreboard.
 
 ### UNO

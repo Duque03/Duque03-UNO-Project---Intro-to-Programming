@@ -103,18 +103,22 @@ def with_result(img, regions):
     if not S.result:
         return img, regions
     if S.result.get("podium"):
-        return podium.podium_picture(img, S.result["title"], S.result["podium"], S.player["name"], S.result["coins"])
+        result = S.result
+        return podium.podium_picture(img, result["title"], result["podium"], S.player["name"], result["coins"],
+                                     line=result.get("line", ""), tied=result.get("tied", False))
     return scenes.result_panel_again(img, S.result["title"], S.result["line"], S.result["coins"])
 
 
 PODIUM_DROP, PODIUM_GAP = 420, 480  # each player drops onto their step (ms), the last one first
 
 
-def podium_plan(table, title: str, standings: list[dict], me: str, coins: int = 0, footer: str = "again") -> dict:
+def podium_plan(table, title: str, standings: list[dict], me: str, coins: int = 0, footer: str = "again",
+                line: str = "", tied: bool = False) -> dict:
     """The players drop onto the podium one by one, from the last to the winner (arcade/table_anim.py)."""
-    under, _ = podium.podium_picture(table, title, standings, me, coins, footer, with_figures=False)
+    under, _ = podium.podium_picture(table, title, standings, me, coins, footer, with_figures=False, line=line,
+                                     tied=tied)
     sprites, moves, t = {}, [], 200
-    pieces = podium.figures(standings)
+    pieces = podium.figures(standings, tied)
     for i in reversed(range(len(pieces))):
         piece, (x, y) = pieces[i]
         sprites[f"p{i}"] = piece
@@ -122,6 +126,18 @@ def podium_plan(table, title: str, standings: list[dict], me: str, coins: int = 
                       "stay": True, "sound": "card"})
         t += PODIUM_GAP
     return {"id": table_anim.new_id("podium"), "total": t + 250, "under": under, "sprites": sprites, "moves": moves}
+
+
+def podium_now(slot, table) -> None:
+    """A free-play game just ended: the last move shows a moment, then everyone drops onto the podium."""
+    result = S.get("result")
+    if not result or not result.get("podium"):
+        return
+    ui.show(slot, table)
+    time.sleep(0.9)
+    plan = podium_plan(table, result["title"], result["podium"], S.player["name"], result["coins"],
+                       line=result.get("line", ""), tied=result.get("tied", False))
+    play_podium(slot, plan, with_result(table, [])[0])
 
 
 def play_podium(slot, plan: dict, final) -> None:
