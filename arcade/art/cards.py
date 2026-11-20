@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from functools import lru_cache
+
 from PIL import Image, ImageDraw
 
 from arcade.art.pixel import draw_text, mix, rgb, shade
@@ -140,7 +142,13 @@ def draw_back(img, x, y, w=CARD_W, h=CARD_H):
 
 
 def card_sprite(card):
-    """One face-up card on a see-through picture (with its shadow), for the animations on the table."""
+    """One face-up card on a see-through picture (with its shadow), for the animations on the table.
+    (Kept for the next runs: do not draw on the picture it returns.)"""
+    return _card_sprite(tuple(card))
+
+
+@lru_cache(maxsize=256)
+def _card_sprite(card):
     img = Image.new("RGBA", (CARD_W + 4, CARD_H + 4), (0, 0, 0, 0))
     draw_card(img, 0, 0, card)
     return img
@@ -170,15 +178,21 @@ def lie(sprite, scale=1.0):
     return out
 
 
+@lru_cache(maxsize=256)
+def _lying(card, scale: float):
+    """A card (None: face down) as it looks lying on the table. Made once: bending it row by row is slow."""
+    return lie(back_sprite() if card is None else card_sprite(card), scale)
+
+
 def draw_lying_card(img, x, y, card, scale=1.0):
     """A face-up card lying on the table, its far-left corner at (x, y)."""
-    face = lie(card_sprite(card), scale)
+    face = _lying(tuple(card), scale)
     img.paste(face, (int(x), int(y)), face)
 
 
 def draw_lying_back(img, x, y, scale=1.0):
     """A face-down card lying on the table, its far-left corner at (x, y)."""
-    back = lie(back_sprite(), scale)
+    back = _lying(None, scale)
     img.paste(back, (int(x), int(y)), back)
 
 
