@@ -34,7 +34,7 @@ def leave_table() -> None:
     champ = S.match and S.match["mode"] == "champ"
     S.champ = None if champ else S.champ
     match.back_to_hub(centre=bool(champ))
-    st.toast("You left the championship." if champ else "You left the table. No coins this time.")
+    ui.toast("You left the championship." if champ else "You left the table. No coins this time.")
 
 
 def render() -> None:
