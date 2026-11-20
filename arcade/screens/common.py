@@ -24,16 +24,21 @@ def bot_pause(since: float) -> None:
 
 
 def thinking(img, seat: int, seats: int):
-    """A "..." speech bubble next to the bot whose turn it is (seat 0, 1 or 2 across the table)."""
-    x = scenes.seat_positions(seats)[seat] * 3 + 34
+    """A "..." speech bubble next to the head of the bot whose turn it is (seat: 0, 1, 2 round the table)."""
+    spot = scenes.table_seats(seats)[seat]
+    left_side = spot["facing"] == "left"  # the bot on the right: the bubble goes on its left, towards the table
+    x, top = (spot["cx"] - 112 if left_side else spot["cx"] + 46), spot["head"] + 30
+    tail = x + 66 - 4 if left_side else x + 4  # the tail points at the bot's head
+    lean = -1 if left_side else 1
     d = ImageDraw.Draw(img)
-    d.polygon([(x + 4, 118), (x + 16, 106), (x + 22, 106)], fill=(22, 18, 43))  # the tail
-    d.rectangle([x, 74, x + 66, 108], fill=(22, 18, 43))
-    d.rectangle([x + 3, 77, x + 63, 105], fill=(255, 246, 218))
-    d.polygon([(x + 7, 113), (x + 16, 104), (x + 20, 104)], fill=(255, 246, 218))
+    d.polygon([(tail, top + 44), (tail + lean * 12, top + 32), (tail + lean * 18, top + 32)], fill=(22, 18, 43))
+    d.rectangle([x, top, x + 66, top + 34], fill=(22, 18, 43))
+    d.rectangle([x + 3, top + 3, x + 63, top + 31], fill=(255, 246, 218))
+    d.polygon([(tail + lean * 3, top + 39), (tail + lean * 12, top + 30), (tail + lean * 16, top + 30)],
+              fill=(255, 246, 218))
     phase = int(time.time() * 3) % 3  # one dot is lifted, so it looks alive between two pictures
     for i in range(3):
-        y = 86 - (3 if i == phase else 0)
+        y = top + 12 - (3 if i == phase else 0)
         d.rectangle([x + 12 + i * 16, y, x + 21 + i * 16, y + 9], fill=(22, 18, 43))
     return img
 
