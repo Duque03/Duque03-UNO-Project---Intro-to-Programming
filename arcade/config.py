@@ -65,6 +65,17 @@ NAME_MIN, NAME_MAX = 1, 10
 ANIMATIONS = True
 FRAME_DELAY = 0.045
 # Bots think for a random time between these two numbers of seconds before each move
+# Corta UNO (arcade/logic/trivia.py), for each bot level:
+#   cut     the chance the bot tries to cut the player's UNO, and react: how fast it presses (seconds after the UNO
+#           button appears; the player has UNO_SECONDS to say UNO first)
+#   say     how long the bot takes to say its own UNO: the time the player has to cut it
+#   knows   how often it answers a question right, and think: how many seconds it takes to answer
+CUT_LEVELS = {
+    "easy": {"cut": 0.25, "react": (1.3, 2.0), "say": (2.0, 2.8), "knows": 0.55, "think": (3.0, 6.5)},
+    "medium": {"cut": 0.4, "react": (1.0, 1.8), "say": (1.6, 2.4), "knows": 0.7, "think": (2.5, 6.0)},
+    "hard": {"cut": 0.55, "react": (0.8, 1.5), "say": (1.2, 2.0), "knows": 0.82, "think": (2.0, 5.0)},
+    "expert": {"cut": 0.7, "react": (0.6, 1.2), "say": (0.9, 1.5), "knows": 0.92, "think": (1.5, 4.0)},
+}
 BOT_THINK = (1.0, 3.0)
 
 # The player has this many seconds for each turn at every table. When time runs out the game plays
