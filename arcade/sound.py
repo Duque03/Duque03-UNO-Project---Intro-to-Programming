@@ -8,7 +8,7 @@ hands the last few names to SOUND_JS, which plays the ones it has not played yet
 The music: five original tunes (arcade/music.py), one for the title, one for the
 arcade room and one for each game. They are written into SOUND_JS once, and each
 run only tells the browser which tune the screen wants; the browser fades from one
-to the other. M, or the MUSIC button at the top left, turns the music on and off;
+to the other. M, or the little note in the top-left corner, turns the music on and off;
 the browser remembers the choice (localStorage). Browsers only allow sound after
 the first click or key press, so the music starts then.
 """
@@ -207,14 +207,19 @@ export default function (component) {
             if (key === "m" && tag !== "input" && tag !== "textarea" && !event.ctrlKey && !event.metaKey) toggleMusic();
             wake();
         });
-        // The MUSIC button (top left, like FULL SCREEN at the top right): the mouse can do what M does.
+        // The music button (a small icon in the top-left corner, next to full screen): the mouse can do what M does.
         // It goes on the page itself, because this component's own box is hidden.
         const button = document.createElement("button");
         button.className = "arcade-music";
-        button.style.cssText = "position:fixed;top:10px;left:14px;z-index:1000;cursor:pointer;"
-            + "font:1.05rem 'Jersey 10',monospace;letter-spacing:.04em;color:#f3ead2;background:rgba(13,10,31,.85);"
-            + "border:2px solid rgba(58,214,255,.5);border-radius:10px;padding:4px 10px;";
-        A.label = () => { button.textContent = A.musicOn ? "MUSIC: ON (M)" : "MUSIC: OFF (M)"; };
+        button.style.cssText = "position:fixed;top:8px;left:10px;z-index:1000;cursor:pointer;width:32px;height:32px;"
+            + "padding:0;font:1.2rem 'Jersey 10',monospace;line-height:1;color:#f3ead2;opacity:.45;"
+            + "background:rgba(13,10,31,.7);border:2px solid rgba(58,214,255,.5);border-radius:6px;";
+        button.addEventListener("mouseenter", () => { button.style.opacity = "1"; });
+        button.addEventListener("mouseleave", () => { button.style.opacity = ".45"; });
+        A.label = () => {  // a small note icon, crossed out when the music is off
+            button.textContent = A.musicOn ? "\u266a" : "\u00d7";
+            button.title = A.musicOn ? "Music on (M)" : "Music off (M)";
+        };
         button.addEventListener("click", (event) => {
             event.stopPropagation();
             toggleMusic();

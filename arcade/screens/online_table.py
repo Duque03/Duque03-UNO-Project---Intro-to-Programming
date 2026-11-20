@@ -20,7 +20,8 @@ from arcade.logic.checkers import SIZE
 from arcade.logic.checkers import IllegalMove as CheckersIllegal
 from arcade.logic.connect4 import COLS
 from arcade.logic.connect4 import IllegalMove as Connect4Illegal
-from arcade.logic.lobby import LobbyError, online_coins
+from arcade.logic.lobby import TURN_SECONDS, LobbyError, online_coins
+from arcade.logic.trivia import ROUND_SECONDS
 from arcade.logic.uno import COLOURS, WILD, card_name, ordinal
 from arcade.logic.uno import IllegalMove as UnoIllegal
 from arcade.screens import checkers as checkers_screen
@@ -53,9 +54,9 @@ def _watch(code: str, seen: int, turn: str | None, deadline: float | None, me: s
     if (turn or label) and deadline:
         left = max(0, int(deadline - time.time() + 0.99))
         who = label or ("YOUR TURN" if turn == me else f"{turn}'S TURN")
-        colour = "#ff4f6d" if left <= 5 else "#3ad6ff"
-        st.markdown(f"<div style='text-align:right;font:1.15rem \"Jersey 10\",monospace;color:{colour};"
-                    f"letter-spacing:.05em'>{who}: {left}s</div>", unsafe_allow_html=True)
+        with st.container(key="game_clock"):  # laid on the picture, at the top in the middle (ui._CSS)
+            st.markdown(common.clock_html(left, ROUND_SECONDS if label else TURN_SECONDS, who),
+                        unsafe_allow_html=True)
 
 
 def _finish(lobby, me: str) -> None:

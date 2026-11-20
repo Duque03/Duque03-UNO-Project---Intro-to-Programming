@@ -107,14 +107,6 @@ def opponents() -> list[dict]:
     ]
 
 
-def mode_label() -> str:
-    if not S.get("match"):  # an online game (screens/online_table.py) has no match in the arcade
-        return "ONLINE"
-    if S.match["mode"] == "champ":
-        return f"CHAMPIONSHIP - ROUND {S.champ['round'] + 1} OF 3"
-    return "FREE PLAY"
-
-
 PLACE_TITLES = {1: "VICTORY!", 2: "2ND PLACE!", 3: "3RD PLACE!"}
 
 

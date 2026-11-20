@@ -63,6 +63,17 @@ def restart_clock() -> None:
     S.turn_deadline = None
 
 
+def clock_html(left: float, total: float, label: str) -> str:
+    """The countdown drawn on the picture: a small dark pill with the time left and a bar that empties."""
+    colour = "#ff4f6d" if left <= min(5, total / 3) else "#3ad6ff"
+    return (f"<div style='display:flex;align-items:center;gap:8px;padding:3px 10px;border-radius:8px;"
+            f"background:rgba(13,10,31,.78);border:1px solid #3a2f6b'>"
+            f"<b style='color:{colour};font-size:1.1rem;white-space:nowrap'>{label}: {left:.0f}s</b>"
+            f"<div style='flex:1;height:8px;border-radius:4px;background:#17123a'>"
+            f"<div style='width:{100 * max(0, left) / total:.0f}%;height:100%;border-radius:4px;background:{colour}'>"
+            f"</div></div></div>")
+
+
 @st.fragment(run_every=1.0)
 def clock_bar(screen: str) -> None:
     """The countdown under the table. It redraws itself every second; at zero the whole screen runs
@@ -70,31 +81,18 @@ def clock_bar(screen: str) -> None:
     deadline = S.get("turn_deadline")
     if S.screen != screen:
         return
-    if deadline is None:  # not the player's turn: an empty line of the same height (it replaces the old bar at once)
-        st.markdown("<div style='height:30px'></div>", unsafe_allow_html=True)
-        return
-    left = turn_clock.seconds_left(deadline, time.time())
-    total, label = S.get("clock_total", TURN_SECONDS), S.get("clock_label", "YOUR TURN")  # (Corta UNO: ANSWER)
-    colour = "#ff4f6d" if left <= min(5, total / 3) else "#3ad6ff"
-    st.markdown(
-        f"<div style='display:flex;align-items:center;gap:10px;height:30px;margin:-6px 0 2px 0'>"
-        f"<div style='flex:1;height:10px;border-radius:5px;background:#17123a;border:1px solid #3a2f6b'>"
-        f"<div style='width:{100 * left / total:.0f}%;height:100%;border-radius:5px;background:{colour};"
-        f"box-shadow:0 0 8px {colour}'></div></div>"
-        f"<b style='color:{colour};font-size:1.25rem;min-width:7.5em'>{label}: {left:.0f}s</b></div>",
-        unsafe_allow_html=True,
-    )
+    with st.container(key="game_clock"):  # laid on the picture, at the top in the middle (ui._CSS)
+        if deadline is None:  # not the player's turn: nothing (it replaces the old bar at once)
+            st.markdown("", unsafe_allow_html=True)
+            return
+        left = turn_clock.seconds_left(deadline, time.time())
+        total, label = S.get("clock_total", TURN_SECONDS), S.get("clock_label", "YOUR TURN")  # (Corta UNO: ANSWER)
+        st.markdown(clock_html(left, total, label), unsafe_allow_html=True)
     if left <= 0 and S.get("clock_fired") != deadline:
         # Time is up: run the screen once so it can act (play for the player, close a question). Only once per
         # deadline: if the screen does not move the deadline, running it again and again would freeze the page.
         S.clock_fired = deadline
         st.rerun()
-
-
-def header(img, title: str) -> None:
-    """Game name and mode along the top edge of the table picture."""
-    draw_text(img, (16, 8), title, 3, "#ffe94a", "lt", shadow="#16122b")
-    draw_text(img, (16 + text_size(title, 3)[0] + 18, 12), match.mode_label(), 2, "#d9d4ff", "lt", shadow="#16122b")
 
 
 def message(img, text: str, y: int, colour="#ffffff", scale=2) -> None:
@@ -119,17 +117,22 @@ def with_result(img, regions):
 
 
 def corner_buttons(img, names=("rules", "pause")) -> list:
-    """Small buttons in the top-right corner of a table picture (there is no bar of buttons under the picture).
-    Returns their click regions: ("rules",), ("pause",), ("leave",)."""
-    labels = {"rules": "RULES", "pause": "PAUSE", "leave": "LEAVE"}
-    regions, right = [], SCREEN_W - 14
+    """Small square buttons in the top-right corner of a table picture (there is no bar of buttons): "?" for the
+    rules, two bars for pause, X to leave an online table. Returns their click regions: ("rules",), ("pause",),
+    ("leave",)."""
+    regions, right = [], SCREEN_W - 12
+    d = ImageDraw.Draw(img)
     for name in reversed(names):
-        width = text_size(labels[name], 2)[0] + 28
-        box = (right - width, 8, right, 38)
-        panel(img, box, "#1c1642", "#3ad6ff", bw=3, shadow=False)
-        draw_text(img, ((box[0] + box[2]) // 2, 24), labels[name], 2, "#ffffff", "mm")
+        box = (right - 40, 10, right, 46)
+        panel(img, box, "#16122b", "#3ad6ff", bw=3, shadow=False)
+        cx, cy = (box[0] + box[2]) // 2, (box[1] + box[3]) // 2
+        if name == "pause":
+            d.rectangle([cx - 8, cy - 9, cx - 3, cy + 8], fill=(243, 234, 210))
+            d.rectangle([cx + 3, cy - 9, cx + 8, cy + 8], fill=(243, 234, 210))
+        else:
+            draw_text(img, (cx, cy + 1), "?" if name == "rules" else "X", 3, "#f3ead2", "mm")
         regions.append((box, (name,)))
-        right = box[0] - 10
+        right = box[0] - 8
     return regions
 
 

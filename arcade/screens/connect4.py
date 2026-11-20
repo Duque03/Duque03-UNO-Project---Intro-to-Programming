@@ -32,7 +32,6 @@ def draw(game, opponent, flash="", falling=None, column=None, me=RED):
     img = scenes.table_scene("connect4", [opponent], opponent["name"] if game.winner is None and not my_turn else None)
     d = ImageDraw.Draw(img)
     regions = []
-    common.header(img, "CONNECT FOUR")
 
     width, height = COLS * CELL, ROWS * CELL
     d.rectangle([BOARD_X - 12, BOARD_Y - 10, BOARD_X + width + 11, BOARD_Y + height + 9], fill=(20, 40, 120))

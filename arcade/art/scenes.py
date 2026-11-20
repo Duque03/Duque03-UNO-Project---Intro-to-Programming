@@ -649,9 +649,6 @@ def _table_backdrop() -> Image.Image:
         rect(d, 0, y, BASE_W, 1, MORTAR)
         for x in range(-6 if i % 2 else 0, BASE_W, 12):
             rect(d, x, y, 1, 6, MORTAR)
-    rect(d, 0, 0, BASE_W, 13, (16, 12, 34))  # dark strip behind the game's name
-    rect(d, 0, 13, BASE_W, 1, rgb("#ff4fa3"))
-    rect(d, 0, 15, BASE_W, 1, rgb("#3ad6ff"))
     props = new_layer()
     pd = ImageDraw.Draw(props)
     for game, (cx, body, screen) in enumerate(((14, "#5a3fa8", "#58c4d8"), (112, "#8a3f86", "#f0a060"),

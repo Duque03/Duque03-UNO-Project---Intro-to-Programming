@@ -107,7 +107,6 @@ def draw(game, me, opponents, flash="", choosing=False, picks=(), uno_open=False
     img = scenes.table_scene("uno", opponents, None if game.winner or dealing else game.current)
     d = ImageDraw.Draw(img)
     regions = []
-    common.header(img, "UNO")
 
     # each opponent holds their cards in a fan, with how many there are on the table in front of them
     for seat, opponent in zip(scenes.table_seats(len(opponents)), opponents):
