@@ -14,6 +14,7 @@ import streamlit as st
 from arcade import online, sound, state, table_anim, ui
 from arcade.art import duel as duel_art
 from arcade.art import scenes
+from arcade.config import SCREEN_H, SCREEN_W
 from arcade.logic import cursor
 from arcade.logic.checkers import SIZE
 from arcade.logic.checkers import IllegalMove as CheckersIllegal
@@ -23,6 +24,7 @@ from arcade.logic.lobby import LobbyError, online_coins
 from arcade.logic.uno import COLOURS, WILD, card_name, ordinal
 from arcade.logic.uno import IllegalMove as UnoIllegal
 from arcade.screens import checkers as checkers_screen
+from arcade.screens import common
 from arcade.screens import connect4 as connect4_screen
 from arcade.screens import online as online_screens
 from arcade.screens import uno as uno_screen
@@ -124,29 +126,32 @@ def render() -> None:
         _watch(code, lobby.version, turn, lobby.deadline, me)
 
 
-def _bar_end(bar, lobby, me: str, over: bool) -> None:
-    """The last buttons of every online table: back to the lobby when the game is over, and Leave."""
+def _bar_end(bar, lobby, me: str, over: bool, action=None) -> None:
+    """The last keys of every online table: back to the lobby when the game is over (Enter, or a click on the
+    picture), and Leave (Esc, or LEAVE in the corner of the picture)."""
     if over:
         with bar[0]:
             back = ui.button("Lobby", "otable_lobby", "Enter", type="primary")
-        if back:
+        if back or action == ("lobby",):
             S.online_round_done = lobby.round
             ui.fade_next()
             S.screen = "lobby"
             st.rerun()
     with bar[-1]:
         out = ui.button("Leave", "otable_leave", "Esc")
-    if out:
+    if out or action == ("leave",):
         online_screens.leave()
         st.rerun()
 
 
 def _show(img, regions, lobby, me, over, plan=None):
     """Show the table (with the result box when the game is over), after an animation if there is one."""
-    if over:
+    if over:  # a click anywhere goes back to the lobby
         title, line = _result_text(lobby, me)
         img = scenes.result_panel(img, title, line, online_coins(lobby.result, me))
-        regions = []
+        regions = [((0, 0, SCREEN_W, SCREEN_H), ("lobby",))]
+    else:
+        regions = list(regions) + common.corner_buttons(img, ("leave",))  # no bar of buttons: LEAVE is on the picture
     slot = ui.screen()
     if plan is None:
         ui.show(slot, img)
@@ -216,14 +221,14 @@ def _uno(lobby, me: str, mine: bool, over: bool) -> None:
                                    uno_open=uno_open, focus=focus if keys else None,
                                    colour_focus=colour_focus if keys else None, cut_open=cut_open)
     regions = _show(img, regions, lobby, me, over, _uno_plan(lobby, me, opponents))
-    point = ui.click() if (mine or uno_open or cut_open) and not over else None
+    point = ui.click()
     if point is not None:
         S.ouno_keyboard = False  # playing with the mouse: no frame
     action = ui.hit(regions, point)
 
-    bar = st.columns([1.3, 1, 1, 1.4, 1, 1])
+    bar = ui.bar("ouno", [1.3, 1, 1, 1.4, 1, 1])  # invisible: only the keys (everything is on the picture)
     if over:
-        _bar_end(bar, lobby, me, over)
+        _bar_end(bar, lobby, me, over, action)
         return
     with bar[0]:
         play = ui.button("Play" if wild is None else "Choose colour", "ouno_play", "Enter", type="primary",
@@ -239,7 +244,7 @@ def _uno(lobby, me: str, mine: bool, over: bool) -> None:
             cut, uno = False, ui.button("UNO!", "ouno_uno", "U", type="primary" if uno_open else "secondary")
     with bar[4]:
         cancel = ui.button("Cancel", "ouno_cancel", "X", disabled=not mine or (not picks and wild is None))
-    _bar_end(bar, lobby, me, over)
+    _bar_end(bar, lobby, me, over, action)
 
     if uno or action == ("uno",):
         sound.play("coin")
@@ -262,7 +267,7 @@ def _uno(lobby, me: str, mine: bool, over: bool) -> None:
     if draw or action == ("draw",):
         S.ouno_pick = []
         _act("draw")
-    if passed:
+    if passed or action == ("pass",):
         _act("pass")
     if key == "space" and focus is not None:
         action = ("card", focus)
@@ -307,17 +312,20 @@ def _uno_duel(lobby, me: str, opponents, key) -> None:
             "focus": focus if asking and S.get("ouno_keyboard") else None}
     table = uno_screen.draw(game, me, opponents)[0]
     img, regions = duel_art.duel_picture(table, view)
+    regions += common.corner_buttons(img, ("leave",))
     ui.show(ui.screen(), img)
-    point = ui.click() if asking else None
+    point = ui.click()
     if point is not None:
         S.ouno_keyboard = False
     action = ui.hit(regions, point)
-    bar = st.columns([1.3, 1, 1, 1, 1, 1])
+    if not asking and action in (("yes",), ("no",)):
+        action = None
+    bar = ui.bar("oduel", [1.3, 1, 1, 1, 1, 1])  # invisible: YES and NO are on the picture
     with bar[0]:
         yes = ui.button("Yes", "oduel_yes", "Y", type="primary", disabled=not asking)
     with bar[1]:
         no = ui.button("No", "oduel_no", "N", type="primary", disabled=not asking)
-    _bar_end(bar, lobby, me, False)
+    _bar_end(bar, lobby, me, False, action)
     if asking and key == "space":
         action = ("yes",) if focus == 0 else ("no",)
     if asking and (yes or no or action in (("yes",), ("no",))):
@@ -352,9 +360,9 @@ def _connect4(lobby, me: str, mine: bool, over: bool) -> None:
     flash = S.online_flash or ("" if mine or over else f"Waiting for {friend['name']}...")
     img, regions = connect4_screen.draw(game, friend, flash, column=column, me=side)
     regions = _show(img, regions, lobby, me, over)
-    action = ui.hit(regions, ui.click() if mine else None)
-    bar = st.columns([1.3, 1, 1, 1, 1])
-    _bar_end(bar, lobby, me, over)
+    action = ui.hit(regions, ui.click())
+    bar = ui.bar("oc4", [1.3, 1, 1, 1, 1])  # invisible: only the keys (everything is on the picture)
+    _bar_end(bar, lobby, me, over, action)
     if mine and key in ("drop", "down"):
         action = ("col", column)
     if mine and action and action[0] == "col":
@@ -384,9 +392,9 @@ def _checkers(lobby, me: str, mine: bool, over: bool) -> None:
     flash = S.online_flash or ("" if mine or over else f"Waiting for {friend['name']}...")
     img, regions = checkers_screen.draw(game, friend, selected, flash, cursor_cell=cell if mine else None, me=side)
     regions = _show(img, regions, lobby, me, over)
-    action = ui.hit(regions, ui.click() if mine else None)
-    bar = st.columns([1.3, 1, 1, 1, 1])
-    _bar_end(bar, lobby, me, over)
+    action = ui.hit(regions, ui.click())
+    bar = ui.bar("ock", [1.3, 1, 1, 1, 1])  # invisible: only the keys (everything is on the picture)
+    _bar_end(bar, lobby, me, over, action)
     if not mine:
         return
     if key == "space":

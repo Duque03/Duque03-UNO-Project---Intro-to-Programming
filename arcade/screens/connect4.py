@@ -123,17 +123,20 @@ def render() -> None:
     if key in ("left", "right"):
         column = S.c4_column = cursor.step(column, key, COLS, wrap=False)
     img, regions = draw(game, opponent, S.flash, column=column)
+    if not S.result:
+        regions += common.corner_buttons(img)  # RULES and PAUSE on the picture (no bar of buttons)
     img, regions = common.with_result(img, regions)
     common.show(slot, img, "connect4")
     point = None if bot_was_playing else ui.click()  # a click made during the bot's turn does not count
     action = ui.hit(regions, point)
 
-    bar = st.columns([1.4, 1.4, 1.4, 1])
+    bar = ui.bar("connect4", [1.4, 1.4, 1.4, 1])  # invisible: only the keys (everything is on the picture)
     if S.result:
         common.result_buttons(bar, "connect4", action)  # Continue, or Play again
         return
     common.rules_button(bar[2], "connect4")
     common.pause_button(bar[3], "connect4")
+    common.corner_action(action, "connect4")
 
     if key in ("space", "enter", "down"):
         action = ("col", column)

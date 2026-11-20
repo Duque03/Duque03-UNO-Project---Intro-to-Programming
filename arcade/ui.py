@@ -303,6 +303,14 @@ def button(label: str, key: str, shortcut: str | None = None, **kwargs) -> bool:
 ARROWS = {"Left": "left", "Right": "right", "Up": "up", "Down": "down"}
 
 
+def bar(name: str, widths: list[float]):
+    """The row of buttons under the picture, made invisible: the game has no bar of buttons, everything is on the
+    picture. The buttons stay on the page so their keys still work (the CSS hides containers whose key starts with
+    keys_, see keys()). Whatever a button does must also be a click region on the picture."""
+    with st.container(key=f"keys_bar_{name}"):
+        return st.columns(widths)
+
+
 def keys(name: str, mapping: dict[str, str]) -> str | None:
     """Keys that have no button on screen (the arrow keys, Space): invisible buttons that only listen for them.
 

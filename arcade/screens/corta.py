@@ -142,7 +142,7 @@ def render_duel(slot, game, me: str, opponents, table_img, key) -> None:
     if point is not None:
         S.uno_keyboard = False
     action = ui.hit(regions, point)
-    bar = st.columns([1.4, 1.4, 1.4, 1])
+    bar = ui.bar("duel", [1.4, 1.4, 1.4, 1])  # invisible: YES and NO are on the picture
     with bar[0]:
         yes = ui.button("Yes", "duel_yes", "Y", type="primary", disabled=not asking)
     with bar[1]:
@@ -185,7 +185,7 @@ def render_bot_window(slot, game, me: str, picture) -> None:
     common.run_clock(False)
     common.show(slot, picture, "uno")
     action = ui.hit(picture_regions(), ui.click())
-    bar = st.columns([1.4, 1.4, 1.4, 1])
+    bar = ui.bar("cut", [1.4, 1.4, 1.4, 1])  # invisible: CORTA UNO! is on the picture
     with bar[0]:
         cut = ui.button("Corta UNO!", "uno_cut", "K", type="primary")
     if (cut or action == ("cut",)) and game.uno_due == bot:
