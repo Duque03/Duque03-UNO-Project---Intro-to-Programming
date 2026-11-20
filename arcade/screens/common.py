@@ -9,8 +9,8 @@ import time
 import streamlit as st
 from PIL import ImageDraw
 
-from arcade import match, state, ui
-from arcade.art import scenes
+from arcade import match, state, table_anim, ui
+from arcade.art import podium, scenes
 from arcade.art.pixel import draw_text, panel, text_size
 from arcade.config import BOT_THINK, SCREEN_W, TURN_SECONDS
 from arcade.logic import turn_clock
@@ -97,12 +97,39 @@ def message(img, text: str, y: int, colour="#ffffff", scale=2) -> None:
 
 
 def with_result(img, regions):
-    """Cover the table with the end-of-game pop-up when a free-play game is over.
+    """Cover the table with the end-of-game pop-up when a free-play game is over (UNO: the podium).
 
     Its regions: PLAY AGAIN, and the rest of the picture (a click there continues)."""
     if not S.result:
         return img, regions
+    if S.result.get("podium"):
+        return podium.podium_picture(img, S.result["title"], S.result["podium"], S.player["name"], S.result["coins"])
     return scenes.result_panel_again(img, S.result["title"], S.result["line"], S.result["coins"])
+
+
+PODIUM_DROP, PODIUM_GAP = 420, 480  # each player drops onto their step (ms), the last one first
+
+
+def podium_plan(table, title: str, standings: list[dict], me: str, coins: int = 0, footer: str = "again") -> dict:
+    """The players drop onto the podium one by one, from the last to the winner (arcade/table_anim.py)."""
+    under, _ = podium.podium_picture(table, title, standings, me, coins, footer, with_figures=False)
+    sprites, moves, t = {}, [], 200
+    pieces = podium.figures(standings)
+    for i in reversed(range(len(pieces))):
+        piece, (x, y) = pieces[i]
+        sprites[f"p{i}"] = piece
+        moves.append({"img": f"p{i}", "from": [x, y - 320], "to": [x, y], "at": t, "dur": PODIUM_DROP,
+                      "stay": True, "sound": "card"})
+        t += PODIUM_GAP
+    return {"id": table_anim.new_id("podium"), "total": t + 250, "under": under, "sprites": sprites, "moves": moves}
+
+
+def play_podium(slot, plan: dict, final) -> None:
+    """Play the podium animation, then leave the final picture (with everyone on it) behind it."""
+    table_anim.play(slot, plan)
+    time.sleep(0.12)
+    ui.show(slot, final)
+    time.sleep(max(0.0, table_anim.seconds(plan) - 0.12))
 
 
 def corner_buttons(img, names=("rules", "pause")) -> list:

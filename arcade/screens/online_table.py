@@ -13,7 +13,7 @@ import streamlit as st
 
 from arcade import online, sound, state, table_anim, ui
 from arcade.art import duel as duel_art
-from arcade.art import scenes
+from arcade.art import podium, scenes
 from arcade.config import SCREEN_H, SCREEN_W
 from arcade.logic import cursor
 from arcade.logic.checkers import SIZE
@@ -146,21 +146,39 @@ def _bar_end(bar, lobby, me: str, over: bool, action=None) -> None:
 
 def _show(img, regions, lobby, me, over, plan=None):
     """Show the table (with the result box when the game is over), after an animation if there is one."""
+    slot = ui.screen()
+    if over and lobby.result.get("places") and not lobby.result.get("left"):  # UNO: everyone on the podium
+        title, _ = _result_text(lobby, me)
+        standings = [lobby.player(name) for name in lobby.result["places"]]
+        coins = online_coins(lobby.result, me)
+        final, regions = podium.podium_picture(img, title, standings, me, coins, footer="lobby")
+        if S.get("online_podium") != (lobby.code, lobby.round):  # the first time: they drop in one by one
+            S.online_podium = (lobby.code, lobby.round)
+            if plan is not None:  # the last card goes down first
+                _play(slot, plan, img)
+            common.play_podium(slot, common.podium_plan(img, title, standings, me, coins, "lobby"), final)
+        else:
+            ui.show(slot, final)
+        return regions
     if over:  # a click anywhere goes back to the lobby
         title, line = _result_text(lobby, me)
         img = scenes.result_panel(img, title, line, online_coins(lobby.result, me))
         regions = [((0, 0, SCREEN_W, SCREEN_H), ("lobby",))]
     else:
         regions = list(regions) + common.corner_buttons(img, ("leave",))  # no bar of buttons: LEAVE is on the picture
-    slot = ui.screen()
     if plan is None:
         ui.show(slot, img)
         return regions
+    _play(slot, plan, img)
+    return regions
+
+
+def _play(slot, plan, after) -> None:
+    """An animation over the table, then the picture of the table as it is now behind it."""
     table_anim.play(slot, plan)  # the canvas covers the old picture first, so the new one arrives unseen
     time.sleep(0.12)
-    ui.show(slot, img)
+    ui.show(slot, after)
     time.sleep(max(0.0, table_anim.seconds(plan) - 0.12))
-    return regions
 
 
 def _uno_plan(lobby, me: str, opponents):

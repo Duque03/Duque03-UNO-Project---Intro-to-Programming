@@ -8,6 +8,7 @@ play, or points and the scoreboard in the championship.
 from __future__ import annotations
 
 from arcade import bots, catalog, hubmap, phrases, sound, state, ui
+from arcade import player as player_model
 from arcade.config import (
     CHAMPIONSHIP_BOTS, SIMULATED_TIE_CHANCE,
 )
@@ -168,7 +169,21 @@ def _finish_with_places(places: list[str]) -> None:
     S.player["coins"] += coins
     state.save()
     sound.play("win" if place == 1 else "lose" if place == len(places) else "tie")
-    S.result = {"title": PLACE_TITLES.get(place, "LAST PLACE"), "line": line, "coins": coins}
+    S.result = {"title": PLACE_TITLES.get(place, "LAST PLACE"), "line": line, "coins": coins,
+                "podium": standings_for(places)}
+
+
+def standings_for(places: list[str]) -> list[dict]:
+    """Everyone at the table from 1st to last, ready for the podium picture (arcade/art/podium.py)."""
+    me = S.player["name"]
+    out = []
+    for name in places:
+        if name == me:
+            out.append({"name": name, "look": player_model.look(S.player), "tag": S.player["equipped"].get("name")})
+        else:
+            bot = bots.get(name)
+            out.append({"name": name, "look": bots.look(bot), "tag": bot["tag"]})
+    return out
 
 
 def back_to_hub(centre: bool = False) -> None:
