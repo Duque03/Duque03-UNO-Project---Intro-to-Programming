@@ -99,8 +99,12 @@ Numbers live in `arcade/config.py`.
   | Checkers | 59 / 18 / 1 / – % | 96 / 85 / 9 / – % (expert is slow to simulate; it is stronger than hard) |
   | UNO (1st place out of 4) | 70 / 45 / 20 / 15 % | 81 / 64 / 34 / 27 % |
 - The player and the chosen bots walk to the table. When everyone has arrived the view zooms in and the game starts.
-- At the table the view is from the player's chair, close to a round table for four that shows whole, sized for the
-  players and the deck; the player's own hands hold their cards at the bottom. The opponents sit round it in turn
+- At the table the view is from the player's chair, in the same arcade as the room: behind each table is the part of
+  the room's back wall that table faces (UNO: the championship cabinet and the gumball machine; checkers: the row of
+  machines under the ARCADE sign and the store; Connect Four: the store and the prize machine), with the same bricks,
+  bunting, neon strip, posters and confetti floor. The machines keep playing their little games, their lights chase,
+  the claw moves, the neon signs flicker and the bunting changes colour (also in the room). The table is round, for
+  four, and shows whole, sized for the players and the deck; the player's own hands hold their cards at the bottom. The opponents sit round it in turn
   order: one opponent sits across; two sit left and right; three sit left, across and right. The ones at the sides
   sit closer, so they look bigger. A lamp over the table lights the middle of the felt in flat pixel rings. In UNO
   each one holds their cards up in a fan, with how many they hold on the table in front of them. The draw pile and

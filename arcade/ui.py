@@ -76,6 +76,7 @@ img {{ image-rendering: pixelated; }}
 .st-key-{SCREEN_KEY}_stage {{ position: relative; gap: 0 !important; }}
 .st-key-{SCREEN_KEY}_anim {{ position: absolute !important; inset: 0; z-index: 3; pointer-events: none; }}
 .st-key-{SCREEN_KEY}_anim canvas {{ border-radius: 0; }}
+.st-key-{SCREEN_KEY}_alive {{ position: absolute !important; inset: 0; z-index: 2; pointer-events: none; }}
 .st-key-{SCREEN_KEY} [data-testid="stElementToolbar"], .st-key-{TITLE_KEY} [data-testid="stElementToolbar"] {{ display: none; }}
 .st-key-click_catcher {{ display: none; }}
 /* keys with no button on screen (arrows, Space, see keys()): the buttons are on the page, so they hear their key,
@@ -239,6 +240,14 @@ class Slot:
             self._over = self._stage.container(key=f"{self.key}_anim").empty()
         return self._over
 
+    def alive_layer(self):
+        """A place laid over the picture, under the animations, for the moving parts of the wall behind a table
+        (table_anim.alive). Use it with `with`."""
+        self._ensure()
+        if getattr(self, "_alive", None) is None:
+            self._alive = self._stage.container(key=f"{self.key}_alive").empty()
+        return self._alive
+
 
 def screen(key: str = SCREEN_KEY) -> Slot:
     """The place where the game picture goes. Use show() to put a picture in it."""
@@ -270,6 +279,10 @@ def show(slot, img) -> None:
     st.session_state.pop("_fade_next", False)
     slot.image(inline(img), width="stretch")
     st.session_state["_last_frame"] = img
+    if (hasattr(img, "info") and img.info.get("alive")) or getattr(slot, "_alive", None) is not None:
+        from arcade import table_anim  # (table_anim uses this module)
+
+        table_anim.alive(slot, img)  # the machines on the wall behind a table keep playing
 
 
 def _fade_style() -> None:
@@ -279,7 +292,7 @@ def _fade_style() -> None:
         st.session_state["_fade_count"] = st.session_state.get("_fade_count", 0) + 1
     name = f"arcade-fade-{st.session_state.get('_fade_count', 0) % 2}"
     st.markdown(
-        f"<style>.st-key-{SCREEN_KEY} img {{ animation: {name} .4s ease-out; }}"
+        f"<style>.st-key-{SCREEN_KEY} img, .st-key-{SCREEN_KEY}_alive canvas {{ animation: {name} .4s ease-out; }}"
         "@keyframes arcade-fade-0 { from { opacity: 0; } to { opacity: 1; } }"
         "@keyframes arcade-fade-1 { from { opacity: 0; } to { opacity: 1; } }</style>",
         unsafe_allow_html=True,

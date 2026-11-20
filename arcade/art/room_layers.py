@@ -209,3 +209,27 @@ def bubble(text: str, key: str | None = None, locked: bool = False, small: str |
     if small:
         draw_text(img, (x0 + 12, y + 31), small, 1, "#4a4660", "lt")
     return img, (w, h), pad
+
+
+# ---------------------------------------------------------------- what moves on the walls
+
+@lru_cache(maxsize=1)
+def alive_patches() -> tuple:
+    """The moving parts of the room (arcade/art/alive.py): the games on the machines' screens and their marquee lights,
+    the trophy on the championship cabinet, the claw of the prize machine, the glowing sides of the machines along
+    the side walls, the ARCADE sign and the bunting. Positions on the small canvas, matching scenes._hub_background."""
+    from arcade.art import alive
+    from arcade.art.scenes import _hub_background
+    from arcade.art.table_room import _sign_box
+
+    top = hubmap.FLOOR_TOP
+    out = [alive.patch(0, 2, alive.bunting_frames(320), 3)]
+    for game, (cx, screen) in enumerate(((88, "#58c4d8"), (120, "#f0a060"), (152, "#8fd860"))):
+        out += alive.machine_patches(cx, top + 2, screen, game)
+    out += alive.machine_patches(43, top + 4, "#2a1a4a", 4, w=28, h=46)
+    out.append(alive.patch(292 - 11, top + 3 - 46 + 6, alive.claw_frames(), 3))
+    for x, y, screen in ((11, 88, "#ff7ac8"), (11, 130, "#8fd860"), (306, 92, "#58c4d8"), (306, 134, "#ffe94a")):
+        out.append(alive.patch(x, y, alive.side_glow_frames(screen), 3))
+    x, y, w, h = _sign_box(120, 9, "ARCADE")
+    out.append(alive.patch(x, y, alive.neon_frames(_hub_background().crop((x, y, x + w, y + h))), 3))
+    return tuple(out)
