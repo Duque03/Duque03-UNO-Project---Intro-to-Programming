@@ -11,7 +11,7 @@ from PIL import ImageDraw
 
 from arcade import match, state, ui
 from arcade.art import scenes
-from arcade.art.pixel import draw_text, text_size
+from arcade.art.pixel import draw_text, panel, text_size
 from arcade.config import BOT_THINK, SCREEN_W, TURN_SECONDS
 from arcade.logic import turn_clock
 from arcade.state import S
@@ -118,25 +118,58 @@ def with_result(img, regions):
     return scenes.result_panel_again(img, S.result["title"], S.result["line"], S.result["coins"])
 
 
-def pause_button(column, screen: str) -> None:
-    with column:
-        if ui.button("Pause", f"{screen}_pause", "Esc"):
-            restart_clock()  # the clock stops while the game is paused and starts again on return
-            S.paused_from = screen
-            S.pause_behind = S.get("_last_frame")  # the menu sits on top of the table as it was
-            state.go("pause")
-            st.rerun()
+def corner_buttons(img, names=("rules", "pause")) -> list:
+    """Small buttons in the top-right corner of a table picture (there is no bar of buttons under the picture).
+    Returns their click regions: ("rules",), ("pause",), ("leave",)."""
+    labels = {"rules": "RULES", "pause": "PAUSE", "leave": "LEAVE"}
+    regions, right = [], SCREEN_W - 14
+    for name in reversed(names):
+        width = text_size(labels[name], 2)[0] + 28
+        box = (right - width, 8, right, 38)
+        panel(img, box, "#1c1642", "#3ad6ff", bw=3, shadow=False)
+        draw_text(img, ((box[0] + box[2]) // 2, 24), labels[name], 2, "#ffffff", "mm")
+        regions.append((box, (name,)))
+        right = box[0] - 10
+    return regions
 
 
-def rules_button(column, screen: str) -> None:
+def corner_action(action, screen: str) -> None:
+    """A click on PAUSE or RULES in the corner (see corner_buttons)."""
+    if action == ("pause",):
+        _open_pause(screen)
+    elif action == ("rules",):
+        _open_rules(screen)
+
+
+def _open_pause(screen: str) -> None:
+    restart_clock()  # the clock stops while the game is paused and starts again on return
+    S.paused_from = screen
+    S.pause_behind = S.get("_last_frame")  # the menu sits on top of the table as it was
+    state.go("pause")
+    st.rerun()
+
+
+def _open_rules(screen: str) -> None:
     """Opens the rules of this game (task B3); Back returns to the table."""
     from arcade.screens import howto  # (imported here: howto imports the room, which imports this file's neighbours)
 
+    restart_clock()
+    howto.open_from(screen, screen)
+    st.rerun()
+
+
+def pause_button(column, screen: str) -> None:
+    """Esc pauses (the PAUSE button on the picture does the same)."""
+    with column:
+        if ui.button("Pause", f"{screen}_pause", "Esc"):
+            _open_pause(screen)
+
+
+def rules_button(column, screen: str) -> None:
+    """H opens the rules (the RULES button on the picture does the same)."""
     with column:
         if ui.button("Rules", f"{screen}_rules", "H"):
-            restart_clock()
-            howto.open_from(screen, screen)
-            st.rerun()
+            _open_rules(screen)
 
 
 def result_buttons(bar, screen: str, action) -> None:

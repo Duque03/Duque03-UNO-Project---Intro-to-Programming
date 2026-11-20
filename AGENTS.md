@@ -135,8 +135,11 @@ changing these files, and change them in a small pull request of their own.
   `online.lobbies().get(code)` for a fresh copy on every run. Moves go through `lobbies.act()`, which checks whose
   turn it is and the game's rules. The screens (`screens/online.py`, `screens/online_table.py`) look at the lobby's
   version once a second (a fragment) and draw again only when it changed.
-- **Every screen is drawn inside one container, `game_frame`** (app.py), which `ui.py` styles as the glowing frame
-  with the buttons at the bottom. A new screen gets the frame for free.
+- **Every screen is drawn inside one container, `game_frame`** (app.py), which `ui.py` styles as the glowing frame.
+  A new screen gets the frame for free.
+- **There is no row of buttons under the picture** (Miguel's call: everything is on the screen). A screen's buttons go
+  in `ui.bar(name, widths)`, which hides them but keeps their keys, and every action also gets a click region on the
+  picture (for the tables: `common.corner_buttons` for RULES / PAUSE / LEAVE, the deck, the pile, PASS).
 - **Streamlit fades the page while the script runs** (`data-stale`). `ui.py` switches that off, because in a game
   it looks like the screen going dark.
 

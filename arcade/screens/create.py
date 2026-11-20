@@ -35,7 +35,7 @@ def render() -> None:
     if point is not None:
         S.create_keys = False  # the mouse is in use: no arrow
     action = ui.hit(regions, point)
-    bar = st.columns([3, 1.4])
+    bar = ui.bar("create", [3, 1.4])  # invisible: LET'S PLAY! is on the picture
     with bar[1]:
         done = ui.button("Let's play!", "create_done", "Enter", type="primary")
 

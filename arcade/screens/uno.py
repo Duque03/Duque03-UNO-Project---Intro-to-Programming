@@ -31,6 +31,8 @@ HAND_Y, PILE_Y, DRAW_X, DISCARD_X = 434, 286, 384, 494
 UNO_SECONDS = 2.0  # time to press UNO after going down to one card
 UNO_GRACE = 0.35  # the click needs a moment to travel to the server
 UNO_BOX = (748, 330, 940, 420)  # where the big UNO button is on the picture
+PICK_LIFT = 36  # how far a picked card stands up out of the hand
+PASS_BOX = (270, 300, 360, 334)  # the PASS button, left of the deck (only after drawing)
 # Animations (milliseconds): the deal, then the roulette that shows who starts; cards drawn and played during the game
 DEAL_GAP, DEAL_FLIGHT, SPIN_MS, LABEL_MS = 90, 300, 2400, 1300
 MOVE_GAP, MOVE_FLIGHT = 280, 420
@@ -132,6 +134,11 @@ def draw(game, me, opponents, flash="", choosing=False, picks=(), uno_open=False
                   shadow="#16122b")
     if my_turn and game.can_draw(me):
         regions.append(((DRAW_X - 4, PILE_Y - 6, DRAW_X + cards.CARD_W, PILE_Y + PILE_H), ("draw",)))
+    if my_turn and game.draws and not game.pending:  # after drawing, the player may pass
+        box = PASS_BOX
+        panel(img, box, "#1c1642", "#ffe94a", bw=3, shadow=False)
+        draw_text(img, ((box[0] + box[2]) // 2, (box[1] + box[3]) // 2), "PASS", 2, "#ffe94a", "mm")
+        regions.append((box, ("pass",)))
     if dealing:  # nothing on the table yet but the deck (and the player's empty hands, ready for the cards)
         if hands:
             _draw_hands(img, len(game.hands[me]), hands)
@@ -152,10 +159,9 @@ def draw(game, me, opponents, flash="", choosing=False, picks=(), uno_open=False
         draw_text(img, (box_x, PILE_Y + 8), "NEXT", 1, "#d9d4ff", "lt", shadow="#16122b")
         draw_text(img, (box_x, PILE_Y + 20), game.next_player(), 2, "#ffffff", "lt", shadow="#16122b")
 
-    common.message(img, game.last_event, 368)
     hand = sorted_hand(game.hands[me])
     if flash:  # only what just happened; how to play is in the rules (I)
-        common.message(img, flash, 392, "#ff8a8a")
+        common.message(img, flash, 372, "#ff8a8a")
 
     # my hand: nothing glows; a picked card stands up a little
     count = len(hand)
@@ -163,7 +169,7 @@ def draw(game, me, opponents, flash="", choosing=False, picks=(), uno_open=False
     for i, card in enumerate(hand):
         x = left + i * step
         picked = i in picks
-        y = HAND_Y - (22 if picked else 0)
+        y = HAND_Y - (PICK_LIFT if picked else 0)
         if i not in hide:
             cards.draw_card(img, x, y, card)
         right = x + (step if i < count - 1 else cards.CARD_W)
@@ -211,7 +217,7 @@ def draw(game, me, opponents, flash="", choosing=False, picks=(), uno_open=False
 def _my_spot(index: int, count: int, raised: bool = False) -> list:
     """Top-left corner of the card at this position of the player's sorted hand."""
     left, step = hand_layout(count)
-    return [round(left + index * step), HAND_Y - (22 if raised else 0)]
+    return [round(left + index * step), HAND_Y - (PICK_LIFT if raised else 0)]
 
 
 def fan_size(seat: dict) -> tuple[int, int]:
@@ -405,6 +411,7 @@ def _choose_colour(bar, game, me, action, focus, key) -> None:
     with bar[2]:
         cancel = ui.button("Cancel", "uno_cancel", "X")
     common.pause_button(bar[3], "uno")
+    common.corner_action(action, "uno")
     if enter or key == "space":
         action = ("colour", COLOURS[focus])
     elif cancel:
@@ -523,6 +530,8 @@ def render() -> None:
     img, regions = draw(game, me, opponents, S.flash, choosing=S.pending_wild is not None, picks=picks,
                         uno_open=uno_open, focus=shown_focus,
                         colour_focus=colour_focus if S.get("uno_keyboard") else None)
+    if not S.result:
+        regions += common.corner_buttons(img)  # RULES and PAUSE on the picture (no bar of buttons)
     img, regions = common.with_result(img, regions)
     common.show(slot, img, "uno")
     point = None if bots_were_playing else ui.click()  # a click made during the bots' turn does not count
@@ -532,14 +541,16 @@ def render() -> None:
     if uno_open:
         _uno_clock()
 
-    bar = st.columns([1.4, 1.4, 1.4, 1])
+    bar = ui.bar("uno", [1.4, 1.4, 1.4, 1, 1])  # invisible: only the keys (everything is on the picture)
     if S.result:
         common.result_buttons(bar, "uno", action)  # Continue, or Play again
         return
+    common.rules_button(bar[4], "uno")
     if uno_open:
         with bar[0]:
             uno_pressed = ui.button("UNO!", "uno_call", "U", type="primary")
         common.pause_button(bar[3], "uno")
+        common.corner_action(action, "uno")
         if uno_pressed or action == ("uno",):
             _remember(game)
             S.uno_cutter = None  # said in time: nobody can cut it any more
@@ -561,12 +572,11 @@ def render() -> None:
     with bar[1]:
         play_pressed = ui.button("Play", "uno_play", "Enter", type="primary", disabled=not my_turn or not picks)
     with bar[2]:
-        if picks:
-            cancel_pressed, pass_pressed = ui.button("Cancel", "uno_cancel", "X"), False  # (Streamlit keeps C and R)
-        else:
-            cancel_pressed = False
-            pass_pressed = ui.button("Pass", "uno_pass", "P", disabled=not my_turn or not game.draws)
+        cancel_pressed = ui.button("Cancel", "uno_cancel", "X", disabled=not picks)  # (Streamlit keeps C and R)
+        pass_pressed = (ui.button("Pass", "uno_pass", "P", disabled=not my_turn or not game.draws)
+                        or action == ("pass",))
     common.pause_button(bar[3], "uno")
+    common.corner_action(action, "uno")
 
     if key == "space" and focus is not None:  # Space: a click on the card the yellow frame is on
         action = ("card", focus)

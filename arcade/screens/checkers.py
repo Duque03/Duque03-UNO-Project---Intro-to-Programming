@@ -177,17 +177,20 @@ def render() -> None:
             here = cursor.on_board(here, key, SIZE, SIZE)
         here = S.checkers_cursor = tuple(here)
     img, regions = draw(game, opponent, S.selected, S.flash, cursor_cell=here)
+    if not S.result:
+        regions += common.corner_buttons(img)  # RULES and PAUSE on the picture (no bar of buttons)
     img, regions = common.with_result(img, regions)
     common.show(slot, img, "checkers")
     point = None if bot_was_playing else ui.click()  # a click made during the bot's turn does not count
     action = ui.hit(regions, point)
 
-    bar = st.columns([1.4, 1.4, 1.4, 1])
+    bar = ui.bar("checkers", [1.4, 1.4, 1.4, 1])  # invisible: only the keys (everything is on the picture)
     if S.result:
         common.result_buttons(bar, "checkers", action)  # Continue, or Play again
         return
     common.rules_button(bar[2], "checkers")
     common.pause_button(bar[3], "checkers")
+    common.corner_action(action, "checkers")
 
     if key in ("space", "enter"):  # a click on the square the cursor is on
         action = ("cell", *here)
