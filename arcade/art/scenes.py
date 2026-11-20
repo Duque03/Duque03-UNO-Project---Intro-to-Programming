@@ -10,7 +10,7 @@ import math
 import random
 from functools import lru_cache
 
-from PIL import Image, ImageDraw
+from PIL import Image, ImageChops, ImageDraw
 
 from arcade import bots, catalog, hubmap
 from arcade.art import lighting, sprites
@@ -602,15 +602,16 @@ def title_scene(t: int = 0) -> Image.Image:
 # ---------------------------------------------------------------- table view
 
 # The game table: an oval seen from the player's chair, close up, with the opponents sitting round it (small canvas).
-# It is wider than the picture: its sides go out of the frame, like a real table seen from a seat at it.
-TABLE_CX, TABLE_CY, TABLE_RX, TABLE_RY, TABLE_RIM = 160, 112, 190, 44, 7
+# It fills most of the picture but not all of it: the whole table shows, a size that fits three players and a deck.
+TABLE_CX, TABLE_CY, TABLE_RX, TABLE_RY, TABLE_RIM = 160, 114, 128, 42, 7
 WOOD, WOOD_DARK = "#6b3a22", "#3e2014"
 SEATED_ROWS = 22  # the rows of a character's picture that show when they sit (the rest is under the table)
-# The seats: the players at the sides sit close to the player, so they look bigger (and the frame cuts them a little).
+# The seats: px is how many pixels of the big picture one pixel of the character takes (the players at the sides sit
+# close to the player, so they look bigger); sink: how far below the edge of the table their waist is (small canvas).
 SEATS = {
-    "left": {"x": 26, "feet": 101, "scale": 3, "facing": "right"},
-    "across": {"x": 160, "feet": 73, "scale": 2, "facing": "down"},
-    "right": {"x": 294, "feet": 101, "scale": 3, "facing": "left"},
+    "left": {"x": 52, "px": 11, "facing": "right", "sink": 10},
+    "across": {"x": 160, "px": 8, "facing": "down", "sink": 3},
+    "right": {"x": 268, "px": 11, "facing": "left", "sink": 10},
 }
 SEATING = {1: ["across"], 2: ["left", "right"], 3: ["left", "across", "right"]}
 
@@ -624,18 +625,20 @@ def rim_y(x: float) -> float:
 def table_seats(count: int) -> list[dict]:
     """Where the opponents sit round the table, in turn order after the player: on the left, across, on the right.
 
-    Each seat: x and feet (small canvas, where the character stands; the table hides their legs), scale (how big they
-    are drawn: the ones close to the player are bigger), facing (they look towards the middle of the table), and on
-    the big picture: cx (the middle of the character), head (the top of the character's picture) and rim (where the
-    table starts in front of them).
+    Each seat: x (small canvas), px and scale (how big the character is drawn: px pixels of the big picture for one
+    of theirs; scale is the same next to the small canvas), facing (they look towards the middle of the table), and
+    on the big picture: cx (the middle of the character), head (the top of the character's picture), waist (where
+    the table starts hiding them) and rim (where the table starts in front of them).
     """
     seats = []
     for name in SEATING.get(count, SEATING[1]):
         seat = dict(SEATS[name], name=name)
+        edge = round(rim_y(seat["x"] + (12 if seat["facing"] == "right" else -12 if seat["facing"] == "left" else 0)))
+        seat["scale"] = seat["px"] / SCALE
         seat["cx"] = seat["x"] * SCALE
-        seat["rim"] = round(rim_y(seat["x"] + (12 if seat["facing"] == "right" else -12 if seat["facing"] == "left"
-                                                else 0))) * SCALE
-        seat["head"] = (seat["feet"] - sprites.SPR_H * seat["scale"] + seat["scale"]) * SCALE
+        seat["rim"] = edge * SCALE
+        seat["waist"] = (edge + seat["sink"]) * SCALE
+        seat["head"] = seat["waist"] - SEATED_ROWS * seat["px"]
         seats.append(seat)
     return seats
 
@@ -658,6 +661,38 @@ def _table_backdrop() -> Image.Image:
     return Image.blend(img, new_base("#0d0a1f"), 0.35)
 
 
+@lru_cache(maxsize=1)
+def _checker() -> Image.Image:
+    """Every other pixel of the small canvas (a checkerboard), for dithered edges."""
+    img = Image.new("L", (BASE_W, BASE_H), 0)
+    img.putdata([255 if (x + y) % 2 == 0 else 0 for y in range(BASE_H) for x in range(BASE_W)])
+    return img
+
+
+def _dithered_oval(img, centre, rx, ry, colour, edge=2) -> None:
+    """A flat oval of one colour, its edge checkered for `edge` pixels so it fades into what is under it."""
+    cx, cy = centre
+    solid, rim = Image.new("L", img.size, 0), Image.new("L", img.size, 0)
+    ImageDraw.Draw(solid).ellipse([cx - rx, cy - ry, cx + rx, cy + ry], fill=255)
+    ImageDraw.Draw(rim).ellipse([cx - rx - edge, cy - ry - edge * 0.5, cx + rx + edge, cy + ry + edge * 0.5], fill=255)
+    rim.paste(0, (0, 0), ImageChops.invert(_checker()))
+    rim.paste(255, (0, 0), solid)
+    img.paste(tuple(colour)[:3] + (255,) if img.mode == "RGBA" else colour, (0, 0), rim)
+
+
+def _dithered_frame(img):
+    """The edges of the picture a little darker, in two checkered steps (pixel art instead of a smooth vignette).
+    img: the big picture (the checks are pixels of the small canvas)."""
+    img = img.convert("RGB")
+    dark = Image.blend(img, Image.new("RGB", img.size, (13, 10, 31)), 0.35)
+    outer, inner = Image.new("L", (BASE_W, BASE_H), 255), Image.new("L", (BASE_W, BASE_H), 255)
+    ImageDraw.Draw(outer).rectangle([10, 8, BASE_W - 11, BASE_H - 9], fill=0)
+    ImageDraw.Draw(inner).rectangle([4, 3, BASE_W - 5, BASE_H - 4], fill=0)
+    outer.paste(0, (0, 0), ImageChops.invert(_checker()))
+    outer.paste(255, (0, 0), inner)
+    img.paste(dark, (0, 0), upscale(outer))
+    return img
+
 def _carpet(d) -> None:
     """The floor round the table: a dark carpet with a small pattern."""
     rect(d, 0, 72, BASE_W, BASE_H - 72, (30, 22, 64))
@@ -675,21 +710,14 @@ def table_scene(kind, opponents, active=None, t=0):
     d = ImageDraw.Draw(img)
     _carpet(d)
     seats = table_seats(len(opponents))
-    for seat, opponent in zip(seats, opponents):
-        x, feet, scale = seat["x"], seat["feet"], seat["scale"]
-        back = 11 * scale // 2  # the back of their chair
-        rect(d, x - back, feet - 17 * scale, 2 * back, 13 * scale, (46, 22, 24))
-        rect(d, x - back + 2, feet - 17 * scale + 2, 2 * back - 4, 13 * scale - 4, (98, 42, 44))
-        skin, pants, hair, shirt = opponent["look"]
-        body = sprites.sprite(skin, pants, hair, shirt, seat["facing"], 0, t)
-        body = body.crop((0, 0, body.width, SEATED_ROWS))  # sitting: from the waist up
-        body = body.resize((body.width * scale, body.height * scale), Image.NEAREST)
-        top = feet - sprites.SPR_H * scale + scale
-        if active == opponent["name"]:  # whose turn it is: they light up a little
-            light = Image.new("RGBA", body.size, (255, 246, 210, 255))
-            body = Image.composite(Image.blend(body, light, 0.22), body, body)
-        img.paste(body, (x - body.width // 2, top), body)
-    felt, wood = rgb(FELT[kind]), rgb(WOOD)
+    for seat in seats:  # the backs of their chairs
+        x, waist, scale = seat["x"], seat["waist"] // SCALE, seat["scale"]
+        back, top = round(11 * scale / 2), waist - round(12 * scale)
+        rect(d, x - back, top, 2 * back, waist - top + 4, (46, 22, 24))
+        rect(d, x - back + 2, top + 2, 2 * back - 4, waist - top, (98, 42, 44))
+    # the table is drawn on its own sheet, laid over the players (it hides their legs)
+    table = Image.new("RGBA", img.size, (0, 0, 0, 0))
+    d = ImageDraw.Draw(table)
     felt, wood = rgb(FELT[kind]), rgb(WOOD)
     cx, cy, rx, ry, rim = TABLE_CX, TABLE_CY, TABLE_RX, TABLE_RY, TABLE_RIM
     d.ellipse([cx - rx - rim + 4, cy - ry + 10, cx + rx + rim - 4, cy + ry + rim + 14], fill=(14, 10, 30))  # shadow
@@ -698,12 +726,29 @@ def table_scene(kind, opponents, active=None, t=0):
     d.ellipse([cx - rx - rim + 2, cy - ry - rim + 1, cx + rx + rim - 2, cy + ry + rim - 1], outline=shade(wood, 1.4))
     d.ellipse([cx - rx, cy - ry, cx + rx, cy + ry], fill=shade(felt, 0.7))  # the felt, in the rim's shadow at the back
     d.ellipse([cx - rx + 2, cy - ry + 3, cx + rx - 2, cy + ry + 3], fill=felt)
-    img = lighting.light_pool(img, (cx, 96), 120, strength=0.16)  # the lamp over the table
-    img = lighting.vignette(img, 0.3)
+    # the lamp over the table: flat rings of lighter felt, with a checkered edge between them (pixel art, no blur)
+    for share, light in ((0.76, 1.1), (0.48, 1.2)):
+        _dithered_oval(table, (cx, cy + 4), rx * share, ry * share, shade(felt, light))
+
     big = upscale(img)
-    d = ImageDraw.Draw(big)
+    tags = []
     for seat, opponent in zip(seats, opponents):
-        bottom = seat["head"] + 3 * seat["scale"] ** 2
+        skin, pants, hair, shirt = opponent["look"]
+        body = sprites.sprite(skin, pants, hair, shirt, seat["facing"], 0, t)
+        body = body.crop((0, 0, body.width, SEATED_ROWS))  # sitting: from the waist up
+        hair_top = (body.getbbox() or (0, 0, 0, 0))[1]
+        body = body.resize((body.width * seat["px"], body.height * seat["px"]), Image.NEAREST)
+        if active == opponent["name"]:  # whose turn it is: they light up a little
+            light = Image.new("RGBA", body.size, (255, 246, 210, 255))
+            body = Image.composite(Image.blend(body, light, 0.22), body, body)
+        big.paste(body, (seat["cx"] - body.width // 2, seat["head"]), body)
+        tags.append(seat["head"] + hair_top * seat["px"] - 4)
+    big_table = upscale(table)
+    big.paste(big_table, (0, 0), big_table)
+    big = _dithered_frame(big)
+
+    d = ImageDraw.Draw(big)
+    for seat, opponent, bottom in zip(seats, opponents, tags):
         if active == opponent["name"]:  # whose turn it is: a soft pixel glow behind the name, and it stands up a little
             bottom -= 6
             tw, th = text_size(opponent["name"], 2)

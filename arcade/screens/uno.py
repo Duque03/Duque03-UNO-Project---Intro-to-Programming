@@ -27,7 +27,8 @@ from arcade.screens import common, corta
 from arcade.state import S
 
 FOCUS = scenes.FOCUS  # the yellow frame the arrow keys move
-HAND_Y, PILE_Y, DRAW_X, DISCARD_X = 434, 286, 384, 494
+HAND_Y, PILE_Y, DRAW_X, DISCARD_X = 434, 268, 380, 498
+PILE_SCALE = 1.25  # the two piles in the middle of the table are a little bigger than one card in the hand
 UNO_SECONDS = 2.0  # time to press UNO after going down to one card
 UNO_GRACE = 0.35  # the click needs a moment to travel to the server
 UNO_BOX = (748, 330, 940, 420)  # where the big UNO button is on the picture
@@ -36,7 +37,8 @@ PASS_BOX = (270, 300, 360, 334)  # the PASS button, left of the deck (only after
 # Animations (milliseconds): the deal, then the roulette that shows who starts; cards drawn and played during the game
 DEAL_GAP, DEAL_FLIGHT, SPIN_MS, LABEL_MS = 90, 300, 2400, 1300
 MOVE_GAP, MOVE_FLIGHT = 280, 420
-PILE_H = round(cards.CARD_H * cards.LYING)  # the piles lie flat on the table
+PILE_W = round(cards.CARD_W * PILE_SCALE)
+PILE_H = round(cards.CARD_H * PILE_SCALE * cards.LYING)  # the piles lie flat on the table
 DECK, PILE = (DRAW_X, PILE_Y), (DISCARD_X, PILE_Y)
 _COLOUR_ORDER = {colour: i for i, colour in enumerate(COLOURS + (WILD,))}
 _VALUE_ORDER = {value: i for i, value in enumerate(NUMBERS + ("skip", "reverse", "draw2", "wild", "wild4"))}
@@ -127,12 +129,12 @@ def draw(game, me, opponents, flash="", choosing=False, picks=(), uno_open=False
 
     # the draw pile and the discard pile, lying on the table
     for layer in (2, 1, 0):
-        cards.draw_lying_back(img, DRAW_X - layer * 2, PILE_Y - layer * 3)
+        cards.draw_lying_back(img, DRAW_X - layer * 2, PILE_Y - layer * 3, PILE_SCALE)
     if game.pending:
-        draw_text(img, (DRAW_X + cards.CARD_W // 2, PILE_Y - 26), f"DRAW {game.pending}!", 2, "#ff8a8a", "mm",
+        draw_text(img, (DRAW_X + PILE_W // 2, PILE_Y - 26), f"DRAW {game.pending}!", 2, "#ff8a8a", "mm",
                   shadow="#16122b")
     if my_turn and game.can_draw(me):
-        regions.append(((DRAW_X - 4, PILE_Y - 6, DRAW_X + cards.CARD_W, PILE_Y + PILE_H), ("draw",)))
+        regions.append(((DRAW_X - 4, PILE_Y - 6, DRAW_X + PILE_W, PILE_Y + PILE_H), ("draw",)))
     if my_turn and game.draws and not game.pending:  # after drawing, the player may pass
         box = PASS_BOX
         panel(img, box, "#1c1642", "#ffe94a", bw=3, shadow=False)
@@ -146,15 +148,15 @@ def draw(game, me, opponents, flash="", choosing=False, picks=(), uno_open=False
         glow = rgb(cards.COLOUR_HEX[game.colour])
         for grow, strength in ((18, 0.4), (11, 0.75), (6, 1.0)):
             colour = tuple(round(c * strength + f * (1 - strength)) for c, f in zip(glow, rgb(scenes.FELT["uno"])))
-            d.rounded_rectangle([DISCARD_X - grow, PILE_Y - grow, DISCARD_X + cards.CARD_W + grow,
-                                 PILE_Y + PILE_H + grow], radius=grow + 4, fill=colour)
+            d.rectangle([DISCARD_X - grow, PILE_Y - grow, DISCARD_X + PILE_W + grow, PILE_Y + PILE_H + grow],
+                        fill=colour)
     for i, card in enumerate(game.discard[-3:-1]):  # the cards just below show when several were played
-        cards.draw_lying_card(img, DISCARD_X - 8 + i * 4, PILE_Y - 4 + i * 2, card)
-    cards.draw_lying_card(img, DISCARD_X, PILE_Y, game.top)
+        cards.draw_lying_card(img, DISCARD_X - 8 + i * 4, PILE_Y - 4 + i * 2, card, PILE_SCALE)
+    cards.draw_lying_card(img, DISCARD_X, PILE_Y, game.top, PILE_SCALE)
     if my_turn:  # the picked cards go down when the pile is clicked (with nothing picked, nothing happens)
-        regions.append(((DISCARD_X - 8, PILE_Y - 6, DISCARD_X + cards.CARD_W, PILE_Y + PILE_H), ("play",)))
+        regions.append(((DISCARD_X - 8, PILE_Y - 6, DISCARD_X + PILE_W, PILE_Y + PILE_H), ("play",)))
     if not game.winner:
-        box_x = DISCARD_X + cards.CARD_W + 26
+        box_x = DISCARD_X + PILE_W + 22
         draw_text(img, (box_x, PILE_Y + 8), "NEXT", 1, "#d9d4ff", "lt", shadow="#16122b")
         draw_text(img, (box_x, PILE_Y + 20), game.next_player(), 2, "#ffffff", "lt", shadow="#16122b")
 
@@ -219,7 +221,7 @@ def _my_spot(index: int, count: int, raised: bool = False) -> list:
 
 def fan_size(seat: dict) -> tuple[int, int]:
     """How big an opponent's cards look in their hands (bigger for the ones sitting close to the player)."""
-    return 11 * seat["scale"], 16 * seat["scale"]
+    return round(11 * seat["scale"]), round(16 * seat["scale"])
 
 
 def fan_layout(seat: dict, count: int) -> tuple[list, tuple[int, int]]:
@@ -254,8 +256,9 @@ def _seat_boxes(me_count: int, opponents) -> list:
     left, step = hand_layout(me_count)
     width = step * (me_count - 1) + cards.CARD_W
     boxes = [[round(left) - 16, HAND_Y - 14, round(width) + 32, SCREEN_H - HAND_Y + 10]]
-    return boxes + [[seat["cx"] - 33 * seat["scale"], seat["head"] + 4 * seat["scale"], 66 * seat["scale"],
-                     seat["rim"] - seat["head"] - 4 * seat["scale"] + 16] for seat in scenes.table_seats(len(opponents))]
+    return boxes + [[round(seat["cx"] - 33 * seat["scale"]), round(seat["head"] + 4 * seat["scale"]),
+                     round(66 * seat["scale"]), round(seat["rim"] - seat["head"] - 4 * seat["scale"] + 16)]
+                    for seat in scenes.table_seats(len(opponents))]
 
 
 def deal_plan(game, me, opponents, starter: int) -> dict:
@@ -268,17 +271,18 @@ def deal_plan(game, me, opponents, starter: int) -> dict:
     for r in range(len(hand)):
         sprites[f"mine{r}"] = cards.card_sprite(hand[r])  # the player's cards arrive face up, in order
         moves.append({"img": f"mine{r}", "from": DECK, "to": _my_spot(r, len(hand)), "at": t, "dur": DEAL_FLIGHT,
-                      "h0": cards.LYING,
+                      "h0": cards.LYING, "s0": PILE_SCALE, "s1": 1,
                       "arc": 30, "stay": True, "sound": "card"})
         t += DEAL_GAP
         for seat, opponent in enumerate(opponents):
             moves.append({"img": "back", "from": DECK, "to": _their_spot(opponents, seat, len(hand), r), "at": t,
-                          "h0": cards.LYING, "dur": DEAL_FLIGHT, "s1": _their_scale(opponents, seat), "arc": 20,
+                          "h0": cards.LYING, "dur": DEAL_FLIGHT, "s0": PILE_SCALE, "s1": _their_scale(opponents, seat),
+                          "arc": 20,
                           "stay": True, "sound": "card"})
             t += DEAL_GAP
     t += DEAL_FLIGHT + 250
     moves.append({"img": "top", "from": DECK, "to": PILE, "at": t, "dur": 400, "arc": 26, "stay": True,
-                  "h0": cards.LYING, "h1": cards.LYING,
+                  "h0": cards.LYING, "h1": cards.LYING, "s0": PILE_SCALE,
                   "sound": "card"})
     t += 400 + 350
     name = "YOU" if starter == 0 else opponents[starter - 1]["name"]
@@ -319,22 +323,23 @@ def move_plan(before, after, me, opponents, picks=()) -> dict | None:
             if who == me and kind == "drew":
                 i = place(new_hand, card)
                 hide += [] if i is None else [i]
-                move = {"img": name, "from": DECK, "arc": 34, "h0": cards.LYING,
+                move = {"img": name, "from": DECK, "arc": 34, "h0": cards.LYING, "s0": PILE_SCALE, "s1": 1,
                         "to": _my_spot(len(new_hand) // 2 if i is None else i, len(new_hand))}
             elif who == me:
                 i = None if new_layout else place(old_hand, card, prefer=picks)
                 hide += [] if i is None else [i]
-                move = {"img": name, "to": PILE, "arc": 40, "h1": cards.LYING,
+                move = {"img": name, "to": PILE, "arc": 40, "h1": cards.LYING, "s1": PILE_SCALE,
                         "from": _my_spot(0, 1) if i is None else _my_spot(i, len(old_hand), i in picks)}
             else:
                 seat, count = seat_of[who], len(before.hands[who]) + drawn.get(who, 0)
                 if kind == "drew":
                     spot = _their_spot(opponents, seat, count, len(before.hands[who]) + j)
-                    move = {"img": "back", "from": DECK, "to": spot, "s1": _their_scale(opponents, seat), "arc": 22,
+                    move = {"img": "back", "from": DECK, "to": spot, "s0": PILE_SCALE,
+                            "s1": _their_scale(opponents, seat), "arc": 22,
                             "h0": cards.LYING}
                 else:
                     spot = _their_spot(opponents, seat, count, count - 1)
-                    move = {"img": name, "from": spot, "to": PILE, "s0": _their_scale(opponents, seat), "s1": 1,
+                    move = {"img": name, "from": spot, "to": PILE, "s0": _their_scale(opponents, seat), "s1": PILE_SCALE,
                             "arc": 30,
                             "h1": cards.LYING}
             moves.append(dict(move, at=len(moves) * MOVE_GAP, dur=MOVE_FLIGHT, stay=True, sound="card"))
