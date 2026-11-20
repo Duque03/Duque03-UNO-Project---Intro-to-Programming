@@ -21,7 +21,7 @@ import streamlit as st
 
 from arcade import music
 
-SOUNDS = ["start", "table", "win", "lose", "tie", "coin", "blip", "pause"]
+SOUNDS = ["start", "table", "win", "lose", "tie", "coin", "blip", "pause", "card", "tick"]
 MAX_QUEUE = 5  # only the last few cues are kept; the browser skips those it already played
 
 
@@ -111,6 +111,19 @@ export default function (component) {
         coin: () => { note(hz(83), 0, 0.07, "square", 0.3); note(hz(88), 0.07, 0.25, "square", 0.3); },
         blip: () => note(hz(81), 0, 0.05, "square", 0.25),
         pause: () => run([64, 57], 0.08, "triangle", 0.45),
+        card: () => {  // a card sliding on the table: a short burst of noise that falls in pitch
+            const ctx = A.ctx, t = ctx.currentTime;
+            const source = ctx.createBufferSource(), filter = ctx.createBiquadFilter(), gain = ctx.createGain();
+            source.buffer = A.noise;
+            filter.type = "bandpass";
+            filter.frequency.setValueAtTime(2600, t);
+            filter.frequency.exponentialRampToValueAtTime(800, t + 0.08);
+            gain.gain.setValueAtTime(0.32, t);
+            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.09);
+            source.connect(filter).connect(gain).connect(A.master);
+            source.start(t); source.stop(t + 0.11);
+        },
+        tick: () => note(hz(79), 0, 0.03, "square", 0.16),  // the roulette passing a player
     };
 
     // The music: the tunes of arcade/music.py (Python writes them in below), one for each kind of screen.

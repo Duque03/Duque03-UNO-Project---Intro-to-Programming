@@ -69,6 +69,10 @@ img {{ image-rendering: pixelated; }}
 /* the game picture: the frame around it glows (see game_frame), the picture itself just has round corners */
 .st-key-{SCREEN_KEY} img, .st-key-{TITLE_KEY} img {{ border-radius: 10px; }}
 .st-key-{SCREEN_KEY} img {{ cursor: pointer; }}
+/* animations are drawn on a see-through canvas laid exactly over the picture (arcade/table_anim.py) */
+.st-key-{SCREEN_KEY}_stage {{ position: relative; gap: 0 !important; }}
+.st-key-{SCREEN_KEY}_anim {{ position: absolute !important; inset: 0; z-index: 3; pointer-events: none; }}
+.st-key-{SCREEN_KEY}_anim canvas {{ border-radius: 10px; }}
 .st-key-{SCREEN_KEY} [data-testid="stElementToolbar"], .st-key-{TITLE_KEY} [data-testid="stElementToolbar"] {{ display: none; }}
 .st-key-click_catcher {{ display: none; }}
 /* keys with no button on screen (arrows, Space, see keys()): the buttons are on the page, so they hear their key,
@@ -201,11 +205,28 @@ class Slot:
 
     def __init__(self, key: str):
         self.key = key
+        self._stage = None
+        self._box = None
         self._place = None
+        self._over = None
+
+    def _ensure(self) -> None:
+        """The stage holds the picture's container and, on top of it, the place for animations (overlay)."""
+        if self._stage is None:
+            self._stage = st.container(key=f"{self.key}_stage")
+            self._box = self._stage.container(key=self.key)
 
     def image(self, data: str, **kwargs) -> None:
-        where = st.container(key=self.key) if self._place is None else self._place
+        self._ensure()
+        where = self._box if self._place is None else self._place
         self._place = where.image(data, **kwargs)
+
+    def overlay(self):
+        """A place laid exactly over the picture (see arcade/table_anim.py). Use it with `with`."""
+        self._ensure()
+        if self._over is None:
+            self._over = self._stage.container(key=f"{self.key}_anim").empty()
+        return self._over
 
 
 def screen(key: str = SCREEN_KEY) -> Slot:
@@ -213,7 +234,7 @@ def screen(key: str = SCREEN_KEY) -> Slot:
     return Slot(key)
 
 
-def _inline(img) -> str:
+def inline(img) -> str:
     """The picture as text that the browser can show straight away.
 
     WebP at high quality is about three times smaller than PNG for these pictures
@@ -236,7 +257,7 @@ def show(slot, img) -> None:
     _fade_style), so it is smooth on every computer instead of a few pictures sent one by one.
     """
     st.session_state.pop("_fade_next", False)
-    slot.image(_inline(img), width="stretch")
+    slot.image(inline(img), width="stretch")
     st.session_state["_last_frame"] = img
 
 
@@ -261,7 +282,7 @@ def fade_next() -> None:
 
 def picture(img) -> None:
     """Show a picture right here on the page (banners, item tiles, portraits)."""
-    st.image(_inline(img), width="stretch")
+    st.image(inline(img), width="stretch")
 
 
 def play_frames(slot, frames, delay: float = FRAME_DELAY) -> None:

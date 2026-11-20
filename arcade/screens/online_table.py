@@ -11,7 +11,7 @@ import time
 
 import streamlit as st
 
-from arcade import online, sound, state, ui
+from arcade import online, sound, state, table_anim, ui
 from arcade.art import scenes
 from arcade.logic import cursor
 from arcade.logic.checkers import SIZE
@@ -102,9 +102,11 @@ def render() -> None:
     S.setdefault("online_flash", "")
     if lobby.round != S.get("online_round_seen"):  # a new game: start with nothing picked or highlighted
         S.online_round_seen = lobby.round
-        for key in ("ouno_pick", "ouno_wild", "ouno_focus", "ouno_colour", "ock_sel", "ock_cur", "oc4_col"):
+        for key in ("ouno_pick", "ouno_wild", "ouno_focus", "ouno_colour", "ock_sel", "ock_cur", "oc4_col",
+                    "ouno_seen", "ouno_sent_picks"):
             S.pop(key, None)
         S.online_flash = ""
+        S.ouno_intro = lobby.game == "uno"  # UNO starts with the deal and the roulette (see _uno_plan)
 
     over = lobby.result is not None
     turn = lobby.current()
@@ -133,13 +135,36 @@ def _bar_end(bar, lobby, me: str, over: bool) -> None:
         st.rerun()
 
 
-def _show(img, regions, lobby, me, over):
+def _show(img, regions, lobby, me, over, plan=None):
+    """Show the table (with the result box when the game is over), after an animation if there is one."""
     if over:
         title, line = _result_text(lobby, me)
         img = scenes.result_panel(img, title, line, online_coins(lobby.result, me))
         regions = []
-    ui.show(ui.screen(), img)
+    slot = ui.screen()
+    if plan is None:
+        ui.show(slot, img)
+        return regions
+    table_anim.play(slot, plan)  # the canvas covers the old picture first, so the new one arrives unseen
+    time.sleep(0.12)
+    ui.show(slot, img)
+    time.sleep(max(0.0, table_anim.seconds(plan) - 0.12))
     return regions
+
+
+def _uno_plan(lobby, me: str, opponents):
+    """What to animate on this browser: the deal and the roulette at the start of a game, then the cards that changed
+    hands since this browser last drew the table. S.ouno_seen keeps that last table: only a picture of the past for
+    the animations; the real game is always the one in the lobby."""
+    game, plan = lobby.table, None
+    if S.pop("ouno_intro", False):
+        names = [o["name"] for o in opponents]
+        starter = 0 if game.current == me else names.index(game.current) + 1
+        plan = uno_screen.deal_plan(game, me, opponents, starter)
+    elif S.get("ouno_seen") is not None:
+        plan = uno_screen.move_plan(S.ouno_seen, game, me, opponents, S.pop("ouno_sent_picks", []))
+    S.ouno_seen = game
+    return plan
 
 
 # ---------------------------------------------------------------- UNO
@@ -174,7 +199,7 @@ def _uno(lobby, me: str, mine: bool, over: bool) -> None:
     flash = S.online_flash or ("" if mine or over else f"Waiting for {lobby.current()}...")
     img, regions = uno_screen.draw(game, me, opponents, flash, choosing=wild is not None, picks=picks,
                                    uno_open=uno_open, focus=focus, colour_focus=colour_focus)
-    regions = _show(img, regions, lobby, me, over)
+    regions = _show(img, regions, lobby, me, over, _uno_plan(lobby, me, opponents))
     point = ui.click() if (mine or uno_open) and not over else None
     action = ui.hit(regions, point)
 
@@ -207,6 +232,7 @@ def _uno(lobby, me: str, mine: bool, over: bool) -> None:
         if play or key == "space":
             action = ("colour", COLOURS[colour_focus])
         if action and action[0] == "colour":
+            S.ouno_sent_picks = picks  # the next picture animates them from where they stood
             S.ouno_wild, S.ouno_pick, S.ouno_focus = None, [], None
             _act("play", cards=wild, colour=action[1])
         return
@@ -243,6 +269,7 @@ def _play_cards(cards: list) -> None:
     if cards[-1][0] == WILD:
         S.ouno_wild = [list(c) for c in cards]
         st.rerun()
+    S.ouno_sent_picks = list(S.get("ouno_pick") or [])  # the next picture animates them from where they stood
     S.ouno_pick, S.ouno_focus = [], None
     _act("play", cards=[list(c) for c in cards])
 

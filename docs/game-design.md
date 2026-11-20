@@ -113,6 +113,13 @@ Numbers live in `arcade/config.py`.
 
 ### UNO
 - 108 cards, 7 each, the first card on the table is a number.
+- The start of a game is shown: the cards are dealt one at a time from the deck, around the table starting with the
+  player (the player's own cards land face up, in order), the first card of the pile turns up, then a **roulette**
+  lights the players one after the other, slows down and stops on the one who starts ("BARK STARTS!" / "YOU
+  START!"). Who starts is random. The player's 15 seconds only start after the roulette.
+- Cards move: a card drawn flies from the deck to the hand, cards played fly to the pile one at a time, for the
+  player and for every opponent (online too, for everyone at the table). Python waits for each animation to end
+  before the next move, so nothing changes on the table meanwhile.
 - A play starts with a card that matches the colour in play or the symbol, or with a wild.
 - House rule, several cards at once: with that first card you may play any other cards with the same number or
   symbol, in any order. The last card sets the colour (on a red pile: red 4, green 4, yellow 4 -> next is yellow).
@@ -211,7 +218,9 @@ Saved per player name: coins, owned cosmetics, equipped cosmetics, wins per game
   second player's checkers board is turned round so their pieces are at the bottom. The same rules as offline (UNO
   places included). Moves out of turn are refused; a yellow frame shows whose turn it is.
 - Each player has **15 seconds** a turn (shown under the table for everyone). When time runs out the game plays for them,
-  as offline. In UNO, a player down to one card has 3 seconds to say UNO (U) or draws 2.
+  as offline. In UNO, a player down to one card has 3 seconds to say UNO (U) or draws 2. Online UNO also starts with
+  the deal and the roulette (the server picks who starts), so the first turn gets 9 more seconds; each browser
+  animates the cards that moved since it last looked.
 - Each browser looks for changes about once a second, so a friend's move shows up within about a second.
 - Prizes: winning pays **15 coins** (like a medium bot); in UNO 1st / 2nd / 3rd get 15 / 8 / 4. Online wins do not count
   towards opening the championship cabinet (that is about beating the arcade's bots).

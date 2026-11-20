@@ -32,6 +32,7 @@ Left out on purpose: challenging a Wild Draw Four and keeping score across round
 from __future__ import annotations
 
 import random
+from collections import Counter
 
 COLOURS = ("red", "yellow", "green", "blue")
 NUMBERS = tuple(str(n) for n in range(10))
@@ -79,7 +80,8 @@ def cards_name(cards: list[Card]) -> str:
 
 
 class UnoGame:
-    def __init__(self, players: list[str], rng: random.Random | None = None, hand_size: int = 7):
+    def __init__(self, players: list[str], rng: random.Random | None = None, hand_size: int = 7, start: int = 0):
+        """start: the seat of the player who goes first (the screens pick it at random with a roulette)."""
         if not 2 <= len(players) <= 10:
             raise ValueError("UNO needs 2 to 10 players.")
         if len(set(players)) != len(players):
@@ -94,7 +96,9 @@ class UnoGame:
         first = self.deck.pop()
         self.discard: list[Card] = [first]
         self.colour: str = first[0]  # colour in play (matters after a wild)
-        self.turn = 0
+        if not 0 <= start < len(self.players):
+            raise ValueError("The first player must be one of the players.")
+        self.turn = start
         self.direction = 1
         self.winner: str | None = None  # 1st place, set when the game is over (only one player has cards left)
         self.out: list[str] = []  # the players who have finished, in order: 1st, 2nd, ...
@@ -414,3 +418,34 @@ class UnoGame:
                 self.call_uno(self.uno_due)  # someone who is waiting to say UNO says it
                 continue
             self.bot_turn(self.current, **settings[self.current])
+
+
+def changes(before: UnoGame, after: UnoGame) -> list[tuple[str, str, list[Card]]]:
+    """What happened between two moments of the same game, for the animations on the table.
+
+    Returns events (player, "drew" or "played", cards) in the order of play, starting with whoever's turn it was.
+    A player's drawn cards come before the cards they played (a card drawn and played straight away is in both).
+    """
+    played = after.discard[len(before.discard):]
+    if after.discard[:len(before.discard)] != before.discard:  # the pile was shuffled back into the deck
+        played = after.discard[1:] if after.discard and after.discard[0] == before.top else []
+    lost = {p: Counter(before.hands[p]) - Counter(after.hands[p]) for p in before.players}
+    drew = {p: list((Counter(after.hands[p]) - Counter(before.hands[p])).elements()) for p in before.players}
+    gave = {p: [] for p in before.players}
+    for card in played:
+        who = next((p for p in before.players if lost[p][card] > 0), None)
+        if who is None:  # not in anybody's hand before: drawn and played in the same turn
+            who = before.current
+            drew[who].append(card)
+        else:
+            lost[who][card] -= 1
+        gave[who].append(card)
+    seats = len(before.players)
+    order = [before.players[(before.turn + before.direction * k) % seats] for k in range(seats)]
+    events = []
+    for player in order:
+        if drew[player]:
+            events.append((player, "drew", drew[player]))
+        if gave[player]:
+            events.append((player, "played", gave[player]))
+    return events

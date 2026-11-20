@@ -654,6 +654,15 @@ def table_scene(kind, opponents, active=None, t=0):
 
 # ---------------------------------------------------------------- pop-ups
 
+def big_word(text, border="#ffe94a"):
+    """A big word in a box on a see-through picture ("YOU START!"), shown in the middle of an animation."""
+    width, height = text_size(text, 5)
+    img = Image.new("RGBA", (width + 64, height + 52), (0, 0, 0, 0))
+    panel(img, (0, 0, width + 52, height + 40), "#16122b", border, bw=6)
+    draw_text(img, ((width + 52) // 2, (height + 40) // 2), text, 5, "#ffffff", "mm", shadow="#3b3560")
+    return img
+
+
 def result_panel(img, title, line, coins=None, footer="ENTER"):
     """The box that appears when a free-play game ends."""
     out, (x0, y0, x1, y1) = _result_box(img, title, line, coins)

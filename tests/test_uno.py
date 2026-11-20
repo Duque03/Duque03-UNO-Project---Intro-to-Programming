@@ -1,8 +1,9 @@
+import copy
 import random
 
 import pytest
 
-from arcade.logic.uno import COLOURS, IllegalMove, UnoGame, build_deck
+from arcade.logic.uno import COLOURS, IllegalMove, UnoGame, build_deck, changes
 
 
 def make_game(seed=1):
@@ -675,3 +676,50 @@ def test_nobody_finishes_twice():
         game = UnoGame(["ME", "A", "B", "C"], random.Random(seed))
         game.play_out({name: {} for name in game.players})
         assert game.winner and sorted(game.places) == sorted(game.players), seed
+
+
+def test_any_seat_can_start_the_game():
+    game = UnoGame(["ME", "A", "B", "C"], random.Random(1), start=2)
+    assert game.current == "B"
+    game.draw("B")
+    game.pass_turn("B")
+    assert game.current == "C"  # play goes on from the starting seat
+
+
+def test_the_starting_seat_must_be_at_the_table():
+    with pytest.raises(ValueError):
+        UnoGame(["ME", "A"], random.Random(1), start=2)
+    with pytest.raises(ValueError):
+        UnoGame(["ME", "A"], random.Random(1), start=-1)
+
+
+def _plain_game():
+    """Two players with known hands and a red 5 on the pile, the deck on top: blue 9, then green 2."""
+    game = UnoGame(["ME", "A"], random.Random(1))
+    game.hands = {"ME": [("red", "7"), ("blue", "7"), ("green", "4")], "A": [("yellow", "1"), ("yellow", "3")]}
+    game.discard, game.colour = [("red", "5")], "red"
+    game.deck = [("green", "2"), ("blue", "9")]
+    return game
+
+
+def test_changes_lists_the_cards_played_together():
+    game = _plain_game()
+    before = copy.deepcopy(game)
+    game.play("ME", [("red", "7"), ("blue", "7")])
+    assert changes(before, game) == [("ME", "played", [("red", "7"), ("blue", "7")])]
+
+
+def test_changes_lists_a_card_drawn_and_played_in_the_same_turn():
+    game = _plain_game()
+    game.turn = 1  # A has nothing for a red 5: draws the blue 9, then the green 2
+    game.discard, game.colour = [("green", "5")], "green"
+    before = copy.deepcopy(game)
+    game.draw("A")
+    game.draw("A")
+    game.play("A", [("green", "2")])
+    assert changes(before, game) == [("A", "drew", [("blue", "9"), ("green", "2")]), ("A", "played", [("green", "2")])]
+
+
+def test_changes_is_empty_when_nothing_moved():
+    game = _plain_game()
+    assert changes(copy.deepcopy(game), game) == []
