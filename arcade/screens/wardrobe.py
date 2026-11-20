@@ -12,7 +12,7 @@ from arcade import player as player_model
 from arcade.art import shop
 from arcade.config import RARITIES, SLOT_LABELS
 from arcade.logic import store
-from arcade.screens.store import current_tab, item_key, picked_item, preview, shop_click, tab_key
+from arcade.screens.store import current_tab, glow, item_key, picked_item, preview, shop_click, tab_key
 from arcade.state import S
 
 
@@ -39,7 +39,7 @@ def render() -> None:
     can_equip = focus is not None and player["equipped"][slot] != focus["id"]
     can_unequip = player["equipped"][slot] is not None
     view = {"title": "WARDROBE", "coins": None, "slot": slot, "sections": sections,
-            "chosen": focus["id"] if focus else None, "preview": preview(player, slot, focus),
+            "chosen": focus["id"] if focus else None, "preview": preview(player, slot, focus), "glow": glow(focus),
             "info": (focus["name"], focus["rarity"], None) if focus else None,
             "actions": [("EQUIP", "equip", can_equip), (f"UNEQUIP {SLOT_LABELS[slot].upper()}", "unequip", can_unequip)],
             "empty": f"You do not own any {SLOT_LABELS[slot].lower()} items yet"}
