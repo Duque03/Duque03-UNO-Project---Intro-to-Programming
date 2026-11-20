@@ -161,8 +161,6 @@ def lobby_picture(lobby, me: str, message: str = "", good: bool = False):
             draw_text(img, (cx, 336), "YOU", 2, "#ffe94a", "mt")
 
     host = lobby.host == me
-    draw_text(img, (SCREEN_W // 2, 362), "PICK A GAME: LEFT / RIGHT, ENTER STARTS" if host else
-              "THE HOST PICKS THE GAME", 2, "#b9b0e8", "mt")
     regions = []
     width, gap = 250, 20
     x = (SCREEN_W - (3 * width + 2 * gap)) // 2
@@ -175,5 +173,11 @@ def lobby_picture(lobby, me: str, message: str = "", good: bool = False):
             regions.append((box, ("game", game)))
         x += width + gap
     if message:
-        _message(img, message, 474, good)
+        _message(img, message, 362, good)
+    leave = draw_button(img, (70, 470, 250, 508), "LEAVE", 2)
+    regions.append((leave, ("leave",)))
+    if host:
+        start = draw_button(img, (SCREEN_W - 250, 470, SCREEN_W - 70, 508), "START", 2,
+                            fill="#c8f7c5" if good else "#8d8aa6")
+        regions.append((start, ("start",)))
     return img, regions

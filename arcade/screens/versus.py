@@ -45,7 +45,7 @@ def render() -> None:
     ui.show(ui.screen(), img)
     action = ui.hit(regions, ui.click())
 
-    bar = st.columns([1] * len(bots.BOTS) + [1.6, 1.2])
+    bar = ui.bar("versus", [1] * len(bots.BOTS) + [1.6, 1.2])  # invisible: the bots, PLAY and BACK are on the picture
     clicked = action[1] if action and action[0] == "pick" else None
     if key == "pick":  # Space: like a click on the bot the frame is on
         clicked = bots.BOTS[focus]["name"]
@@ -64,10 +64,10 @@ def render() -> None:
         choice["focus"] = bots.BOT_NAMES.index(clicked)  # the frame follows a click or a number key too
         sound.play("blip")
         st.rerun()
-    if play and ready:
+    if (play or action == ("play",)) and ready:
         sound.play("table")
         match.begin_free_play(game, picked)  # back in the room: everyone walks to the table
         st.rerun()
-    if back:
+    if back or action == ("back",):
         state.go("hub")
         st.rerun()

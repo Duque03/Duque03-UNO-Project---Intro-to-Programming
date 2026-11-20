@@ -49,7 +49,7 @@ def render_intro() -> None:
     point = ui.click()
     action = ui.hit(regions, point)
 
-    bar = st.columns([1.4, 1.4, 2.2])
+    bar = ui.bar("intro", [1.4, 1.4, 2.2])  # invisible: a click on the picture goes on (YES / NO on the last page)
     if not last:
         with bar[0]:
             pressed = ui.button("Next", "intro_next", "Enter", type="primary")
@@ -77,7 +77,7 @@ def render_rules() -> None:
     img = scenes.rules_panel(_backdrop(), RULES)
     ui.show(ui.screen(), img)
     point = ui.click()
-    bar = st.columns([1.4, 3.6])
+    bar = ui.bar("champ_rules", [1.4, 3.6])  # invisible: a click on the picture goes back
     with bar[0]:
         back = ui.button("Back", "rules_back", "Enter", type="primary")
     if back or point is not None:
@@ -127,7 +127,7 @@ def render_score() -> None:
         S.score_animated = True
     ui.show(slot, scenes.scoreboard(title, rows, championship.MAX_POINTS, 1.0, subtitle))
     point = ui.click()
-    bar = st.columns([1.4, 3.6])
+    bar = ui.bar("champ_score", [1.4, 3.6])  # invisible: a click on the picture goes on
     with bar[0]:
         pressed = ui.button("Continue", "score_next", "Enter", type="primary")
     if pressed or point is not None:
@@ -155,7 +155,7 @@ def render_final() -> None:
                             prize=CHAMPIONSHIP_PRIZE if won else None)
     ui.show(ui.screen(), img)
     point = ui.click()
-    bar = st.columns([1.4, 3.6])
+    bar = ui.bar("champ_final", [1.4, 3.6])  # invisible: a click on the picture goes on
     with bar[0]:
         pressed = ui.button("Continue", "final_next", "Enter", type="primary")
     if pressed or point is not None:

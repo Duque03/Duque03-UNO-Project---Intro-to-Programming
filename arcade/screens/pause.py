@@ -53,7 +53,7 @@ def render() -> None:
     action = ui.hit(regions, point)
     if key == "choose":
         action = ("menu", menu[focus]["action"])
-    bar = st.columns(5)
+    bar = ui.bar("pause", [1] * 5)  # invisible: the menu is on the picture
     with bar[0]:
         resume = ui.button("Resume", "pause_resume", "Esc", type="primary")
     with bar[1]:
