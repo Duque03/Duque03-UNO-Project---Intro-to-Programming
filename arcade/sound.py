@@ -211,11 +211,11 @@ export default function (component) {
         // It goes on the page itself, because this component's own box is hidden.
         const button = document.createElement("button");
         button.className = "arcade-music";
-        button.style.cssText = "position:fixed;top:8px;left:10px;z-index:1000;cursor:pointer;width:32px;height:32px;"
-            + "padding:0;font:1.2rem 'Jersey 10',monospace;line-height:1;color:#f3ead2;opacity:.45;"
-            + "background:rgba(13,10,31,.7);border:2px solid rgba(58,214,255,.5);border-radius:6px;";
-        button.addEventListener("mouseenter", () => { button.style.opacity = "1"; });
-        button.addEventListener("mouseleave", () => { button.style.opacity = ".45"; });
+        button.style.cssText = "position:fixed;top:8px;left:10px;z-index:1000;cursor:pointer;width:34px;height:34px;"
+            + "padding:0;font:1.3rem 'Jersey 10',monospace;line-height:1;color:#f3ead2;"
+            + "background:#16122b;border:3px solid #3ad6ff;border-radius:0;box-shadow:3px 3px 0 #05030d;";
+        button.addEventListener("mouseenter", () => { button.style.background = "#2a2150"; });
+        button.addEventListener("mouseleave", () => { button.style.background = "#16122b"; });
         A.label = () => {  // a small note icon, crossed out when the music is off
             button.textContent = A.musicOn ? "\u266a" : "\u00d7";
             button.title = A.musicOn ? "Music on (M)" : "Music off (M)";

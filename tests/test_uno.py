@@ -755,3 +755,18 @@ def test_no_card_is_ever_lost_or_made_up_during_a_game():
         game.play_out({p: {} for p in game.players})
         cards = game.deck + game.discard + [card for hand in game.hands.values() for card in hand]
         assert Counter(cards) == Counter(build_deck())
+
+
+def test_a_player_who_cannot_answer_a_draw_card_must_draw():
+    game = _plain_game()
+    game.play("ME", [("red", "7")])
+    game.turn, game.pending, game.pending_value = 1, 2, "draw2"  # a +2 waits for A, who has no +2
+    assert game.must_draw("A")
+    game.hands["A"].append(("blue", "draw2"))
+    assert not game.must_draw("A")  # A can answer with a +2
+    assert not game.must_draw("ME")  # not ME's turn
+
+
+def test_nobody_must_draw_without_a_draw_card_waiting():
+    game = _plain_game()
+    assert not game.must_draw("ME")

@@ -158,9 +158,7 @@ def draw(game, me, opponents, flash="", choosing=False, picks=(), uno_open=False
         draw_text(img, (box_x, PILE_Y + 8), "NEXT", 1, "#d9d4ff", "lt", shadow="#16122b")
         draw_text(img, (box_x, PILE_Y + 20), game.next_player(), 2, "#ffffff", "lt", shadow="#16122b")
 
-    hand = sorted_hand(game.hands[me])
-    if flash:  # only what just happened; how to play is in the rules (I)
-        common.message(img, flash, 372, "#ff8a8a")
+    hand = sorted_hand(game.hands[me])  # (no messages on the table: what happens is seen, and the rules are in I)
 
     # my hand: nothing glows; a picked card stands up a little
     count = len(hand)
@@ -173,8 +171,8 @@ def draw(game, me, opponents, flash="", choosing=False, picks=(), uno_open=False
             cards.draw_card(img, x, y, card)
         right = x + (step if i < count - 1 else cards.CARD_W)
         regions.append(((x, y, right, HAND_Y + cards.CARD_H), ("card", i)))
-        if i == focus:
-            focus_box = (x - 2, y - 2, right + 1, SCREEN_H - 1)
+        if i == focus:  # the frame goes round the card, wherever it stands
+            focus_box = (x - 3, y - 3, right + 2, y + cards.CARD_H + 2)
     if hands:  # the player's own hands hold the two ends of the row of cards
         _draw_hands(img, count, hands)
     if focus is not None and 0 <= focus < count:  # the yellow frame the arrow keys move (on top of the cards)
@@ -503,6 +501,14 @@ def render() -> None:
         match.finish([game.winner], places=game.places)
         if S.screen != "uno":
             st.rerun()
+
+    if not uno_open and game.must_draw(me):  # a +2 / +4 the player cannot answer: they take the cards at once
+        common.show(slot, draw(game, me, opponents)[0], "uno")
+        time.sleep(0.5)
+        _remember(game)
+        game.draw(me)
+        common.restart_clock()
+        st.rerun()
 
     my_turn = game.winner is None and game.current == me and not uno_open
     common.run_clock(my_turn)  # the bots are done: the player's 15 seconds start

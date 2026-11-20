@@ -685,6 +685,9 @@ def table_scene(kind, opponents, active=None, t=0):
         body = body.crop((0, 0, body.width, SEATED_ROWS))  # sitting: from the waist up
         body = body.resize((body.width * scale, body.height * scale), Image.NEAREST)
         top = feet - sprites.SPR_H * scale + scale
+        if active == opponent["name"]:  # whose turn it is: they light up a little
+            light = Image.new("RGBA", body.size, (255, 246, 210, 255))
+            body = Image.composite(Image.blend(body, light, 0.22), body, body)
         img.paste(body, (x - body.width // 2, top), body)
     felt, wood = rgb(FELT[kind]), rgb(WOOD)
     felt, wood = rgb(FELT[kind]), rgb(WOOD)
@@ -700,14 +703,38 @@ def table_scene(kind, opponents, active=None, t=0):
     big = upscale(img)
     d = ImageDraw.Draw(big)
     for seat, opponent in zip(seats, opponents):
-        box = sprites.draw_name_tag(big, seat["cx"], seat["head"] + 3 * seat["scale"] ** 2, opponent["name"],
-                                    opponent.get("tag"), t)
-        if active == opponent["name"]:  # yellow frame = this player's turn
-            d.rectangle([box[0] - 7, box[1] - 7, box[2] + 7, box[3] + 7], outline=(255, 233, 74), width=3)
+        bottom = seat["head"] + 3 * seat["scale"] ** 2
+        if active == opponent["name"]:  # whose turn it is: a soft pixel glow behind the name, and it stands up a little
+            bottom -= 6
+            tw, th = text_size(opponent["name"], 2)
+            for grow, colour in ((12, (60, 52, 20)), (8, (120, 104, 30)), (4, (200, 176, 50))):
+                d.rectangle([seat["cx"] - tw // 2 - 9 - grow, bottom - th - 6 - grow,
+                             seat["cx"] + tw // 2 + 9 + grow, bottom + grow], fill=colour)
+        sprites.draw_name_tag(big, seat["cx"], bottom, opponent["name"], opponent.get("tag"), t)
     return big
 
 
 # ---------------------------------------------------------------- pop-ups
+
+def timer_strip(left: float, total: float, label: str):
+    """The countdown laid on the table: the label and one block per second, the blocks going out one by one.
+    Always the same size, so it does not move while it counts down."""
+    w, h = 330, 30
+    img = Image.new("RGB", (w, h), rgb("#16122b"))
+    d = ImageDraw.Draw(img)
+    colour = rgb("#ff4f6d") if left <= min(5, total / 3) else rgb("#3ad6ff")
+    d.rectangle([0, 0, w - 1, h - 1], outline=colour, width=3)
+    text = f"{label} {max(0, int(left + 0.99)):2d}"
+    draw_text(img, (12, h // 2 + 1), text, 2, "#f3ead2", "lm")
+    blocks, x0 = max(1, int(total)), max(168, 12 + text_size(text, 2)[0] + 12)
+    size = max(3, (w - 12 - x0) // blocks)
+    lit = max(0, int(left + 0.99))
+    for i in range(blocks):
+        d.rectangle([x0 + i * size, 9, x0 + i * size + size - 3, h - 10],
+                    fill=colour if i < lit else (40, 32, 90))
+    return img
+
+
 
 def big_word(text, border="#ffe94a"):
     """A big word in a box on a see-through picture ("YOU START!"), shown in the middle of an animation."""

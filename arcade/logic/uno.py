@@ -154,6 +154,11 @@ class UnoGame:
             return []
         return [card for card in self.hands[player] if self.can_play(card)]
 
+    def must_draw(self, player: str) -> bool:
+        """It is this player's turn, cards are waiting for them (+2 / +4) and they have nothing to answer with:
+        the screens then draw for them straight away."""
+        return bool(self.pending) and not self.winner and player == self.current and not self.playable_cards(player)
+
     def can_draw(self, player: str) -> bool:
         """May this player draw now? Facing +2 / +4 cards always; otherwise up to MAX_DRAWS cards a turn."""
         if self.winner or player != self.current:

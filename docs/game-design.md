@@ -129,8 +129,7 @@ Numbers live in `arcade/config.py`.
   each 1 to 9, two Skip, two Reverse, two +2; plus 4 Wild and 4 Wild +4), shuffled at the start; when it runs out,
   the discard pile (all but its top card) is shuffled into a new deck. So every card comes up as often as in a real
   game; tests check the deck, how often each card is dealt over thousands of deals, and that no card is ever lost.
-- The table only says what matters to the player ("Time's up!", "Too late! +2 cards"), never how to play (that is in
-  the rules) and not every move of the others. Picked cards just stand up, with no numbers on them.
+- No messages on the table: what happens is seen (cards fly, the countdown runs) and how to play is in the rules. Picked cards just stand up, with no numbers on them.
 - There is no row of buttons under the picture: everything is on it. The deck draws, the pile plays, a picked card
   clicked again goes back down, **PASS** appears beside the deck after drawing, and **RULES** and **PAUSE** sit in
   the top-right corner (online: **LEAVE**). The keys still work (D, Enter, X, P, U, K, H, Esc).
@@ -158,6 +157,9 @@ Numbers live in `arcade/config.py`.
   it does nothing. If the first picked card does not fit, a message says so and nothing is played.
 - House rule, UNO: when a play leaves a player with one card they must say UNO within 2 seconds (button or U), or
   draw 2. Bots forget now and then.
+- Facing a +2 / +4 with nothing to answer it, the player takes the cards straight away (they fly to the hand): there
+  is nothing to choose. With a card that can answer it, they choose as usual.
+- Whose turn it is: that player lights up a little and their name glows (no frame around them).
 - House rule, **Corta UNO**: while a player who is down to one card has not said UNO yet, anyone else can press
   **CORTA UNO!** (K, or the button on the table). If they are first, the two of them play a **trivia face-off**:
   yes-or-no questions, **8 seconds** each (Y / N, Left / Right and Enter, or a click; no answer counts as wrong).
