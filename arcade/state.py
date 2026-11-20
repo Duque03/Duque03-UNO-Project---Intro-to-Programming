@@ -90,6 +90,8 @@ def bot_actor(name: str, pos=None, direction=None, step=0) -> dict:
         "dir": direction or where["dir"],
         "step": step,
         "tag": catalog.spec_for("name", bot["tag"]),
+        "path": where.get("path") if pos is None else None,  # a walk across the room (arcade/wander.py)
+        "pid": where.get("pid"),
     }
 
 

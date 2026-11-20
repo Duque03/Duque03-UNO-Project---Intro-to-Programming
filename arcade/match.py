@@ -7,7 +7,9 @@ play, or points and the scoreboard in the championship.
 
 from __future__ import annotations
 
-from arcade import bots, catalog, hubmap, phrases, sound, state, ui
+import time
+
+from arcade import bots, catalog, hubmap, phrases, sound, state, ui, wander
 from arcade import player as player_model
 from arcade.config import (
     CHAMPIONSHIP_BOTS, SIMULATED_TIE_CHANCE,
@@ -24,6 +26,8 @@ SEAT_FACING = ["down", "right", "left"]  # across the table, left seat, right se
 def _walk_to_table(game_key: str, seated: list[str]) -> None:
     """Send the player and the given bots to a table, then zoom in and start."""
     spot = hubmap.SPOTS[game_key]
+    homes = {bot["name"]: bot["home"] for bot in bots.BOTS}
+    wander.free_table(S.hub["bots"], game_key, seated, homes, time.time())  # they stop where they are; others leave
     movers = {S.player["name"]: (S.hub["pos"], spot["stand"], "up")}
     for name, seat, face in zip(seated, spot["seats"], SEAT_FACING):
         movers[name] = (S.hub["bots"][name]["pos"], seat, face)

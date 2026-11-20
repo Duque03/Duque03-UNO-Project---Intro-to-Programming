@@ -89,8 +89,13 @@ changing these files, and change them in a small pull request of their own.
   rule: `hubmap.floor_map()` turns the rules of `hubmap.py` (floor, tables, counter, zones) into a table for the
   browser, so change the rules in `hubmap.py` and the browser follows. The room's pictures come from
   `arcade/art/room_layers.py` and are sent once per session. The browser reports events (`pos`, `interact`,
-  `rules`, `pause`, `cut_done`, `need`), handled in `screens/hub.py`; Python checks every position with `room.read_pos`.
-  To move the player from Python, change `S.hub["pos"]`: the browser jumps there on the next run.
+  `rules`, `pause`, `cut_done`, `need`, `talk`), handled in `screens/hub.py`; Python checks every position with
+  `room.read_pos`. To move the player from Python, change `S.hub["pos"]`: the browser jumps there on the next run.
+- **The bots' walks are planned in Python** (`arcade/wander.py`, no Streamlit, tested in `tests/test_wander.py`): every
+  `IDLE_EVERY` seconds `wander.tick` decides who goes where and finds a path round the furniture; the browser walks it
+  at `wander.SPEED` when the walk number (`pid`) changes. `wander.where(bot, now)` says where a walking bot is right
+  now (used to check a TALK press and to start the walk to a table from where they really are, `wander.free_table`).
+  What they say is in `arcade/dialogues.py`; a chat is `S.hub["talk"]`, drawn by `ROOM_JS` as speech bubbles.
 - **Clicks made during a bot's turn are ignored** (see `bots_were_playing` in the table screens). Keep that
   when you change a table screen. The same goes for keys: the table screens only listen for them on the player's turn.
 - **Everything works with the mouse and with the keyboard** (`docs/game-design.md`, section 0). Keys that have no
@@ -132,7 +137,7 @@ changing these files, and change them in a small pull request of their own.
   `FULLSCREEN_JS` is the small full-screen icon (and the F key) and sends nothing back. `SOUND_JS` only plays sounds
   by name (and draws the small music icon, which does what M does) and never sends anything back. Its tunes come from
   `arcade/music.py`, written into the script once (`__SCORE__`); each run only sends the name of the tune the screen
-  wants (`music.track_for`). To change a tune, edit its text in `music.py`; `tests/test_music.py` checks it fits. `ROOM_JS` moves and draws the room; it numbers every press of E, I and Esc and
+  wants (`music.track_for`). To change a tune, edit its text in `music.py`; `tests/test_music.py` checks it fits. `ROOM_JS` moves and draws the room; it numbers every press of E (interact or talk), I and Esc and
   sends it again until Python has handled it (`room.new_press`), so a press is never lost. Python checks every value
   it receives before using it. The store and the wardrobe are pictures too (`arcade/art/shop.py`): a click on an item
   is only accepted if the id exists in `catalog.py`.

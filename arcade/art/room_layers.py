@@ -211,6 +211,32 @@ def bubble(text: str, key: str | None = None, locked: bool = False, small: str |
     return img, (w, h), pad
 
 
+@lru_cache(maxsize=512)
+def speech(text: str, mine: bool = False):
+    """A speech bubble with a little tail at the bottom (what the player or a bot says when they talk in the room).
+    The player's bubbles are light blue, the bots' cream. Returns the picture (its tail tip is at the bottom middle)."""
+    from arcade.art.pixel import wrap
+
+    lines = wrap(text.upper(), 22)
+    width = max(text_size(line, 2)[0] for line in lines) + 24
+    height = 20 * len(lines) + 16
+    img = _transparent((width + 6, height + 16))
+    fill = "#bfe6ff" if mine else "#fff6da"
+    panel(img, (0, 0, width - 1, height - 1), fill, INK, bw=3, shadow=False)
+    from PIL import ImageDraw
+
+    d = ImageDraw.Draw(img)
+    mid = width // 2
+    for row, half in enumerate((7, 5, 3, 1)):  # the tail, in pixel steps
+        y = height - 3 + row * 3
+        d.rectangle([mid - half - 3, y, mid + half + 2, y + 2], fill=INK)
+        if half > 1:
+            d.rectangle([mid - half, y, mid + half - 1, y + 2], fill=fill)
+    for i, line in enumerate(lines):
+        draw_text(img, (mid, 10 + i * 20), line, 2, INK, "mt")
+    return img
+
+
 # ---------------------------------------------------------------- what moves on the walls
 
 @lru_cache(maxsize=1)

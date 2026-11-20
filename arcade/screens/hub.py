@@ -12,7 +12,7 @@ import time
 
 import streamlit as st
 
-from arcade import bots, hubmap, idle, match, room, state, ui
+from arcade import bots, dialogues, hubmap, match, room, state, ui, wander
 from arcade.art import scenes
 from arcade.config import ANIMATIONS, GAMES, IDLE_EVERY
 from arcade.logic import championship
@@ -142,7 +142,37 @@ def _scene_data() -> dict:
         cutscene=_cutscene(),
         fade=S.get("_room_fade", 0),
         ack=S.hub.get("pressed", 0),
+        talk=_current_talk(),
     )
+
+
+TALK_SHOWN = 6.6  # seconds the two speech bubbles of a chat stay in the data sent to the browser
+TALK_CHECK = 30  # how far (small canvas) the player may be from a bot when Python checks a TALK press
+
+
+def _current_talk() -> dict | None:
+    talk = S.hub.get("talk")
+    if talk and time.time() - talk["t0"] > TALK_SHOWN:
+        S.hub["talk"] = talk = None
+    return talk
+
+
+def _talk(value) -> None:
+    """E next to a bot: the player says one of their lines to it and it answers (arcade/dialogues.py)."""
+    name = value.get("name") if isinstance(value, dict) else None
+    hub, now = S.hub, time.time()
+    if name not in hub["bots"]:
+        return
+    spot, _ = wander.where(hub["bots"][name], now)
+    if hubmap.distance(spot, hub["pos"]) > TALK_CHECK:
+        return
+    wander.talk(hub["bots"][name], hub["pos"], now)
+    queue = hub.setdefault("chats", {})
+    (line, reply), queue[name] = dialogues.next_line(name, queue.get(name, []), state.rng())
+    hub["talk"] = {"id": hub.get("talk_count", 0) + 1, "me": S.player["name"], "bot": name, "line": line,
+                   "reply": reply, "t0": now}
+    hub["talk_count"] = hub["talk"]["id"]
+    sound.play("blip")
 
 
 def _accept(value) -> None:
@@ -187,7 +217,7 @@ def _room_view() -> None:
     walk = hub.get("walk")
     if walk and events.cut_done is not None and events.cut_done == walk.get("id"):
         _finish_walk()
-    for name in ("interact", "rules", "pause"):
+    for name in ("interact", "rules", "pause", "talk"):
         value = getattr(events, name)
         if value is None:
             continue
@@ -197,6 +227,9 @@ def _room_view() -> None:
         hub["pressed"] = number
         _accept(value)
         near = hubmap.near_spot(hub["pos"])
+        if name == "talk":
+            _talk(value)
+            st.rerun(scope="fragment")
         if name == "pause":
             _pause()
         elif name == "rules" and _can_read_rules(near):
@@ -209,9 +242,9 @@ def _room_view() -> None:
         _accept(events.pos)
         return
 
-    if not whole_page and not hub.get("walk"):  # a timed run: the bots shuffle (shown on the next one)
+    if not whole_page and not hub.get("walk"):  # a timed run: the bots walk about (shown on the next one)
         homes = {bot["name"]: bot["home"] for bot in bots.BOTS}
-        hub["bots"] = idle.idle_tick(hub["bots"], homes, hub["pos"], state.rng())
+        hub["bots"] = wander.tick(hub["bots"], homes, hub["pos"], state.rng(), time.time())
 
 
 def render() -> None:

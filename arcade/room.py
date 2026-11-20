@@ -33,7 +33,7 @@ import json
 
 import streamlit as st
 
-from arcade import hubmap
+from arcade import hubmap, wander
 from arcade.art import room_layers as layers
 from arcade.config import SCALE
 
@@ -76,12 +76,16 @@ def _tag_key(spec) -> str | None:
     return json.dumps(spec, sort_keys=True) if spec else None
 
 
-def scene(sent: set, *, actors, coins, champ_locked, bubbles, player, cutscene=None, fade=0, ack=0) -> dict:
+TALK_REACH = 18  # how close (small canvas) the player must be to a bot to talk to it (E)
+
+
+def scene(sent: set, *, actors, coins, champ_locked, bubbles, player, cutscene=None, fade=0, ack=0, talk=None) -> dict:
     """Everything the browser needs for the room (data for ROOM_JS).
 
     actors   the six characters (state.hub_actors()); the player has player=True
     bubbles  spot -> list of prompts (see screens/hub._prompts)
     player   {"seq", "x", "y", "dir"}: where Python wants the player; the browser only jumps there when seq changes
+    talk     what the player and a bot are saying: {"id", "me", "bot", "line", "reply"} (screens/hub.py), or None
     """
     s = Scene(sent)
     data = {
@@ -96,7 +100,20 @@ def scene(sent: set, *, actors, coins, champ_locked, bubbles, player, cutscene=N
         "poses": layers.POSES,
         "player": player,
         "fade": fade,
+        "botSpeed": wander.SPEED,
+        "talkReach": TALK_REACH,
     }
+    talk_img, (tw, th), tpad = layers.bubble("TALK", "E")
+    data["talkBubble"] = {"img": s.use("bubble:talk", lambda: talk_img), "w": tw, "h": th, "pad": tpad}
+    data["talk"] = None
+    if talk:
+        lines = []
+        for who, text, mine, at, dur in ((talk["me"], talk["line"], True, 0.0, 2.2),  # one after the other
+                                         (talk["bot"], talk["reply"], False, 2.3, 4.0)):
+            picture = layers.speech(text, mine)
+            key = s.use(f"speech:{int(mine)}:{text}", lambda p=picture: p)
+            lines.append({"who": who, "img": key, "w": picture.width, "h": picture.height, "at": at, "dur": dur})
+        data["talk"] = {"id": talk["id"], "lines": lines}
     hud, hud_at = layers.hud_layer(coins)
     data["hud"] = {"img": s.use(f"hud:{coins}", lambda: hud), "x": hud_at[0], "y": hud_at[1]}
 
@@ -119,6 +136,7 @@ def scene(sent: set, *, actors, coins, champ_locked, bubbles, player, cutscene=N
         data["actors"].append({
             "name": actor["name"], "player": bool(actor.get("player")),
             "x": actor["pos"][0], "y": actor["pos"][1], "dir": actor.get("dir", "down"),
+            "path": actor.get("path"), "pid": actor.get("pid"),
             "sheet": s.use(_look_key(actor["look"]), lambda img=sheet: img), "rows": rows,
             "tags": [s.use(f"{tag_base}:{i}", lambda img=frame: img) for i, frame in enumerate(tag_frames)],
             "tagAnchor": list(anchor),
@@ -231,13 +249,25 @@ export default function (component) {
         G.target = null; G.moving = false; G.zone = null;
     }
 
-    // ---- bots: glide to their new spot instead of jumping
+    // ---- bots: walk the paths Python planned (arcade/wander.py); otherwise glide to their new spot
     const now = performance.now() / 1000;
     for (const actor of data.actors) {
         if (actor.player) continue;
         const b = G.bots[actor.name];
         if (!b) {
-            G.bots[actor.name] = { x: actor.x, y: actor.y, fx: actor.x, fy: actor.y, tx: actor.x, ty: actor.y, t0: 0, dur: 0, dir: actor.dir };
+            G.bots[actor.name] = { x: actor.x, y: actor.y, fx: actor.x, fy: actor.y, tx: actor.x, ty: actor.y, t0: 0, dur: 0, dir: actor.dir, pid: actor.pid };
+        } else if (actor.pid != null && actor.pid !== b.pid) {  // a new walk (or a stop)
+            b.pid = actor.pid;
+            b.tx = actor.x; b.ty = actor.y; b.goalDir = actor.dir;
+            if (actor.path && actor.path.length > 1) {
+                b.path = [[b.x, b.y]].concat(actor.path.slice(1)); b.pathT0 = now;
+            } else {
+                b.path = null; b.fx = b.x; b.fy = b.y; b.t0 = now;
+                b.dur = Math.max(0.15, Math.hypot(b.tx - b.fx, b.ty - b.fy) / 40);
+                b.dir = actor.dir;
+            }
+        } else if (b.path) {
+            b.goalDir = actor.dir;
         } else if (b.tx !== actor.x || b.ty !== actor.y) {
             b.fx = b.x; b.fy = b.y; b.tx = actor.x; b.ty = actor.y; b.t0 = now;
             b.dur = Math.max(0.15, Math.hypot(b.tx - b.fx, b.ty - b.fy) / 40);
@@ -246,6 +276,7 @@ export default function (component) {
             b.dir = actor.dir;
         }
     }
+    if (data.talk && data.talk.id !== G.talkId) { G.talkId = data.talk.id; G.talkT0 = now; }
 
     // ---- a scripted walk to a table, then a zoom
     if (data.cutscene && (!G.cut || G.cut.id !== data.cutscene.id) && !G.cutDone[data.cutscene.id]) {
@@ -270,9 +301,9 @@ export default function (component) {
     // Key presses are numbered and sent again until Python says it handled them (data.ack), so none is lost.
     G.pressN = Math.max(G.pressN || 0, data.ack || 0);
     if (G.press && (data.ack || 0) >= G.press.n) G.press = null;
-    const act = (kind) => {
+    const act = (kind, extra) => {
         G.pressN += 1;
-        G.press = { kind, value: { ...here(), n: G.pressN }, t: performance.now(), tries: 1 };
+        G.press = { kind, value: { ...here(), ...(extra || {}), n: G.pressN }, t: performance.now(), tries: 1 };
         G.send(kind, G.press.value);
     };
     const onKeyDown = (event) => {
@@ -284,7 +315,8 @@ export default function (component) {
             if (!G.keys.includes(key)) G.keys.push(key);
             G.target = null;
         } else if (key === "e" && !event.repeat) {
-            if (G.zone) act("interact");
+            if (G.nearBot) act("talk", { name: G.nearBot });  // next to a bot: talk to it
+            else if (G.zone) act("interact");
         } else if (key === "i" && !event.repeat) {
             if (G.zone === 5) act("rules");
         } else if (key === "escape" && !event.repeat) {
@@ -304,7 +336,8 @@ export default function (component) {
         if (sx >= px && sx <= px + pw && sy >= py && sy <= py + ph) { act("pause"); return; }
         for (const hit of G.hits || []) {
             if (sx >= hit[0] && sx <= hit[2] && sy >= hit[1] && sy <= hit[3]) {
-                act(hit[4] === "rules" ? "rules" : "interact");
+                if (hit[4] === "talk") act("talk", { name: G.nearBot });
+                else act(hit[4] === "rules" ? "rules" : "interact");
                 return;
             }
         }
@@ -360,7 +393,7 @@ export default function (component) {
         if (ignoreBots) return true;
         const [bw, bh] = map.body;
         for (const b of Object.values(G.bots)) {
-            const ox = (ix - b.tx) / bw, oy = (iy - b.ty) / bh;
+            const ox = (ix - b.x) / bw, oy = (iy - b.y) / bh;
             if (ox * ox + oy * oy <= 1) return false;
         }
         return true;
@@ -422,9 +455,37 @@ export default function (component) {
     function update(t, dt) {
         const d = G.data;
         for (const b of Object.values(G.bots)) {
+            if (b.path) {  // along the planned walk, at a stroll
+                let left = (t - b.pathT0) * d.botSpeed, done = true;
+                for (let i = 0; i < b.path.length - 1; i++) {
+                    const a = b.path[i], c = b.path[i + 1], piece = Math.hypot(c[0] - a[0], c[1] - a[1]);
+                    if (piece > 0 && left <= piece) {
+                        const s = left / piece;
+                        b.x = a[0] + (c[0] - a[0]) * s; b.y = a[1] + (c[1] - a[1]) * s;
+                        b.dir = Math.abs(c[0] - a[0]) > Math.abs(c[1] - a[1]) ? (c[0] > a[0] ? "right" : "left") : (c[1] > a[1] ? "down" : "up");
+                        done = false;
+                        break;
+                    }
+                    left -= piece;
+                }
+                b.walking = !done;
+                if (done) {
+                    const e = b.path[b.path.length - 1];
+                    b.x = b.fx = b.tx = e[0]; b.y = b.fy = b.ty = e[1]; b.dur = 0; b.path = null; b.dir = b.goalDir || b.dir;
+                }
+                continue;
+            }
             const p = b.dur ? Math.min(1, (t - b.t0) / b.dur) : 1;
             b.x = b.fx + (b.tx - b.fx) * p; b.y = b.fy + (b.ty - b.fy) * p;
             b.walking = p < 1;
+        }
+        G.nearBot = null;  // a bot close enough to talk to (E)
+        if (!G.cut) {
+            let best = Infinity;
+            for (const [name, b] of Object.entries(G.bots)) {
+                const gap = Math.hypot(b.x - G.x, (b.y - G.y) * 1.2);
+                if (gap <= d.talkReach && gap < best) { best = gap; G.nearBot = name; }
+            }
         }
         if (G.cut) { updateCut(t); return; }
 
@@ -581,9 +642,23 @@ export default function (component) {
             if (tag) ctx.drawImage(tag, Math.round(p.x * S) - p.actor.tagAnchor[0], Math.round((p.y - 23) * S) - 4 - p.actor.tagAnchor[1]);
         }
 
+        // what the player and a bot are saying (E next to a bot), above their name tags
+        if (d.talk && G.talkT0 !== undefined) {
+            const e = t - G.talkT0;
+            for (const line of d.talk.lines) {
+                if (e < line.at || e > line.at + line.dur) continue;
+                const p = people.find((pp) => pp.actor.name === line.who), im = img(line.img);
+                if (!p || !im) continue;
+                const x = Math.max(4, Math.min(956 - line.w, Math.round(p.x * S - line.w / 2)));
+                const y = Math.max(4, Math.round((p.y - 23) * S) - 8 - p.actor.tagAnchor[1] - line.h);
+                ctx.drawImage(im, x, y);
+            }
+        }
+
         // prompt bubbles next to the player
         G.hits = [];
-        const items = (!G.cut && me && d.bubbles[String(zone)]) || [];
+        let items = (!G.cut && me && d.bubbles[String(zone)]) || [];
+        if (!G.cut && me && G.nearBot && d.talkBubble) items = [{ ...d.talkBubble, action: "talk" }];
         if (items.length) {
             const onLeft = me.x > 200;
             let y = Math.round((me.y - 20) * S);
@@ -619,7 +694,7 @@ function nameHash(name) { let s = 0; for (const ch of name) s += ch.charCodeAt(0
 
 _room = st.components.v2.component("arcade_room", css=ROOM_CSS, js=ROOM_JS)
 
-EVENTS = ("pos", "interact", "rules", "pause", "cut_done", "need")
+EVENTS = ("pos", "interact", "rules", "pause", "cut_done", "need", "talk")
 
 
 def mount(data: dict, key: str = "arcade_room"):

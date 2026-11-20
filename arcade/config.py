@@ -86,7 +86,7 @@ TURN_SECONDS = 15
 FADE_STEPS = 5
 FADE_DELAY = 0.035
 
-# Bots shuffle and turn while idle (task A4): seconds between two idle moments in the room
+# The bots walk about the room (arcade/wander.py): seconds between two moments when they decide what to do next
 IDLE_EVERY = 1.2
 
 # Soft neon glow around bright colours on every picture (visual update, idea 2). Costs about 20 ms a picture.

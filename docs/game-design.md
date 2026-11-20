@@ -74,6 +74,16 @@ Numbers live in `arcade/config.py`.
 - Four bots, one per level, each with its own name and look (all our own designs): **DEAN** (easy, a university
   dean in a suit and glasses), **BARK** (medium, a dog with a blue bandana, on four legs), **MANHOSA** (hard, a
   security officer in uniform and cap) and **JOHN** (expert, the most ordinary guy there is).
+- The bots are alive: they stroll round the room (round the tables, never through them), stop to look at a machine,
+  the store, the prize machine or the dance pad, look around, and move on. Now and then two of them sit down at a
+  table nobody is using and play together for a while (never at the table the player stands at). When the player
+  picks them for a game, they stop what they are doing and walk to the table; anyone else sitting there leaves.
+- **Talking**: next to a bot, the prompt **TALK [E]** appears (it replaces PLAY / SHOP there). E (or a click on it)
+  makes the player say something and the bot answer, in speech bubbles above their heads, one after the other: thirty
+  little exchanges per bot, in its own voice, all thirty before any repeats. DEAN is a formal, kind dean who loses a
+  lot; MANHOSA a sly, strict security officer; JOHN painfully ordinary (and the best player there); BARK is a dog and
+  only ever answers "Bark!". A bot stops and turns to the player while they talk (a bot playing at a table answers
+  without getting up).
 - Three game tables stand out from the scenery: UNO (left), checkers (top middle), Connect Four (right).
 - The store is at the top right. The championship cabinet is at the top left.
 - A coin counter is shown at the top right of the room. It is not shown at the game tables.
