@@ -91,7 +91,9 @@ Numbers live in `arcade/config.py`.
   | Checkers | 59 / 18 / 1 / – % | 96 / 85 / 9 / – % (expert is slow to simulate; it is stronger than hard) |
   | UNO (1st place out of 4) | 70 / 45 / 20 / 15 % | 81 / 64 / 34 / 27 % |
 - The player and the chosen bots walk to the table. When everyone has arrived the view zooms in and the game starts.
-- At the table the player sees the opponents sitting across it.
+- At the table the player sits at the near side of a round table (its near edge shows at the bottom, with the
+  player's cards held in front of it). The opponents sit round it in turn order: one opponent sits across; two sit
+  left and right; three sit left, across and right. Each one's UNO cards lie face down on the table in front of them.
 - A bot thinks for a random 1 to 3 seconds before each move, with a "..." speech bubble next to it (in checkers, the
   extra jumps of a chain follow quickly).
 - The player has **15 seconds** for each turn, shown by a countdown bar under the table (red for the last 5 seconds).
@@ -214,7 +216,7 @@ Saved per player name: coins, owned cosmetics, equipped cosmetics, wins per game
   and press **Start** (Enter) when the number of players fits.
   The others see the host's choice and wait. Nobody can join while a game is being played.
 - **At the table** each player sees the game from their own seat, with the same pictures as in the arcade: in UNO the
-  others sit across the table in turn order; in checkers and Connect Four the host is red and moves first, and the
+  others sit round the table in turn order; in checkers and Connect Four the host is red and moves first, and the
   second player's checkers board is turned round so their pieces are at the bottom. The same rules as offline (UNO
   places included). Moves out of turn are refused; a yellow frame shows whose turn it is.
 - Each player has **15 seconds** a turn (shown under the table for everyone). When time runs out the game plays for them,

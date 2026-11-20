@@ -259,7 +259,7 @@ def _shirt_colour(spec: dict, x: int, y: int, t: int, view: str = "front", arm: 
         elif front and not arm and x in (5, 6) and y == 12:
             colour = c3  # a chest pocket
         elif back and not arm and y in (12, 13) and 4 <= x <= 11 and (x * 3 + y) % 4 != 0:
-            colour = c2  # a yellow print across the back
+            colour = c2  # a print across the back
     elif style == "gold":
         colour = mix(c1, "#c98a12", (y - 10) / 8)
         if (x * 7 + y * 13 + t * 5) % 11 == 0:

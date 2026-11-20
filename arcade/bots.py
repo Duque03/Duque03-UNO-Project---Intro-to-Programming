@@ -12,7 +12,7 @@ BOTS = [
      "shirt": "bot_dean_suit", "tag": "name_c03", "home": (88, 72), "dir": "up"},        # a university dean
     {"name": "BARK", "level": "medium", "skin": "#c98b4a", "pants": "#c98b4a", "hair": "bot_dog",
      "shirt": "bot_dog_bandana", "tag": "name_r02", "home": (24, 112), "dir": "left"},   # a dog
-    {"name": "MANHOSA", "level": "hard", "skin": "#6b4428", "pants": "#1c2238", "hair": "bot_guard_cap",
+    {"name": "MANHOSA", "level": "hard", "skin": "#6b4428", "pants": "#19181e", "hair": "bot_guard_cap",
      "shirt": "bot_guard_uniform", "tag": "name_r03", "home": (296, 116), "dir": "right"},  # a security officer
     {"name": "JOHN", "level": "expert", "skin": "#f0c8a4", "pants": "#3b5b8f", "hair": "bot_john_hair",
      "shirt": "bot_john_tee", "tag": None, "home": (152, 72), "dir": "up"},  # the most ordinary guy there is

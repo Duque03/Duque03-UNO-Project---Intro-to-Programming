@@ -112,9 +112,9 @@ _BY_ID = {item["id"]: item for item in ITEMS}
 BOT_ONLY = {
     "bot_dean_hair": {"slot": "hair", "spec": {"style": "dean", "c1": "#b9b9c4", "c2": "#1d1a22"}},
     "bot_dean_suit": {"slot": "shirt", "spec": {"style": "suit", "c1": "#2e3140", "c2": "#f3f3f6", "c3": "#8a1f2e"}},
-    "bot_guard_cap": {"slot": "hair", "spec": {"style": "officer", "c1": "#1f2a4a", "c2": "#f2c94a", "c3": "#16121c"}},
+    "bot_guard_cap": {"slot": "hair", "spec": {"style": "officer", "c1": "#1d1c22", "c2": "#d8343a", "c3": "#121116"}},
     "bot_guard_uniform": {"slot": "shirt",
-                          "spec": {"style": "uniform", "c1": "#24315a", "c2": "#f2c94a", "c3": "#16203f"}},
+                          "spec": {"style": "uniform", "c1": "#24232b", "c2": "#d8343a", "c3": "#131217"}},
     "bot_dog": {"slot": "hair", "spec": {"style": "dog", "c1": "#7a4a24", "c2": "#f0d6a8", "c3": "#1d1a22"}},
     "bot_dog_bandana": {"slot": "shirt", "spec": {"style": "solid", "c1": "#2f6fe0"}},
     "bot_john_hair": {"slot": "hair", "spec": {"style": "short", "c1": "#4a3020"}},
