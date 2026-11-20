@@ -120,15 +120,14 @@ changing these files, and change them in a small pull request of their own.
   runs offline (`screens/corta.py`, with fragments that let the bot answer and close questions four times a second)
   and online (`Lobby.duel`, moved on by `Lobbies._tick`). While a face-off runs, nothing else in the game moves.
 - **The only JavaScript is `INPUT_JS` and `FULLSCREEN_JS` in `arcade/ui.py`, `SOUND_JS` in `arcade/sound.py`,
-  `ROOM_JS` in `arcade/room.py`, `TITLE_JS` in `arcade/title_view.py`, `ANIM_JS` in `arcade/table_anim.py` and `JS` in
-  `arcade/tiles.py`.** `ANIM_JS` only draws (and plays the card sounds through `SOUND_JS`) and never sends anything back. `INPUT_JS` reports clicks on the game picture.
+  `ROOM_JS` in `arcade/room.py`, `TITLE_JS` in `arcade/title_view.py` and `ANIM_JS` in `arcade/table_anim.py`.** `ANIM_JS` only draws (and plays the card sounds through `SOUND_JS`) and never sends anything back. `INPUT_JS` reports clicks on the game picture.
   `FULLSCREEN_JS` is the FULL SCREEN button (and the F key) and sends nothing back. `SOUND_JS` only plays sounds by
   name (and draws the MUSIC button, which does what M does) and never sends anything back. Its tunes come from
   `arcade/music.py`, written into the script once (`__SCORE__`); each run only sends the name of the tune the screen
   wants (`music.track_for`). To change a tune, edit its text in `music.py`; `tests/test_music.py` checks it fits. `ROOM_JS` moves and draws the room; it numbers every press of E, I and Esc and
-  sends it again until Python has handled it (`room.new_press`), so a press is never lost. The `tiles.py` script draws
-  the item grid of the store and the wardrobe and reports which item was clicked. Python checks every value it
-  receives before using it (`tiles.grid` only accepts ids that exist in `catalog.py`).
+  sends it again until Python has handled it (`room.new_press`), so a press is never lost. Python checks every value
+  it receives before using it. The store and the wardrobe are pictures too (`arcade/art/shop.py`): a click on an item
+  is only accepted if the id exists in `catalog.py`.
 - **Online lobbies live on the server, not in a session** (`arcade/logic/lobby.py`, shared through
   `st.cache_resource` in `arcade/online.py`). Every player's session reads and changes the same `Lobbies` object, which
   has a lock, so never keep a lobby or its game in `st.session_state`: keep only the code (`S.lobby_code`) and ask

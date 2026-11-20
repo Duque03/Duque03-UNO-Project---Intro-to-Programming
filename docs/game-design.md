@@ -27,7 +27,7 @@ Numbers live in `arcade/config.py`.
   | Checkers | The arrow keys move a cursor on the board (blue, because yellow already marks the pieces); Space or Enter acts like a click on that square. |
   | Connect Four | Left / Right choose a column; Space, Enter or Down drops the disc. 1-7 drop straight into that column. |
   | Store | Left / Right choose an item, Up / Down change tab. Enter buys it (or wears it, if it is owned). Esc goes back. |
-  | Wardrobe | Left / Right choose an item, Up / Down change tab. E equips it, U takes it off, Esc goes back. |
+  | Wardrobe | Left / Right choose an item, Up / Down change tab. E or Enter equips it, U takes it off, Esc goes back. |
 
   The title screen and the arcade room already work both ways (sections 1 and 2).
 - Changing screen fades in from black, smoothly (the browser does the fade).
@@ -191,11 +191,12 @@ Numbers live in `arcade/config.py`.
 - Three tabs: hair, shirt, name tag.
 - Each tab sells 10 common items (20 coins), 3 rare items (100 coins) and 1 legendary item (500 coins).
 - A purchase is rejected if the player does not have enough coins or already owns the item. A rejected purchase changes nothing.
-- A whole tab fits on one screen. Each item is a tile showing the item on the player's own character (the name tag
-  with the player's name), and its price, or **OWNED**, or **WEARING**. A price the player cannot pay is shown in red.
+- The store is one picture, like the rest of the game: the tabs and **BACK** at the top, the coins next to the title.
+  A whole tab fits on it: each item is a tile showing the item on the player's own character (the name tag with the
+  player's name), and its price, or **OWNED**, or **WEARING**. A price the player cannot pay is greyed out.
 - Clicking a tile shows the player wearing it, large, from the front, the side and the back, before buying.
-  **Buy** pays for it (greyed out, with how many coins are missing, when the player cannot pay). An owned item can be
-  worn straight away with **Wear it now**.
+  **BUY FOR ...** pays for it (greyed out, with how many coins are missing, when the player cannot pay). An owned item
+  can be worn straight away with **WEAR IT**.
 - The designs are our own. Themes: football (haircuts, kits in classic club colours with a number on the back,
   scarf name tags, the pitch), battle royale (camo, helmet with visor, tactical vest, storm), and Portugal (azulejo
   tiles, the flag colours, the Nazare check, the Ribatejo stocking cap, Santos Populares). Each tab has one rare item
@@ -205,8 +206,9 @@ Numbers live in `arcade/config.py`.
 
 - Esc opens a light-blue menu: **Resume**, **Wardrobe**, **How to play**, **Leave arcade**, and **Play online** in the
   room (O) or **Leave table** at a table.
-- The wardrobe has the same three tabs and shows only owned items, with the character shown large on the right.
-- Clicking an item previews it. **E** equips it and the item gets a green pixel tick. **U** takes it off and the default look returns.
+- The wardrobe is a picture like the store, with only owned items, and the character shown large on the right.
+- Clicking an item previews it. **EQUIP** (E or Enter) wears it (its tile says WEARING). **UNEQUIP** (U) takes it off
+  and the player's own look (made when they created their player) returns.
 - **Leave arcade** returns to the title screen. Progress is kept.
 
 ## 6. Championship
