@@ -37,3 +37,13 @@ def test_free_play_offers_continue_and_play_again_online_only_the_lobby():
 def test_a_name_tag_can_be_an_item_id_or_its_drawing():
     online = [dict(entry, tag=catalog.spec_for("name", entry["tag"])) for entry in EVERYONE]
     assert [p.size for p, _ in podium.figures(online)] == [p.size for p, _ in podium.figures(EVERYONE)]
+
+
+def test_two_players_winner_higher_and_a_tie_on_equal_steps():
+    win = podium.spots(2)
+    assert win[0]["height"] > win[1]["height"] and win[1]["cx"] < win[0]["cx"]
+    tie = podium.spots(2, tied=True)
+    assert tie[0]["height"] == tie[1]["height"] and tie[0]["label"] == tie[1]["label"] == "1"
+    img, regions = podium.podium_picture(TABLE, "TIE!", EVERYONE[:2], "MIGUEL", line="Nobody made four in a row.",
+                                         tied=True)
+    assert img.size == (SCREEN_W, SCREEN_H) and ("again",) in [action for _, action in regions]

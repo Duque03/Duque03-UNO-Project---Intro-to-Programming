@@ -11,7 +11,7 @@ from PIL import Image, ImageDraw
 
 from arcade import catalog
 from arcade.art import sprites
-from arcade.art.pixel import coin, darken, draw_text, key_icon, mix, rgb, shade, text_size
+from arcade.art.pixel import coin, darken, draw_text, key_icon, mix, rgb, shade, text_size, wrap
 from arcade.art.scenes import confetti, sparkle
 from arcade.config import SCREEN_H, SCREEN_W
 
@@ -24,10 +24,26 @@ FIGURE_SCALE = 5
 MEDALS = {1: ("#ffd23a", "#e2413c"), 2: ("#dfe6f2", "#3a78e8"), 3: ("#e0915a", "#3fae5a")}  # disc, ribbon
 
 
-def _block(img, place: int) -> None:
+def spots(count: int, tied: bool = False) -> list[dict]:
+    """Where each player stands, from 1st to last: cx (middle), height of their step (0: on the floor), colour,
+    label (the number on the step) and medal (1, 2, 3 or None). Two players: 2nd on the left of 1st; a tie: two
+    equal gold steps."""
+    if tied:
+        return [{"cx": cx, "height": 136, "colour": "#ffd23a", "label": "1", "medal": 1} for cx in (392, 568)]
+    if count == 2:
+        return [{"cx": 568, "height": 160, "colour": STEPS[1][2], "label": "1", "medal": 1},
+                {"cx": 392, "height": 112, "colour": STEPS[2][2], "label": "2", "medal": 2}]
+    out = [{"cx": STEPS[p][0], "height": STEPS[p][1], "colour": STEPS[p][2], "label": str(p), "medal": p}
+           for p in range(1, min(count, 3) + 1)]
+    if count == 4:
+        out.append({"cx": LAST_X, "height": 0, "colour": None, "label": "4", "medal": None})
+    return out
+
+
+def _block(img, spot: dict) -> None:
     """One step of the podium: a lit top, the front with the big number, darker sides (pixel art, no blur)."""
     d = ImageDraw.Draw(img)
-    cx, height, colour = STEPS[place]
+    cx, height, colour = spot["cx"], spot["height"], spot["colour"]
     x0, x1, top = cx - BLOCK_W // 2, cx + BLOCK_W // 2, GROUND - height
     d.rectangle([x0 - 3, top - 15, x1 + 3, GROUND + 3], fill=rgb(INK))
     d.rectangle([x0, top - 12, x1, top], fill=shade(colour, 1.35))  # the top, seen from a little above
@@ -36,7 +52,8 @@ def _block(img, place: int) -> None:
     d.rectangle([x0, top + 1, x0 + 8, GROUND], fill=shade(colour, 1.18))  # light edge
     d.rectangle([x1 - 8, top + 1, x1, GROUND], fill=shade(colour, 0.78))  # shaded edge
     d.rectangle([x0, GROUND - 8, x1, GROUND], fill=shade(colour, 0.7))
-    number, suffix = str(place), {1: "ST", 2: "ND", 3: "RD"}[place]
+    number = spot["label"]
+    suffix = {"1": "ST", "2": "ND", "3": "RD"}[number]
     nw = text_size(number, 8)[0]
     middle = top + max(36, height // 2)
     draw_text(img, (cx - 10, middle), number, 8, "#ffffff", "mm", shadow=shade(colour, 0.5))
@@ -58,22 +75,17 @@ def _medal(img, cx, chest_y, place: int) -> None:
     d.rectangle([cx - 4, chest_y + 3, cx - 2, chest_y + 6], fill=shade(disc, 1.5))
 
 
-def figures(standings: list[dict]) -> list[tuple]:
+def figures(standings: list[dict], tied: bool = False) -> list[tuple]:
     """Each player as a see-through picture standing in their place: [(picture, (x, y)), ...] in place order.
 
     standings: [{"name", "look", "tag"}] from 1st to last (the tag: a name tag item id, its drawing spec, or None).
+    tied: two players who tied (they stand on two equal steps).
     """
     out = []
-    count = len(standings)
-    for i, entry in enumerate(standings):
-        place = i + 1
-        last = place == count and count == 4
-        scale = 4 if last else FIGURE_SCALE
-        if last:
-            cx, feet = LAST_X, GROUND
-        else:
-            cx, height, _ = STEPS[place]
-            feet = GROUND - height - 6
+    for entry, spot in zip(standings, spots(len(standings), tied)):
+        on_floor = spot["height"] == 0
+        scale = 4 if on_floor else FIGURE_SCALE
+        cx, feet = spot["cx"], GROUND if on_floor else GROUND - spot["height"] - 6
         skin, pants, hair, shirt = entry["look"]
         body = sprites.sprite(skin, pants, hair, shirt, "down", 0, 0)
         hair_top = (body.getbbox() or (0, 0, 0, 0))[1]
@@ -81,8 +93,8 @@ def figures(standings: list[dict]) -> list[tuple]:
         canvas = Image.new("RGBA", (220, body.height + 70), (0, 0, 0, 0))
         bx = (canvas.width - body.width) // 2
         canvas.paste(body, (bx, 70), body)
-        if place <= 3 and not last:
-            _medal(canvas, canvas.width // 2, 70 + (sprites.OY + 11) * scale, place)
+        if spot["medal"]:
+            _medal(canvas, canvas.width // 2, 70 + (sprites.OY + 11) * scale, spot["medal"])
         tag = entry.get("tag")
         spec = tag if isinstance(tag, dict) else catalog.spec_for("name", tag)
         sprites.draw_name_tag(canvas, canvas.width // 2, 70 + hair_top * scale - 6, entry["name"], spec, 0)
@@ -95,8 +107,11 @@ def figures(standings: list[dict]) -> list[tuple]:
 
 
 def podium_picture(table, title: str, standings: list[dict], me: str, coins: int = 0, footer: str = "again",
-                   with_figures: bool = True):
-    """The podium over the dimmed table. Returns (picture, regions).
+                   with_figures: bool = True, line: str = "", tied: bool = False):
+    """The podium over the dimmed table, for every game (UNO: up to four players; checkers and Connect Four: the
+    winner and the loser, or two equal steps for a tie). Returns (picture, regions).
+
+    line: a short sentence under the title (a win, loss or tie line), or "".
 
     footer "again": ENTER CONTINUE and A PLAY AGAIN (regions ("continue",) for the whole picture, ("again",)).
     footer "lobby": ENTER LOBBY (the whole picture is ("lobby",)). with_figures=False leaves the players out (they
@@ -105,11 +120,14 @@ def podium_picture(table, title: str, standings: list[dict], me: str, coins: int
     img = darken(table, 0.8)
     d = ImageDraw.Draw(img)
     count = len(standings)
-    won = bool(standings) and standings[0]["name"] == me
+    places = spots(count, tied)
+    won = bool(standings) and standings[0]["name"] == me and not tied
+    winner_x = places[0]["cx"] if places else 480
     # two flat spotlights from the ceiling onto the top step, with checkered edges
     for spread, strength in ((150, 0.10), (100, 0.16)):
         light = Image.new("L", img.size, 0)
-        ImageDraw.Draw(light).polygon([(480 - 30, 0), (480 + 30, 0), (480 + spread, GROUND), (480 - spread, GROUND)],
+        x = 480 if tied else winner_x
+        ImageDraw.Draw(light).polygon([(x - 30, 0), (x + 30, 0), (x + spread, GROUND), (x - spread, GROUND)],
                                       fill=255)
         img.paste(Image.blend(img, Image.new("RGB", img.size, (255, 236, 170)), strength), (0, 0), light)
     d = ImageDraw.Draw(img)
@@ -120,9 +138,9 @@ def podium_picture(table, title: str, standings: list[dict], me: str, coins: int
     d.rectangle([0, GROUND + 1, SCREEN_W, GROUND + 4], fill=rgb("#ff4fa3"))
     for x in range(0, SCREEN_W, 48):
         d.rectangle([x, GROUND + 5, x + 1, SCREEN_H], fill=rgb("#130f30"))
-    for place in (2, 3, 1):
-        if place <= count and not (count == 2 and place == 3):
-            _block(img, place)
+    for spot in sorted(places, key=lambda spot: spot["height"]):  # (the floor spot has no step)
+        if spot["height"]:
+            _block(img, spot)
     # the title on a ribbon, and the coins
     tw = text_size(title, 5)[0]
     x0, x1 = 480 - tw // 2 - 40, 480 + tw // 2 + 40
@@ -137,15 +155,17 @@ def podium_picture(table, title: str, standings: list[dict], me: str, coins: int
         lw = text_size(label, 3)[0] + 34
         coin(img, 480 - lw // 2, 94, 3)
         draw_text(img, (480 - lw // 2 + 34, 106), label, 3, "#ffe94a", "lm", shadow=INK)
+    if line:  # on the stage, under the podium
+        draw_text(img, (480, GROUND + 13), wrap(line.upper(), 64)[0], 2, "#d9d4ff", "mt", shadow=INK)
     if with_figures:
-        for piece, (x, y) in figures(standings):
+        for piece, (x, y) in figures(standings, tied):
             img.paste(piece, (int(x), int(y)), piece)
-        if standings:
-            cx, height, _ = STEPS[1]
+        if standings and not tied:
+            cx, height = places[0]["cx"], places[0]["height"]
             for sx, sy, size in ((cx - 80, GROUND - height - 150, 3), (cx + 84, GROUND - height - 110, 2),
                                  (cx + 60, GROUND - height - 190, 2)):
                 sparkle(img, sx, sy, size)
-    if count == 4:  # the last player: a small sign at their feet
+    if count == 4 and not tied:  # the last player: a small sign at their feet
         draw_text(img, (LAST_X, GROUND + 20), "4TH", 2, mix("#d9d4ff", INK, 0.2), "mm", shadow=INK)
     # what to do next
     regions = []

@@ -147,16 +147,25 @@ def _bar_end(bar, lobby, me: str, over: bool, action=None) -> None:
 def _show(img, regions, lobby, me, over, plan=None):
     """Show the table (with the result box when the game is over), after an animation if there is one."""
     slot = ui.screen()
-    if over and lobby.result.get("places") and not lobby.result.get("left"):  # UNO: everyone on the podium
-        title, _ = _result_text(lobby, me)
-        standings = [lobby.player(name) for name in lobby.result["places"]]
-        coins = online_coins(lobby.result, me)
-        final, regions = podium.podium_picture(img, title, standings, me, coins, footer="lobby")
+    if over and not lobby.result.get("left"):  # everyone on the podium
+        title, line = _result_text(lobby, me)
+        result, tied = lobby.result, False
+        if result.get("places"):  # UNO: from 1st to last (the podium shows the places, no line needed)
+            order, line = result["places"], ""
+        elif result.get("winner"):
+            order = [result["winner"]] + [name for name in lobby.seats if name != result["winner"]]
+        else:  # a tie
+            order, tied = list(lobby.seats), True
+        standings = [lobby.player(name) for name in order]
+        coins = online_coins(result, me)
+        final, regions = podium.podium_picture(img, title, standings, me, coins, footer="lobby", line=line, tied=tied)
         if S.get("online_podium") != (lobby.code, lobby.round):  # the first time: they drop in one by one
             S.online_podium = (lobby.code, lobby.round)
-            if plan is not None:  # the last card goes down first
+            if plan is not None:  # the last move first
                 _play(slot, plan, img)
-            common.play_podium(slot, common.podium_plan(img, title, standings, me, coins, "lobby"), final)
+            ui.show(slot, img)
+            time.sleep(0.9)
+            common.play_podium(slot, common.podium_plan(img, title, standings, me, coins, "lobby", line, tied), final)
         else:
             ui.show(slot, final)
         return regions
