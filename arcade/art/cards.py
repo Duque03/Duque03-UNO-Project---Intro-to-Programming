@@ -151,3 +151,31 @@ def back_sprite():
     img = Image.new("RGBA", (CARD_W + 3, CARD_H + 3), (0, 0, 0, 0))
     draw_back(img, 0, 0)
     return img
+
+
+LYING = 0.6  # a card lying on the table looks this tall (perspective), next to one held up
+
+
+def lie(sprite):
+    """A card picture as it looks lying flat on the table: shorter, the far edge a little narrower."""
+    w, h = sprite.size
+    flat = sprite.resize((w, round(h * LYING)), Image.NEAREST)
+    inset = 3  # how much narrower the far edge looks, on each side
+    out = Image.new("RGBA", flat.size, (0, 0, 0, 0))
+    for y in range(flat.height):
+        cut = round(inset * (1 - y / max(1, flat.height - 1)))
+        row = flat.crop((0, y, w, y + 1)).resize((w - 2 * cut, 1), Image.NEAREST)
+        out.paste(row, (cut, y))
+    return out
+
+
+def draw_lying_card(img, x, y, card):
+    """A face-up card lying on the table, its far-left corner at (x, y)."""
+    face = lie(card_sprite(card))
+    img.paste(face, (int(x), int(y)), face)
+
+
+def draw_lying_back(img, x, y):
+    """A face-down card lying on the table, its far-left corner at (x, y)."""
+    back = lie(back_sprite())
+    img.paste(back, (int(x), int(y)), back)

@@ -12,7 +12,8 @@ one starts and lands, and when); the browser moves them smoothly. Each animation
      "spin": {"seats": [[x, y, w, h], ...], "winner": 2, "at": 1200, "dur": 2200, "label": "label"}}
 
 Times are in milliseconds from the start. Positions are the top-left corners of the pictures, on the 960x540 table
-picture. s0 and s1: the size at the start and at the end (1 = the picture's own size). A move with "stay" stays where
+picture. s0 and s1: the size at the start and at the end (1 = the picture's own size); h0 and h1: how tall it
+looks at the start and at the end (cards.LYING for a card lying on the table, 1 for one held up). A move with "stay" stays where
 it landed until the end (a card that reached the pile). The spin lights the seats one after the other, slowing down,
 and stops on the winner; then the label picture shows in the middle until the end.
 
@@ -99,9 +100,12 @@ export default function (component) {
                 const k = Math.min(1, p), e = ease(k);
                 const s0 = m.s0 === undefined ? 1 : m.s0, s1 = m.s1 === undefined ? s0 : m.s1;
                 const s = s0 + (s1 - s0) * e;
+                const h0 = m.h0 === undefined ? 1 : m.h0, h1 = m.h1 === undefined ? 1 : m.h1;
+                const flat = h0 + (h1 - h0) * e;  // lying on the table (shorter) or held up
                 const x = m.from[0] + (m.to[0] - m.from[0]) * e;
                 const y = m.from[1] + (m.to[1] - m.from[1]) * e - Math.sin(k * Math.PI) * (m.arc || 0);
-                ctx.drawImage(img, Math.round(x), Math.round(y), Math.round(img.width * s), Math.round(img.height * s));
+                ctx.drawImage(img, Math.round(x), Math.round(y), Math.round(img.width * s),
+                              Math.round(img.height * s * flat));
             }
             if (spin && t >= spin.at) drawSpin(t);
             requestAnimationFrame(frame);

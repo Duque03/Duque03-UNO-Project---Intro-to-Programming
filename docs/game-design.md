@@ -93,7 +93,9 @@ Numbers live in `arcade/config.py`.
 - The player and the chosen bots walk to the table. When everyone has arrived the view zooms in and the game starts.
 - At the table the player sits at the near side of a round table (its near edge shows at the bottom, with the
   player's cards held in front of it). The opponents sit round it in turn order: one opponent sits across; two sit
-  left and right; three sit left, across and right. Each one's UNO cards lie face down on the table in front of them.
+  left and right; three sit left, across and right. In UNO each one holds their cards up in a fan, with how many they hold on the table in front of
+  them. The draw pile and the discard pile lie flat on the table. After a wild, the discard pile glows in the colour
+  that was chosen.
 - A bot thinks for a random 1 to 3 seconds before each move, with a "..." speech bubble next to it (in checkers, the
   extra jumps of a chain follow quickly).
 - The player has **15 seconds** for each turn, shown by a countdown bar under the table (red for the last 5 seconds).
