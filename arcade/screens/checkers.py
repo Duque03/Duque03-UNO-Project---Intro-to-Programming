@@ -97,19 +97,14 @@ def draw(game, opponent, selected=None, flash="", cursor_cell=None, me=BOTTOM):
         hint, colour = flash, "#ff8a8a"
     elif my_turn:
         capture = any(move[2] for move in legal)
-        if game.chain:
+        if game.chain:  # what is happening, not how to play (that is in the rules, I)
             hint = "Keep jumping!"
-        elif selected:
-            hint = "Now pick a green square"
         else:
-            hint = "You must capture" if capture else "Your turn: pick a piece"
-        hint += " (click, or arrows + Space)"
+            hint = "You must capture" if capture else "Your turn"
         colour = "#ffe94a"
     if hint:
         for i, line in enumerate(_split(hint.upper())):
             draw_text(img, (160, 370 + i * 22), line, 2, colour, "mt", shadow="#16122b")
-    for i, line in enumerate(("CAPTURES ARE", "MANDATORY.", "REACH THE FAR", "ROW FOR A KING.")):
-        draw_text(img, (SCREEN_W - 160, 370 + i * 22), line, 2, "#d9d4ff", "mt", shadow="#16122b")
     return img, regions
 
 

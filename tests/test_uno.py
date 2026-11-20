@@ -1,5 +1,6 @@
 import copy
 import random
+from collections import Counter
 
 import pytest
 
@@ -723,3 +724,34 @@ def test_changes_lists_a_card_drawn_and_played_in_the_same_turn():
 def test_changes_is_empty_when_nothing_moved():
     game = _plain_game()
     assert changes(copy.deepcopy(game), game) == []
+
+
+def test_the_deck_has_exactly_the_cards_of_a_real_uno_deck():
+    counts = Counter(build_deck())
+    for colour in COLOURS:
+        assert counts[(colour, "0")] == 1
+        for value in ["1", "2", "3", "4", "5", "6", "7", "8", "9", "skip", "reverse", "draw2"]:
+            assert counts[(colour, value)] == 2
+    assert counts[("wild", "wild")] == 4 and counts[("wild", "wild4")] == 4
+    assert sum(counts.values()) == 108 and len(counts) == 4 * 13 + 2
+
+
+def test_dealt_cards_come_up_as_often_as_in_a_real_shuffled_deck():
+    """Over many deals, each kind of card lands in the hands as often as its share of the 108 cards says."""
+    seen, games = Counter(), 3000
+    for seed in range(games):
+        game = UnoGame(["ME", "A", "B", "C"], random.Random(seed))
+        for hand in game.hands.values():
+            seen.update(card[1] for card in hand)
+    dealt = games * 28
+    expected = {"0": 4 / 108, "7": 8 / 108, "skip": 8 / 108, "wild": 4 / 108, "wild4": 4 / 108}
+    for value, share in expected.items():
+        assert abs(seen[value] / dealt - share) < 0.004, value
+
+
+def test_no_card_is_ever_lost_or_made_up_during_a_game():
+    for seed in range(40):
+        game = UnoGame(["ME", "A", "B", "C"], random.Random(seed))
+        game.play_out({p: {} for p in game.players})
+        cards = game.deck + game.discard + [card for hand in game.hands.values() for card in hand]
+        assert Counter(cards) == Counter(build_deck())

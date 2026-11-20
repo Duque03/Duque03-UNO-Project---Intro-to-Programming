@@ -84,7 +84,10 @@ def clock_bar(screen: str) -> None:
         f"<b style='color:{colour};font-size:1.25rem;min-width:7.5em'>{label}: {left:.0f}s</b></div>",
         unsafe_allow_html=True,
     )
-    if left <= 0:
+    if left <= 0 and S.get("clock_fired") != deadline:
+        # Time is up: run the screen once so it can act (play for the player, close a question). Only once per
+        # deadline: if the screen does not move the deadline, running it again and again would freeze the page.
+        S.clock_fired = deadline
         st.rerun()
 
 

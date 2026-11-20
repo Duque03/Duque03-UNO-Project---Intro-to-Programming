@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import copy
 import time
-from collections import Counter
 
 import streamlit as st
 from PIL import ImageDraw
@@ -21,7 +20,7 @@ from PIL import ImageDraw
 from arcade import bots, catalog, match, player, sound, table_anim, ui
 from arcade.art import cards, scenes
 from arcade.art.pixel import darken, draw_text, key_icon, panel, rgb
-from arcade.config import SCALE, SCREEN_H, SCREEN_W, UNO_LEVELS
+from arcade.config import SCREEN_H, SCREEN_W, UNO_LEVELS
 from arcade.logic import cursor
 from arcade.logic.uno import COLOURS, NUMBERS, WILD, IllegalMove, card_name, changes, ordinal
 from arcade.screens import common, corta
@@ -155,18 +154,8 @@ def draw(game, me, opponents, flash="", choosing=False, picks=(), uno_open=False
 
     common.message(img, game.last_event, 368)
     hand = sorted_hand(game.hands[me])
-    if flash:
+    if flash:  # only what just happened; how to play is in the rules (I)
         common.message(img, flash, 392, "#ff8a8a")
-    elif my_turn and picks:
-        kind = card_name(('x', hand[picks[0]][1])).split(' ', 1)[-1]
-        common.message(img, f"{len(picks)} picked: add more {kind} or click the pile (Enter) to play", 392, "#ffe94a")
-    elif my_turn and game.pending:
-        common.message(img, f"Answer with the same draw card or draw {game.pending}", 392, "#ffe94a")
-    elif my_turn and game.draws:
-        common.message(img, "Pick a card and click the pile, draw again (D) or pass (P)" if game.can_draw(me)
-                       else "Pick a card and click the pile, or pass (P)", 392, "#ffe94a")
-    elif my_turn:
-        common.message(img, "Your turn: pick a card (click or Space), then click the pile (Enter)", 392, "#ffe94a")
 
     # my hand: nothing glows; a picked card stands up a little
     count = len(hand)
@@ -177,11 +166,6 @@ def draw(game, me, opponents, flash="", choosing=False, picks=(), uno_open=False
         y = HAND_Y - (22 if picked else 0)
         if i not in hide:
             cards.draw_card(img, x, y, card)
-        if picked and i not in hide:
-            order = list(picks).index(i) + 1
-            bx, by = x + cards.CARD_W - 26, y + cards.CARD_H - 30  # the order it was picked in, inside the card
-            d.ellipse([bx, by, bx + 22, by + 22], fill=(22, 18, 43))
-            draw_text(img, (bx + 11, by + 11), str(order), 2, "#ffe94a", "mm")
         right = x + (step if i < count - 1 else cards.CARD_W)
         regions.append(((x, y, right, HAND_Y + cards.CARD_H), ("card", i)))
         if i == focus:
@@ -211,7 +195,7 @@ def draw(game, me, opponents, flash="", choosing=False, picks=(), uno_open=False
     if choosing:
         img = darken(img, 0.5)
         d = ImageDraw.Draw(img)
-        panel(img, (290, 170, 670, 360), "#fff6da", "#16122b", bw=6)
+        panel(img, (290, 170, 670, 344), "#fff6da", "#16122b", bw=6)
         draw_text(img, (SCREEN_W // 2, 196), "CHOOSE A COLOUR", 3, "#16122b", "mt")
         regions = [((0, 0, SCREEN_W, 540), ("cancel",))]
         for i, colour in enumerate(COLOURS):
@@ -219,7 +203,6 @@ def draw(game, me, opponents, flash="", choosing=False, picks=(), uno_open=False
             d.rectangle([x, 246, x + 71, 317], fill=FOCUS if i == colour_focus else (22, 18, 43))
             d.rectangle([x + 6, 252, x + 65, 311], fill=rgb(cards.COLOUR_HEX[colour]))
             regions.append(((x, 246, x + 71, 317), ("colour", colour)))
-        draw_text(img, (SCREEN_W // 2, 330), "ARROWS + ENTER  -  X: CANCEL", 2, "#3b3560", "mt")
     return img, regions
 
 
@@ -313,7 +296,7 @@ def move_plan(before, after, me, opponents, picks=()) -> dict | None:
     old_hand, new_hand = sorted_hand(before.hands[me]), sorted_hand(after.hands[me])
     # The picture underneath: the player's hand as it was, without the cards that leave it; or, when cards arrive,
     # the hand as it is now with gaps where they will land.
-    new_layout = any(player == me and kind == "drew" for player, kind, _ in events)
+    new_layout = any(who == me and kind == "drew" for who, kind, _ in events)
     hide, taken = [], set()
 
     def place(hand, card, prefer=()):
@@ -324,26 +307,26 @@ def move_plan(before, after, me, opponents, picks=()) -> dict | None:
                 return i
         return None
 
-    drawn = {player: len(moved) for player, kind, moved in events if kind == "drew"}
+    drawn = {who: len(moved) for who, kind, moved in events if kind == "drew"}
     sprites, moves = {"back": cards.back_sprite()}, []
-    for player, kind, moved in events:
+    for who, kind, moved in events:
         for j, card in enumerate(moved):
             name = f"c{len(moves)}"
             sprites[name] = cards.card_sprite(card)
-            if player == me and kind == "drew":
+            if who == me and kind == "drew":
                 i = place(new_hand, card)
                 hide += [] if i is None else [i]
                 move = {"img": name, "from": DECK, "arc": 34, "h0": cards.LYING,
                         "to": _my_spot(len(new_hand) // 2 if i is None else i, len(new_hand))}
-            elif player == me:
+            elif who == me:
                 i = None if new_layout else place(old_hand, card, prefer=picks)
                 hide += [] if i is None else [i]
                 move = {"img": name, "to": PILE, "arc": 40, "h1": cards.LYING,
                         "from": _my_spot(0, 1) if i is None else _my_spot(i, len(old_hand), i in picks)}
             else:
-                seat, count = seat_of[player], len(before.hands[player]) + drawn.get(player, 0)
+                seat, count = seat_of[who], len(before.hands[who]) + drawn.get(who, 0)
                 if kind == "drew":
-                    spot = _their_spot(opponents, seat, count, len(before.hands[player]) + j)
+                    spot = _their_spot(opponents, seat, count, len(before.hands[who]) + j)
                     move = {"img": "back", "from": DECK, "to": spot, "s1": _their_scale(opponents, seat), "arc": 22,
                             "h0": cards.LYING}
                 else:
@@ -498,7 +481,7 @@ def render() -> None:
             S.bot_uno = corta.bot_window(bot, time.time())
     if S.get("bot_uno"):
         bot = S.bot_uno["bot"]
-        flash = f"{bot} has one card! Cut the UNO before {bot} says it (K)"
+        flash = f"{bot} has one card!"
         corta.render_bot_window(slot, game, me, draw(game, me, opponents, flash, cut_open=True)[0])
         return
 
@@ -534,11 +517,17 @@ def render() -> None:
             colour_focus = cursor.step(colour_focus, key, len(COLOURS))
             sound.play("blip")
         S.uno_colour_focus = colour_focus
+    if key in ("left", "right", "space"):
+        S.uno_keyboard = True  # the yellow frame only shows while the player uses the keys
+    shown_focus = focus if S.get("uno_keyboard") else None
     img, regions = draw(game, me, opponents, S.flash, choosing=S.pending_wild is not None, picks=picks,
-                        uno_open=uno_open, focus=focus, colour_focus=colour_focus)
+                        uno_open=uno_open, focus=shown_focus,
+                        colour_focus=colour_focus if S.get("uno_keyboard") else None)
     img, regions = common.with_result(img, regions)
     common.show(slot, img, "uno")
     point = None if bots_were_playing else ui.click()  # a click made during the bots' turn does not count
+    if point is not None:
+        S.uno_keyboard = False  # playing with the mouse: no frame
     action = ui.hit(regions, point)
     if uno_open:
         _uno_clock()
@@ -570,8 +559,7 @@ def render() -> None:
         draw_label = f"Draw {game.pending} cards" if game.pending else "Draw a card"
         draw_pressed = ui.button(draw_label, "uno_draw", "D", disabled=not my_turn or not game.can_draw(me))
     with bar[1]:
-        play_pressed = ui.button(f"Play {len(picks)} card{'s' if len(picks) > 1 else ''}" if picks else "Play",
-                                 "uno_play", "Enter", type="primary", disabled=not my_turn or not picks)
+        play_pressed = ui.button("Play", "uno_play", "Enter", type="primary", disabled=not my_turn or not picks)
     with bar[2]:
         if picks:
             cancel_pressed, pass_pressed = ui.button("Cancel", "uno_cancel", "X"), False  # (Streamlit keeps C and R)

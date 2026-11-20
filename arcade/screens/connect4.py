@@ -74,12 +74,8 @@ def draw(game, opponent, flash="", falling=None, column=None, me=RED):
         draw_text(img, (x0 + 18, 292), side.upper(), 3, "#ffffff", "lt")
     if flash:
         draw_text(img, (160, 350), flash.upper(), 2, "#ff8a8a", "mt", shadow="#16122b")
-    elif my_turn:
-        draw_text(img, (160, 350), "YOUR TURN:", 2, "#ffe94a", "mt", shadow="#16122b")
-        draw_text(img, (160, 372), "CLICK A COLUMN,", 2, "#ffe94a", "mt", shadow="#16122b")
-        draw_text(img, (160, 394), "OR ARROWS + SPACE", 2, "#ffe94a", "mt", shadow="#16122b")
-    for i, line in enumerate(("FOUR IN A ROW", "WINS. A FULL", "BOARD IS A TIE.")):
-        draw_text(img, (SCREEN_W - 160, 350 + i * 22), line, 2, "#d9d4ff", "mt", shadow="#16122b")
+    elif my_turn:  # how to play is in the rules (I), not on the table
+        draw_text(img, (160, 350), "YOUR TURN", 2, "#ffe94a", "mt", shadow="#16122b")
     return img, regions
 
 
