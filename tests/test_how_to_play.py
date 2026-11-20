@@ -25,7 +25,8 @@ def test_the_room_tab_lists_walking_playing_and_pausing():
 def test_every_tab_can_be_drawn(tab):
     img, regions = scenes.howto_panel(_background(), controls.TABS, tab)
     assert img.size == (SCREEN_W, SCREEN_H)
-    assert [action for _, action in regions] == [("tab", key) for key in controls.TAB_KEYS]
+    # the tabs, then BACK (there is no row of buttons under the picture)
+    assert [action for _, action in regions] == [("tab", key) for key in controls.TAB_KEYS] + [("back",)]
 
 
 def test_a_click_on_a_tab_lands_on_that_tab_only():

@@ -181,9 +181,7 @@ def render_lobby() -> None:
     clicked = ui.hit(regions, ui.click())
     watch(code, lobby.version)
 
-    bar = st.columns([0.8, 1, 1.3, 1, 1, 0.9])
-    with bar[0]:  # the code as text, with a copy button, to paste into a message to friends
-        st.code(lobby.code, language=None)
+    bar = ui.bar("lobby", [0.8, 1, 1.3, 1, 1, 0.9])  # invisible: the games, START and LEAVE are on the picture
     picks = {}
     for column, (game, label, key) in zip(bar[1:], (("uno", "UNO", "1"), ("checkers", "Checkers", "2"),
                                                    ("connect4", "Connect Four", "3"))):
@@ -203,7 +201,7 @@ def render_lobby() -> None:
             S.online_message = ""
             sound.play("blip")
             st.rerun()
-        if start:
+        if start or clicked == ("start",):
             online.lobbies().start(code, me)
             S.online_message = ""
             sound.play("table")
@@ -212,6 +210,6 @@ def render_lobby() -> None:
         S.online_message = str(problem)
         sound.play("lose")
         st.rerun()
-    if out:
+    if out or clicked == ("leave",):
         leave()
         st.rerun()

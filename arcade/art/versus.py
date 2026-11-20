@@ -5,13 +5,13 @@ from __future__ import annotations
 from PIL import Image, ImageDraw
 
 from arcade.art import sprites
+from arcade.art.scenes import draw_button
 from arcade.art.pixel import coin, darken, draw_text, key_icon, panel, rgb, shade
 from arcade.config import LEVEL_COINS, LEVELS, SCREEN_H, SCREEN_W
 
 LEVEL_COLOURS = {"easy": "#3ad678", "medium": "#ffd84a", "hard": "#ff9a3a", "expert": "#ff4f6d"}
 CARD_W, CARD_H, GAP, CARD_TOP = 156, 286, 12, 112
 FOCUS = "#ffe94a"  # the yellow highlight that the arrow keys move
-HINT = "ARROWS + SPACE, A NUMBER OR CLICK TO PICK  -  ENTER: PLAY  -  ESC: BACK"
 
 
 _STAR = ["..#..", ".###.", "#####", ".###.", ".#.#."]
@@ -79,6 +79,9 @@ def panel_picture(background, title: str, cards: list[dict], picked: list[str], 
     else:
         left_to_pick = needed - len(picked)
         line, colour = f"PICK {left_to_pick} MORE", "#d9d4ff"
-    draw_text(img, (SCREEN_W // 2, 452), line, 3, colour, "mt", shadow="#16122b")
-    draw_text(img, (SCREEN_W // 2, 488), HINT, 2, "#b9b0e8", "mt")
+    draw_text(img, (SCREEN_W // 2, 440), line, 3, colour, "mt", shadow="#16122b")
+    back = draw_button(img, (SCREEN_W // 2 - 250, 474, SCREEN_W // 2 - 30, 512), "BACK", 2)
+    play = draw_button(img, (SCREEN_W // 2 + 30, 474, SCREEN_W // 2 + 250, 512), "PLAY", 2,
+                       fill="#c8f7c5" if prize is not None else "#8d8aa6")
+    regions += [(back, ("back",))] + ([(play, ("play",))] if prize is not None else [])
     return img, regions

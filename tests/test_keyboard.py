@@ -8,7 +8,6 @@ from PIL import Image, ImageChops
 
 from arcade import bots, catalog, controls
 from arcade.art import scenes, versus
-from arcade.art.pixel import text_size
 from arcade.config import GAMES, SCREEN_H, SCREEN_W
 from arcade.logic import cursor
 
@@ -129,8 +128,13 @@ def test_the_opponent_highlight_only_changes_that_bot():
         versus.panel_picture(None, "PICK", _cards(), [], 1, None, focus=len(_cards()))
 
 
-def test_the_opponent_hint_fits_in_the_panel():
-    assert text_size(versus.HINT, 2)[0] <= SCREEN_W - 120
+def test_the_opponent_picker_has_back_and_play_on_the_picture_play_only_when_ready():
+    cards = [{"name": b["name"], "level": b["level"], "look": bots.look(b), "tag": None} for b in bots.BOTS]
+    _, regions = versus.panel_picture(None, "UNO", cards, [], 3, None)
+    actions = [action for _, action in regions]
+    assert ("back",) in actions and ("play",) not in actions
+    _, regions = versus.panel_picture(None, "UNO", cards, [b["name"] for b in bots.BOTS[:3]], 3, 30)
+    assert ("play",) in [action for _, action in regions]
 
 
 # ----- the How to play panel tells you the keys

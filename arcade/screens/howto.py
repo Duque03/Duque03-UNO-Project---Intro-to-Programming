@@ -45,7 +45,7 @@ def render() -> None:
     ui.show(ui.screen(), img)
     action = ui.hit(regions, ui.click())
 
-    bar = st.columns([1, 1, 1, 1, 1])
+    bar = ui.bar("howto", [1, 1, 1, 1, 1])  # invisible: the tabs and BACK are on the picture
     chosen = None
     for i, (column, item) in enumerate(zip(bar, controls.TABS)):
         with column:
@@ -61,6 +61,6 @@ def render() -> None:
         S.howto_tab = chosen
         sound.play("blip")
         st.rerun()
-    if back:
+    if back or action == ("back",):
         state.go(back_to if back_to in BACK_TO else "title")
         st.rerun()

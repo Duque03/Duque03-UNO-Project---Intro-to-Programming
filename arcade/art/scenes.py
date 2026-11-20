@@ -1034,5 +1034,6 @@ def howto_panel(img, tabs, current):
         key_icon(out, kx, y, key, 2, "#ffffff")
         draw_text(out, (text_x, y + 9), what, 2, INK, "lm")
         y += 40
-    _footer_hint(out, SCREEN_W // 2, y1 - 44, "ESC", "BACK")
+    back = draw_button(out, (SCREEN_W // 2 - 80, y1 - 54, SCREEN_W // 2 + 80, y1 - 16), "BACK", 2)
+    regions.append((back, ("back",)))
     return out, regions
