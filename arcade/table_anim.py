@@ -226,5 +226,7 @@ def alive(slot, img) -> None:
     if where:
         kind, count = where
         patches = table_room.visible_patches(img, scenes.empty_table_room(kind, count), kind)
+    count = st.session_state.get("_alive_count", 0) + 1  # every call is a new element: the same picture shown
+    st.session_state["_alive_count"] = count  # twice in one run must not give two elements the same id
     with slot.alive_layer():  # (an empty placeholder: a second picture in the same run replaces the first)
-        _alive(data={"patches": patches})
+        _alive(data={"patches": patches}, key=f"{slot.key}_alive_{count}")

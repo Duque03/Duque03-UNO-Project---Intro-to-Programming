@@ -17,7 +17,12 @@ Change this file through a pull request, like any other file.
 uv sync                          # install
 uv run streamlit run app.py      # run the game at http://localhost:8501
 uv run pytest                    # run all tests
+uv run python tools/simulate_rules.py --games 1000   # thousands of games with the rules alone (a few minutes)
+uv run python tools/simulate_app.py --games 20       # whole random games through the real screens, headless (slow)
 ```
+
+Before a release, run both simulators: they play the real rules and the real screens with a random player and print
+every crash with the steps that led to it (a duplicate element id at the end of Connect Four was found this way).
 
 ## Folder rules
 
