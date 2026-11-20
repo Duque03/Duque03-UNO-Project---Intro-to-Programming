@@ -58,7 +58,7 @@ def start_session(player: dict) -> None:
     S.hub = {"pos": hubmap.SPAWN, "dir": "up", "bots": {}, "walk": None}
     reset_bots()
     S.match = S.game = S.result = S.champ = None
-    S.screen = "hub"
+    S.screen = "hub" if player.get("look_done", True) else "create"  # a new player makes their look first
 
 
 def reset_bots() -> None:

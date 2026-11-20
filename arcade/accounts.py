@@ -120,6 +120,7 @@ def sign_up(raw_name, raw_pin, raw_pin_again, path=None) -> dict:
         raise NameTaken(f"{name} is taken. Pick another name, or log in if it is yours.")
     player = new_player(name)
     player["pin"] = pin_record(pin)
+    player["look_done"] = False  # first they make their look (screens/create.py)
     db.save_player(player, path)
     return player
 
