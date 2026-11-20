@@ -601,29 +601,42 @@ def title_scene(t: int = 0) -> Image.Image:
 
 # ---------------------------------------------------------------- table view
 
-# The game table: an oval seen from the player's chair, with the opponents sitting round it (small canvas).
-TABLE_CX, TABLE_CY, TABLE_RX, TABLE_RY, TABLE_RIM = 160, 112, 140, 30, 6  # the near edge shows at the bottom
+# The game table: an oval seen from the player's chair, close up, with the opponents sitting round it (small canvas).
+# It is wider than the picture: its sides go out of the frame, like a real table seen from a seat at it.
+TABLE_CX, TABLE_CY, TABLE_RX, TABLE_RY, TABLE_RIM = 160, 112, 190, 44, 7
 WOOD, WOOD_DARK = "#6b3a22", "#3e2014"
 SEATED_ROWS = 22  # the rows of a character's picture that show when they sit (the rest is under the table)
+# The seats: the players at the sides sit close to the player, so they look bigger (and the frame cuts them a little).
+SEATS = {
+    "left": {"x": 26, "feet": 101, "scale": 3, "facing": "right"},
+    "across": {"x": 160, "feet": 73, "scale": 2, "facing": "down"},
+    "right": {"x": 294, "feet": 101, "scale": 3, "facing": "left"},
+}
+SEATING = {1: ["across"], 2: ["left", "right"], 3: ["left", "across", "right"]}
+
+
+def rim_y(x: float) -> float:
+    """How far up the picture the far edge of the table is, above the point x (small canvas)."""
+    share = max(-1.0, min(1.0, (x - TABLE_CX) / (TABLE_RX + TABLE_RIM)))
+    return TABLE_CY - (TABLE_RY + TABLE_RIM) * math.sqrt(1 - share * share)
 
 
 def table_seats(count: int) -> list[dict]:
     """Where the opponents sit round the table, in turn order after the player: on the left, across, on the right.
 
-    Each seat: x and feet (small canvas, where the character stands; the table hides their legs), facing (the way
-    they look: towards the middle of the table), and on the big picture: cx (the middle of the character), head (the
-    top of the character's picture) and rim (where the table starts in front of them).
+    Each seat: x and feet (small canvas, where the character stands; the table hides their legs), scale (how big they
+    are drawn: the ones close to the player are bigger), facing (they look towards the middle of the table), and on
+    the big picture: cx (the middle of the character), head (the top of the character's picture) and rim (where the
+    table starts in front of them).
     """
-    angles = {1: [90], 2: [150, 30], 3: [150, 90, 30]}.get(count, [90])
     seats = []
-    for angle in angles:
-        a = math.radians(angle)
-        x = round(TABLE_CX + (TABLE_RX + TABLE_RIM) * math.cos(a))
-        rim = round(TABLE_CY - (TABLE_RY + TABLE_RIM) * math.sin(a))
-        feet = rim + 10
-        facing = "down" if angle == 90 else ("right" if angle > 90 else "left")
-        seats.append({"x": x, "feet": feet, "facing": facing, "cx": x * SCALE, "rim": rim * SCALE,
-                      "head": (feet - sprites.SPR_H * 2 + 2) * SCALE})
+    for name in SEATING.get(count, SEATING[1]):
+        seat = dict(SEATS[name], name=name)
+        seat["cx"] = seat["x"] * SCALE
+        seat["rim"] = round(rim_y(seat["x"] + (12 if seat["facing"] == "right" else -12 if seat["facing"] == "left"
+                                                else 0))) * SCALE
+        seat["head"] = (seat["feet"] - sprites.SPR_H * seat["scale"] + seat["scale"]) * SCALE
+        seats.append(seat)
     return seats
 
 
@@ -666,16 +679,16 @@ def table_scene(kind, opponents, active=None, t=0):
     _carpet(d)
     seats = table_seats(len(opponents))
     for seat, opponent in zip(seats, opponents):
-        x, feet = seat["x"], seat["feet"]
-        rect(d, x - 11, feet - 34, 22, 26, (46, 22, 24))  # the back of their chair
-        rect(d, x - 9, feet - 32, 18, 22, (98, 42, 44))
+        x, feet, scale = seat["x"], seat["feet"], seat["scale"]
+        back = 11 * scale // 2  # the back of their chair
+        rect(d, x - back, feet - 17 * scale, 2 * back, 13 * scale, (46, 22, 24))
+        rect(d, x - back + 2, feet - 17 * scale + 2, 2 * back - 4, 13 * scale - 4, (98, 42, 44))
         skin, pants, hair, shirt = opponent["look"]
         body = sprites.sprite(skin, pants, hair, shirt, seat["facing"], 0, t)
         body = body.crop((0, 0, body.width, SEATED_ROWS))  # sitting: from the waist up
-        body = body.resize((body.width * 2, body.height * 2), Image.NEAREST)
-        top = feet - sprites.SPR_H * 2 + 2
+        body = body.resize((body.width * scale, body.height * scale), Image.NEAREST)
+        top = feet - sprites.SPR_H * scale + scale
         img.paste(body, (x - body.width // 2, top), body)
-        rect(d, x - 12, top + body.height, 24, 4, (46, 22, 24))  # the seat of the chair, under them
     felt, wood = rgb(FELT[kind]), rgb(WOOD)
     felt, wood = rgb(FELT[kind]), rgb(WOOD)
     cx, cy, rx, ry, rim = TABLE_CX, TABLE_CY, TABLE_RX, TABLE_RY, TABLE_RIM
@@ -690,7 +703,8 @@ def table_scene(kind, opponents, active=None, t=0):
     big = upscale(img)
     d = ImageDraw.Draw(big)
     for seat, opponent in zip(seats, opponents):
-        box = sprites.draw_name_tag(big, seat["cx"], seat["head"] + 6, opponent["name"], opponent.get("tag"), t)
+        box = sprites.draw_name_tag(big, seat["cx"], seat["head"] + 3 * seat["scale"] ** 2, opponent["name"],
+                                    opponent.get("tag"), t)
         if active == opponent["name"]:  # yellow frame = this player's turn
             d.rectangle([box[0] - 7, box[1] - 7, box[2] + 7, box[3] + 7], outline=(255, 233, 74), width=3)
     return big

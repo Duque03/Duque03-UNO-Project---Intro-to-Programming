@@ -179,3 +179,22 @@ def draw_lying_back(img, x, y):
     """A face-down card lying on the table, its far-left corner at (x, y)."""
     back = lie(back_sprite())
     img.paste(back, (int(x), int(y)), back)
+
+
+# The player's own left hand holding the cards (first person): O outline, T thumb, P palm, D palm in shadow, S sleeve.
+HAND = ["......OO..", ".....OTTO.", ".....OTTO.", "OOOOOOTTO.", "OPPPPPTTO.", "OPPPPPPPO.", "OPPPPPPPO.",
+        "ODDPPPPO..", ".OSSSSSO..", ".OSSSSSO..", ".OSSSSSO..", ".OSSSSSO.."]
+HAND_UNIT = 8  # the size of one of its pixels (it is close to the eye, so it looks big)
+
+
+def draw_holding_hand(img, x, y, skin, sleeve, right=False):
+    """One of the player's hands at the bottom of the picture, its top-left corner at (x, y); right: the right hand
+    (the left one turned over). The sleeve goes on down to the bottom of the picture."""
+    d = ImageDraw.Draw(img)
+    colours = {"O": (16, 12, 34), "T": rgb(skin), "P": rgb(skin), "D": shade(rgb(skin), 0.8), "S": rgb(sleeve)}
+    rows = HAND + [HAND[-1]] * 6
+    u = HAND_UNIT
+    for r, row in enumerate(rows):
+        for c, ch in enumerate(row[::-1] if right else row):
+            if ch in colours:
+                d.rectangle([x + c * u, y + r * u, x + c * u + u - 1, y + r * u + u - 1], fill=colours[ch])

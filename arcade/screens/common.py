@@ -27,7 +27,8 @@ def thinking(img, seat: int, seats: int):
     """A "..." speech bubble next to the head of the bot whose turn it is (seat: 0, 1, 2 round the table)."""
     spot = scenes.table_seats(seats)[seat]
     left_side = spot["facing"] == "left"  # the bot on the right: the bubble goes on its left, towards the table
-    x, top = (spot["cx"] - 112 if left_side else spot["cx"] + 46), spot["head"] + 30
+    reach = 23 * spot["scale"]  # from the middle of the character to beside its head
+    x, top = (spot["cx"] - reach - 66 if left_side else spot["cx"] + reach), spot["head"] + 15 * spot["scale"]
     tail = x + 66 - 4 if left_side else x + 4  # the tail points at the bot's head
     lean = -1 if left_side else 1
     d = ImageDraw.Draw(img)
