@@ -67,8 +67,19 @@ def _plan_bot(duel, me: str) -> dict:
 
 def _clock(duel) -> None:
     """The countdown under the table counts the seconds left to answer."""
-    S.turn_deadline = duel.deadline if duel.phase == "ask" else None
+    S.turn_deadline = duel.deadline if duel.phase == "ask" and duel.deadline > time.time() else None
     S.clock_total, S.clock_label = ROUND_SECONDS, "ANSWER"
+
+
+def _move_on(duel, me: str) -> None:
+    """Let time pass in the face-off: the bot answers when its moment came, a question whose time is up closes,
+    the next question comes after the answers were shown."""
+    now = time.time()
+    if duel.phase == "ask":
+        bot, plan = _bot_of(duel, me), _plan_bot(duel, me)
+        if bot not in duel.answers and now >= plan["at"]:
+            duel.answer(bot, plan["yes"], now)
+    duel.tick(now)
 
 
 @st.fragment(run_every=0.25)
@@ -78,15 +89,9 @@ def duel_clock() -> None:
     duel = S.get("duel")
     if S.screen != "uno" or duel is None:
         return
-    now, me, changed = time.time(), S.player["name"], False
-    if duel.phase == "ask":
-        bot, plan = _bot_of(duel, me), _plan_bot(duel, me)
-        if bot not in duel.answers and now >= plan["at"]:
-            duel.answer(bot, plan["yes"], now)
-            changed = True
-    if duel.tick(now):
-        changed = True
-    if changed:
+    before = (duel.phase, duel.round, len(duel.answers))
+    _move_on(duel, S.player["name"])
+    if (duel.phase, duel.round, len(duel.answers)) != before:
         st.rerun()
 
 
@@ -112,6 +117,7 @@ def _finish(game, me: str) -> None:
 def render_duel(slot, game, me: str, opponents, table_img, key) -> None:
     """The face-off screen. Ends the run (st.rerun) when the face-off is over."""
     duel = S.duel
+    _move_on(duel, me)  # the time may be up already (the countdown asked for this run)
     if duel.phase == "done":
         _finish(game, me)
         st.rerun()
@@ -122,15 +128,20 @@ def render_duel(slot, game, me: str, opponents, table_img, key) -> None:
     if asking and key in ("left", "right"):
         focus = cursor.step(focus, key, 2)
         sound.play("blip")
+    if key in ("left", "right", "space"):
+        S.uno_keyboard = True  # the yellow frame only shows while the player uses the keys
     S.duel_focus = focus
     view = {"holder": duel.holder, "cutter": duel.cutter, "looks": looks, "me": me, "round": duel.round,
             "question": duel.question, "phase": duel.phase, "answered": {p: p in duel.answers for p in duel.players},
             "answers": dict(duel.answers), "right": dict(duel.right), "truth": duel.truth, "result": duel.result,
-            "focus": focus if asking else None}
+            "focus": focus if asking and S.get("uno_keyboard") else None}
     img, regions = duel_art.duel_picture(table_img, view)
     _clock(duel)
     common.show(slot, img, "uno")
-    action = ui.hit(regions, ui.click())
+    point = ui.click()
+    if point is not None:
+        S.uno_keyboard = False
+    action = ui.hit(regions, point)
     bar = st.columns([1.4, 1.4, 1.4, 1])
     with bar[0]:
         yes = ui.button("Yes", "duel_yes", "Y", type="primary", disabled=not asking)

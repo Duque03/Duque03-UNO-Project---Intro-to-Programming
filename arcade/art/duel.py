@@ -63,7 +63,6 @@ def duel_picture(table, view: dict):
             draw_text(img, ((box[0] + box[2]) // 2, (box[1] + box[3]) // 2), word, 4, "#ffffff", "mm",
                       shadow="#16122b")
             regions.append((box, ("yes",) if word == "YES" else ("no",)))
-        draw_text(img, (480, 462), "Y / N, OR LEFT / RIGHT AND ENTER", 1, "#d9d4ff", "mt")
     elif view["phase"] == "ask":
         mine = view["answers"].get(me)
         line = "WAITING FOR THE ANSWERS..." if mine is None else f"YOU SAID {'YES' if mine else 'NO'}. WAITING..."
@@ -77,7 +76,7 @@ def duel_picture(table, view: dict):
 
 def outcome_line(view: dict) -> str:
     """What the last question decided, in words."""
-    holder, cutter, me = view["holder"], view["cutter"], view.get("me")
+    holder, me = view["holder"], view.get("me")
     holder_name = "YOU" if holder == me else holder
     if view["result"] == "holder":
         return f"{holder_name} {'DRAW' if holder == me else 'DRAWS'} 7 CARDS!"

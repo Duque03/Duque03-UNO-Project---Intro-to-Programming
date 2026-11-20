@@ -23,7 +23,7 @@ Numbers live in `arcade/config.py`.
   | Championship YES / NO | Left / Right move the highlight, Enter chooses it (or Y / N). |
   | How to play | Left / Right (or 1-4) change tab. Esc goes back. |
   | Choose your opponent | Left / Right move the highlight, Space picks or un-picks that bot (or its number). Enter plays, Esc goes back. |
-  | UNO | Left / Right move along your hand (the frame starts on the first card), Space picks or drops that card, like a click. Enter plays the picked cards, like a click on the discard pile; X cancels them. Choosing a wild's colour: Left / Right and Enter (or Space); X cancels. D draws, P passes, U says UNO. |
+  | UNO | Left / Right move along your hand (the frame starts on the first card), Space picks or drops that card, like a click. Enter plays the picked cards, like a click on the discard pile; X cancels them. Choosing a wild's colour: Left / Right and Enter (or Space); X cancels. D draws, P passes, U says UNO, K cuts a UNO; in the face-off Y / N (or Left / Right and Enter). The yellow frame only shows while the keys are being used: a mouse click hides it, so nothing glows when playing with the mouse. |
   | Checkers | The arrow keys move a cursor on the board (blue, because yellow already marks the pieces); Space or Enter acts like a click on that square. |
   | Connect Four | Left / Right choose a column; Space, Enter or Down drops the disc. 1-7 drop straight into that column. |
   | Store | Left / Right choose an item, Up / Down change tab. Enter buys it (or wears it, if it is owned). Esc goes back. |
@@ -117,7 +117,12 @@ Numbers live in `arcade/config.py`.
   against the same bots, for the same prize. It is only offered in free play: a championship goes on to its scoreboard.
 
 ### UNO
-- 108 cards, 7 each, the first card on the table is a number.
+- 108 cards, 7 each, the first card on the table is a number. The deck is a real UNO deck (per colour: one 0, two of
+  each 1 to 9, two Skip, two Reverse, two +2; plus 4 Wild and 4 Wild +4), shuffled at the start; when it runs out,
+  the discard pile (all but its top card) is shuffled into a new deck. So every card comes up as often as in a real
+  game; tests check the deck, how often each card is dealt over thousands of deals, and that no card is ever lost.
+- The table only says what is happening (who played what, "Time's up!"), never how to play: that is in the rules (I).
+  Picked cards just stand up, with no numbers on them.
 - The start of a game is shown: the cards are dealt one at a time from the deck, around the table starting with the
   player (the player's own cards land face up, in order), the first card of the pile turns up, then a **roulette**
   lights the players one after the other, slows down and stops on the one who starts ("BARK STARTS!" / "YOU

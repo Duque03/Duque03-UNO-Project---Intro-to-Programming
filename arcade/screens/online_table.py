@@ -206,13 +206,19 @@ def _uno(lobby, me: str, mine: bool, over: bool) -> None:
             colour_focus = cursor.step(colour_focus, key, len(COLOURS))
             sound.play("blip")
         S.ouno_colour = colour_focus
-    flash = S.online_flash or ("" if mine or over else f"Waiting for {lobby.current()}...")
+    flash = S.online_flash  # only what just happened; how to play is in the rules
     if cut_open:
-        flash = f"{game.uno_due} has one card! Cut the UNO before they say it (K)"
+        flash = f"{game.uno_due} has one card!"
+    if key in ("left", "right", "space"):
+        S.ouno_keyboard = True  # the yellow frame only shows while the player uses the keys
+    keys = S.get("ouno_keyboard")
     img, regions = uno_screen.draw(game, me, opponents, flash, choosing=wild is not None, picks=picks,
-                                   uno_open=uno_open, focus=focus, colour_focus=colour_focus, cut_open=cut_open)
+                                   uno_open=uno_open, focus=focus if keys else None,
+                                   colour_focus=colour_focus if keys else None, cut_open=cut_open)
     regions = _show(img, regions, lobby, me, over, _uno_plan(lobby, me, opponents))
     point = ui.click() if (mine or uno_open or cut_open) and not over else None
+    if point is not None:
+        S.ouno_keyboard = False  # playing with the mouse: no frame
     action = ui.hit(regions, point)
 
     bar = st.columns([1.3, 1, 1, 1.4, 1, 1])
@@ -289,6 +295,8 @@ def _uno_duel(lobby, me: str, opponents, key) -> None:
     if asking and key in ("left", "right"):
         focus = cursor.step(focus, key, 2)
         sound.play("blip")
+    if key in ("left", "right", "space"):
+        S.ouno_keyboard = True
     S.oduel_focus = focus
     looks = {p["name"]: p["look"] for p in opponents}
     looks[me] = lobby.player(me)["look"]
@@ -296,11 +304,14 @@ def _uno_duel(lobby, me: str, opponents, key) -> None:
             "question": duel.question, "phase": duel.phase, "answered": {p: p in duel.answers for p in duel.players},
             "answers": dict(duel.answers) if duel.phase != "ask" else {me: duel.answers[me]} if me in duel.answers
             else {}, "right": dict(duel.right), "truth": duel.truth, "result": duel.result,
-            "focus": focus if asking else None}
+            "focus": focus if asking and S.get("ouno_keyboard") else None}
     table = uno_screen.draw(game, me, opponents)[0]
     img, regions = duel_art.duel_picture(table, view)
     ui.show(ui.screen(), img)
-    action = ui.hit(regions, ui.click() if asking else None)
+    point = ui.click() if asking else None
+    if point is not None:
+        S.ouno_keyboard = False
+    action = ui.hit(regions, point)
     bar = st.columns([1.3, 1, 1, 1, 1, 1])
     with bar[0]:
         yes = ui.button("Yes", "oduel_yes", "Y", type="primary", disabled=not asking)
