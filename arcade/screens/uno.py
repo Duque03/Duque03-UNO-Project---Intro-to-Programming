@@ -24,7 +24,7 @@ from arcade.art.pixel import darken, draw_text, key_icon, panel, rgb
 from arcade.config import SCALE, SCREEN_H, SCREEN_W, UNO_LEVELS
 from arcade.logic import cursor
 from arcade.logic.uno import COLOURS, NUMBERS, WILD, IllegalMove, card_name, changes, ordinal
-from arcade.screens import common
+from arcade.screens import common, corta
 from arcade.state import S
 
 FOCUS = scenes.FOCUS  # the yellow frame the arrow keys move
@@ -71,13 +71,14 @@ def _uno_left() -> float:
 
 
 def draw(game, me, opponents, flash="", choosing=False, picks=(), uno_open=False, focus=None, colour_focus=None,
-         hide=(), dealing=False):
+         hide=(), dealing=False, cut_open=False):
     """Returns (picture, clickable regions).
 
     focus: the card of the hand (position in the sorted hand) the arrow keys are on; colour_focus: the colour
     (position in COLOURS) while choosing a wild's colour. Both get a yellow frame; None draws none.
     For the animations (see deal_plan and move_plan): hide leaves out these cards of the hand (they are flying);
     dealing draws the table before the cards are dealt (no hands, no pile, nobody's turn yet).
+    cut_open shows the CORTA UNO! button (someone else is down to one card and has not said UNO yet).
     """
     my_turn = game.winner is None and game.current == me and not uno_open and not dealing
     img = scenes.table_scene("uno", opponents, None if game.winner or dealing else game.current)
@@ -172,6 +173,13 @@ def draw(game, me, opponents, flash="", choosing=False, picks=(), uno_open=False
         d.rectangle([x0 + 14, y1 - 16, x1 - 14, y1 - 10], fill=(22, 18, 43))
         d.rectangle([x0 + 14, y1 - 16, x0 + 14 + int((x1 - x0 - 28) * share), y1 - 10], fill=(255, 233, 74))
         regions.append((UNO_BOX, ("uno",)))
+    if cut_open:  # house rule: Corta UNO (screens/corta.py)
+        x0, y0, x1, y1 = UNO_BOX
+        panel(img, UNO_BOX, "#ffe94a", "#16122b", bw=5)
+        draw_text(img, ((x0 + x1) // 2, y0 + 26), "CORTA", 4, "#16122b", "mm")
+        draw_text(img, ((x0 + x1) // 2, y0 + 56), "UNO!", 4, "#e2413c", "mm", shadow="#16122b")
+        key_icon(img, x1 - 34, y1 - 30, "K", 2, "#16122b")
+        regions.append((UNO_BOX, ("cut",)))
 
     if choosing:
         img = darken(img, 0.5)
@@ -334,8 +342,13 @@ def _uno_clock() -> None:
     game = S.get("game")
     if S.screen != "uno" or game is None or S.get("uno_deadline") is None:
         return
+    cutter = corta.due_cut()
+    if cutter and game.uno_due == S.player["name"]:  # a bot cut the UNO before the player said it: face-off
+        corta.start(holder=S.player["name"], cutter=cutter["bot"])
+        st.rerun()
     if time.time() > S.uno_deadline + UNO_GRACE:
         _remember(game)
+        S.uno_cutter = None
         game.miss_uno(S.player["name"])
         S.uno_deadline = None
         S.flash = "You forgot to say UNO! +2 cards"
@@ -357,6 +370,7 @@ def _play(game, me, chosen, colour=None) -> None:
         S.flash = "Press UNO! and your last card goes down"
     if game.uno_due == me:
         S.uno_deadline = time.time() + UNO_SECONDS
+        S.uno_cutter = corta.choose_cutter(game, me, time.time())  # a bot may try to cut this UNO
 
 
 def _choose_colour(bar, game, me, action, focus, key) -> None:
@@ -399,6 +413,9 @@ def render() -> None:
     # frame (on the hand, or on the colours of a wild); Space is a click on it. Like a click, a key pressed while the
     # bots play does not count.
     key = ui.keys("uno", {"Left": "left", "Right": "right", "Space": "space"})
+    if S.get("duel") is not None:  # Corta UNO: the trivia face-off takes over the screen (screens/corta.py)
+        corta.render_duel(slot, game, me, opponents, draw(game, me, opponents)[0], key)
+        return
     if bots_were_playing:
         key = None
     if common.run_clock(not bots_were_playing and game.winner is None and not uno_open):
@@ -421,16 +438,28 @@ def render() -> None:
         _animate(slot, plan, draw(game, me, opponents, S.flash, uno_open=uno_open)[0])
         if plan and S.get("uno_deadline"):
             S.uno_deadline += table_anim.seconds(plan)  # the time to say UNO starts when the card has landed
+            if S.get("uno_cutter"):
+                S.uno_cutter["at"] += table_anim.seconds(plan)  # and so does a bot's chance to cut it
         if plan and game.current == me:
             common.restart_clock()
     # The bots play, one visible move at a time, while the player is still in.
-    while not uno_open and game.winner is None and game.current != me and me not in game.out:
+    if game.uno_due not in (None, me) and S.get("bot_uno") is None and game.winner is None:
+        S.bot_uno = corta.bot_window(game.uno_due, time.time())
+    while (not uno_open and not S.get("bot_uno") and game.winner is None and game.current != me
+           and me not in game.out):
         bot = game.current
         common.show(slot, common.thinking(draw(game, me, opponents)[0], names.index(bot), len(opponents)), "uno")
         before, started = copy.deepcopy(game), time.time()
-        game.bot_turn(bot, **UNO_LEVELS[bots.level(bot)])  # each bot plays at its own level
+        game.bot_turn(bot, say_uno=False, **UNO_LEVELS[bots.level(bot)])  # each bot plays at its own level
         common.bot_pause(since=started)
         _animate(slot, move_plan(before, game, me, opponents), draw(game, me, opponents)[0])  # its cards fly
+        if game.uno_due == bot:  # down to one card: a moment to cut its UNO before it says it
+            S.bot_uno = corta.bot_window(bot, time.time())
+    if S.get("bot_uno"):
+        bot = S.bot_uno["bot"]
+        flash = f"{bot} has one card! Cut the UNO before {bot} says it (K)"
+        corta.render_bot_window(slot, game, me, draw(game, me, opponents, flash, cut_open=True)[0])
+        return
 
     if game.winner is None and me in game.out:
         # The player's place is settled: the others finish the game at once instead of the player watching.
@@ -483,6 +512,7 @@ def render() -> None:
         common.pause_button(bar[3], "uno")
         if uno_pressed or action == ("uno",):
             _remember(game)
+            S.uno_cutter = None  # said in time: nobody can cut it any more
             if time.time() <= S.uno_deadline + UNO_GRACE:
                 game.call_uno(me)
                 sound.play("coin")

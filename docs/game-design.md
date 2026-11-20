@@ -141,6 +141,17 @@ Numbers live in `arcade/config.py`.
   it does nothing. If the first picked card does not fit, a message says so and nothing is played.
 - House rule, UNO: when a play leaves a player with one card they must say UNO within 2 seconds (button or U), or
   draw 2. Bots forget now and then.
+- House rule, **Corta UNO**: while a player who is down to one card has not said UNO yet, anyone else can press
+  **CORTA UNO!** (K, or the button on the table). If they are first, the two of them play a **trivia face-off**:
+  yes-or-no questions, **8 seconds** each (Y / N, Left / Right and Enter, or a click; no answer counts as wrong).
+  When both are right or both are wrong, another question comes. As soon as one is right and the other is wrong it is
+  over: if the player with UNO was wrong they draw **7 cards**; if the one who cut was wrong the UNO stands, as if it
+  had been said (the waiting last card goes down). Nothing happens to the other player either way.
+  - Bots cut the player's UNO too: each bot level has a chance to try and a reaction time (easy rarely and slowly,
+    expert often and fast). A bot down to one card waits a moment before saying UNO (easy longer, expert shorter):
+    that is when the player can cut it. Bots answer right more often the higher their level (easy 55%, medium 70%,
+    hard 82%, expert 92%). Bots do not cut each other.
+  - Online, any player at the table can cut another's UNO. The game waits during the face-off; the others watch it.
 - House rule, going out: nobody goes out with several cards at once. When a play would use the player's whole hand
   (for example their last two 1s), all but the last card go down and the player must say UNO; the last card then
   goes down by itself and they win. Missing UNO means drawing 2 and keeping that card.

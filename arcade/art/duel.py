@@ -41,7 +41,7 @@ def duel_picture(table, view: dict):
             said = view["answers"].get(name)
             status = "NO ANSWER" if said is None else ("YES" if said else "NO")
             right = view["right"].get(name, False)
-            status, colour = f"{status} {'RIGHT' if right else 'WRONG'}", GOOD if right else BAD
+            status, colour = f"{status}: {'RIGHT' if right else 'WRONG'}", GOOD if right else BAD
         elif view["answered"].get(name):
             status, colour = "ANSWERED", GOOD
         else:

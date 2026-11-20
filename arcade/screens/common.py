@@ -73,13 +73,14 @@ def clock_bar(screen: str) -> None:
         st.markdown("<div style='height:30px'></div>", unsafe_allow_html=True)
         return
     left = turn_clock.seconds_left(deadline, time.time())
-    colour = "#ff4f6d" if left <= 5 else "#3ad6ff"
+    total, label = S.get("clock_total", TURN_SECONDS), S.get("clock_label", "YOUR TURN")  # (Corta UNO: ANSWER)
+    colour = "#ff4f6d" if left <= min(5, total / 3) else "#3ad6ff"
     st.markdown(
         f"<div style='display:flex;align-items:center;gap:10px;height:30px;margin:-6px 0 2px 0'>"
         f"<div style='flex:1;height:10px;border-radius:5px;background:#17123a;border:1px solid #3a2f6b'>"
-        f"<div style='width:{100 * left / TURN_SECONDS:.0f}%;height:100%;border-radius:5px;background:{colour};"
+        f"<div style='width:{100 * left / total:.0f}%;height:100%;border-radius:5px;background:{colour};"
         f"box-shadow:0 0 8px {colour}'></div></div>"
-        f"<b style='color:{colour};font-size:1.25rem;min-width:7.5em'>YOUR TURN: {left:.0f}s</b></div>",
+        f"<b style='color:{colour};font-size:1.25rem;min-width:7.5em'>{label}: {left:.0f}s</b></div>",
         unsafe_allow_html=True,
     )
     if left <= 0:

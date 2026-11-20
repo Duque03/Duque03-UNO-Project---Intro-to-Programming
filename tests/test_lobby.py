@@ -264,3 +264,60 @@ def test_codes_only_use_letters_that_can_be_typed_on_the_join_screen(setup):
     lobbies, _ = setup
     for k in range(30):
         assert set(lobbies.create(_player(f"P{k}"))) <= set(CODE_LETTERS)
+
+
+def _ana_down_to_one(setup):
+    lobbies, clock, code = _uno(setup)
+    with lobbies._lock:
+        lobby = lobbies._find(code)
+        lobby.table.hands["ANA"] = [("red", "5"), ("red", "6")]
+        lobby.table.discard, lobby.table.colour = [("red", "9")], "red"
+    lobbies.act(code, "ANA", "play", cards=[("red", "5")])
+    return lobbies, clock, code
+
+
+def _answer(lobbies, code, name, right):
+    truth = lobbies.get(code).duel.truth
+    lobbies.act(code, name, "answer", yes=truth if right else not truth)
+
+
+def test_cutting_a_uno_online_starts_a_face_off_and_freezes_the_game(setup):
+    lobbies, clock, code = _ana_down_to_one(setup)
+    lobbies.act(code, "CARLA", "cut")
+    lobby = lobbies.get(code)
+    assert (lobby.duel.holder, lobby.duel.cutter) == ("ANA", "CARLA")
+    with pytest.raises(LobbyError):
+        lobbies.act(code, "BRUNO", "draw")  # nothing else moves during the face-off
+    with pytest.raises(LobbyError):
+        lobbies.act(code, "BRUNO", "answer", yes=True)  # only the two players answer
+    clock.now += UNO_SECONDS + 1
+    assert len(lobbies.get(code).table.hands["ANA"]) == 1  # no "forgot UNO" while the face-off runs
+
+
+def test_losing_the_face_off_online_with_uno_draws_7(setup):
+    lobbies, clock, code = _ana_down_to_one(setup)
+    lobbies.act(code, "BRUNO", "cut")
+    _answer(lobbies, code, "ANA", right=False)
+    _answer(lobbies, code, "BRUNO", right=True)
+    clock.now += 3  # the answers are shown, then it is over
+    lobby = lobbies.get(code)
+    assert lobby.duel is None and len(lobby.table.hands["ANA"]) == 8 and lobby.table.uno_due is None
+
+
+def test_the_cutter_losing_online_means_the_uno_stands(setup):
+    lobbies, clock, code = _ana_down_to_one(setup)
+    lobbies.act(code, "BRUNO", "cut")
+    _answer(lobbies, code, "ANA", right=True)
+    _answer(lobbies, code, "BRUNO", right=False)
+    clock.now += 3
+    lobby = lobbies.get(code)
+    assert lobby.duel is None and len(lobby.table.hands["ANA"]) == 1 and lobby.table.uno_due is None
+
+
+def test_a_uno_cannot_be_cut_by_its_owner_or_after_it_was_said(setup):
+    lobbies, clock, code = _ana_down_to_one(setup)
+    with pytest.raises(LobbyError):
+        lobbies.act(code, "ANA", "cut")
+    lobbies.act(code, "ANA", "uno")
+    with pytest.raises(LobbyError):
+        lobbies.act(code, "BRUNO", "cut")
