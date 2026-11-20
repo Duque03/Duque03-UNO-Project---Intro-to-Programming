@@ -55,8 +55,7 @@ def _watch(code: str, seen: int, turn: str | None, deadline: float | None, me: s
         left = max(0, int(deadline - time.time() + 0.99))
         who = label or ("YOUR TURN" if turn == me else f"{turn}'S TURN")
         with st.container(key="game_clock"):  # laid on the picture, at the top in the middle (ui._CSS)
-            st.markdown(common.clock_html(left, ROUND_SECONDS if label else TURN_SECONDS, who),
-                        unsafe_allow_html=True)
+            ui.picture(scenes.timer_strip(left, ROUND_SECONDS if label else TURN_SECONDS, who))
 
 
 def _finish(lobby, me: str) -> None:
@@ -194,6 +193,9 @@ def _uno(lobby, me: str, mine: bool, over: bool) -> None:
         _uno_duel(lobby, me, opponents, key)
         return
     cut_open = game.uno_due not in (None, me) and me in game.active and not over  # Corta UNO can be pressed
+    if mine and not over and game.must_draw(me) and S.get("ouno_auto") != lobby.version:
+        S.ouno_auto = lobby.version  # a +2 / +4 that cannot be answered: take the cards at once (once per state)
+        _act("draw")
     if not mine:
         key = None if not uno_open else key
     if uno_open and lobby.uno_deadline:

@@ -51,7 +51,7 @@ _CSS = f"""
 [data-testid="stMainBlockContainer"] > div {{ gap: 0 !important; }}
 .st-key-game_frame {{ position: relative; gap: 0 !important; }}
 /* the countdown of a turn (or of a face-off answer) sits on the picture, at the top in the middle */
-.st-key-game_clock {{ position: absolute !important; top: 1.2%; left: 50%; transform: translateX(-50%); width: 36%;
+.st-key-game_clock {{ position: absolute !important; top: 1.2%; left: 50%; transform: translateX(-50%); width: 34.375%;
     z-index: 4; pointer-events: none; }}
 .st-key-game_frame .stButton button {{ min-height: 2.4rem; padding: 0 .6rem; background: rgba(13, 10, 31, .9); }}
 .st-key-game_frame .stButton button p {{ font-size: 1.2rem; }}
@@ -109,7 +109,12 @@ button[data-testid^="stBaseButton-primary"]:not(:disabled) * {{ color: #1a0f2e !
 }}
 .stTextInput input:focus {{ border-color: var(--pink); box-shadow: 0 0 16px rgba(255, 79, 163, .45); }}
 [data-testid="stCaptionContainer"] {{ color: #b9b0e8; text-align: center; }}
-[data-testid="stToast"] {{ background: var(--panel); border: 2px solid var(--yellow); border-radius: 12px; }}
+/* little messages ("Welcome back, ...", "Bought ...!"): a pixel box like the rest of the game, no round corners */
+[data-testid="stToast"] {{ background: #16122b !important; border: 4px solid var(--yellow) !important;
+    border-radius: 0 !important; box-shadow: 6px 6px 0 #05030d !important; padding: .4rem .9rem !important; }}
+[data-testid="stToast"] p {{ color: var(--yellow) !important; font-size: 1.6rem !important; letter-spacing: .06em;
+    text-transform: uppercase; }}
+[data-testid="stToast"] button, [data-testid="stToastDismissButton"] {{ display: none !important; }}
 .rarity-legendary {{ color: #ffb81a; }} .rarity-rare {{ color: #b07aff; }} .rarity-common {{ color: #9df0c4; }}
 </style>
 """
@@ -136,11 +141,11 @@ _input_catcher = st.components.v2.component("arcade_input_catcher", js=INPUT_JS)
 # The full-screen button (a small icon in the top-left corner) and the F key: the browser shows only the game.
 FULLSCREEN_CSS = """
 button.fullscreen {
-    position: fixed; top: 8px; left: 48px; z-index: 1000; cursor: pointer; width: 32px; height: 32px; padding: 0;
-    font: 1.2rem "Jersey 10", monospace; line-height: 1; color: #f3ead2; opacity: .45;
-    background: rgba(13, 10, 31, .7); border: 2px solid rgba(58, 214, 255, .5); border-radius: 6px;
+    position: fixed; top: 8px; left: 50px; z-index: 1000; cursor: pointer; width: 34px; height: 34px; padding: 0;
+    font: 1.3rem "Jersey 10", monospace; line-height: 1; color: #f3ead2;
+    background: #16122b; border: 3px solid #3ad6ff; border-radius: 0; box-shadow: 3px 3px 0 #05030d;
 }
-button.fullscreen:hover { opacity: 1; border-color: #3ad6ff; }
+button.fullscreen:hover { background: #2a2150; }
 """
 FULLSCREEN_JS = r"""
 export default function (component) {

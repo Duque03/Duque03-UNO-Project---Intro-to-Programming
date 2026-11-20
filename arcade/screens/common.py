@@ -63,17 +63,6 @@ def restart_clock() -> None:
     S.turn_deadline = None
 
 
-def clock_html(left: float, total: float, label: str) -> str:
-    """The countdown drawn on the picture: a small dark pill with the time left and a bar that empties."""
-    colour = "#ff4f6d" if left <= min(5, total / 3) else "#3ad6ff"
-    return (f"<div style='display:flex;align-items:center;gap:8px;padding:3px 10px;border-radius:8px;"
-            f"background:rgba(13,10,31,.78);border:1px solid #3a2f6b'>"
-            f"<b style='color:{colour};font-size:1.1rem;white-space:nowrap'>{label}: {left:.0f}s</b>"
-            f"<div style='flex:1;height:8px;border-radius:4px;background:#17123a'>"
-            f"<div style='width:{100 * max(0, left) / total:.0f}%;height:100%;border-radius:4px;background:{colour}'>"
-            f"</div></div></div>")
-
-
 @st.fragment(run_every=1.0)
 def clock_bar(screen: str) -> None:
     """The countdown under the table. It redraws itself every second; at zero the whole screen runs
@@ -87,7 +76,7 @@ def clock_bar(screen: str) -> None:
             return
         left = turn_clock.seconds_left(deadline, time.time())
         total, label = S.get("clock_total", TURN_SECONDS), S.get("clock_label", "YOUR TURN")  # (Corta UNO: ANSWER)
-        st.markdown(clock_html(left, total, label), unsafe_allow_html=True)
+        ui.picture(scenes.timer_strip(left, total, label))
     if left <= 0 and S.get("clock_fired") != deadline:
         # Time is up: run the screen once so it can act (play for the player, close a question). Only once per
         # deadline: if the screen does not move the deadline, running it again and again would freeze the page.
