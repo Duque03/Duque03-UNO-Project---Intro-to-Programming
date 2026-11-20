@@ -110,8 +110,15 @@ changing these files, and change them in a small pull request of their own.
   `championship.best_player(db.all_players())`, looked up at most once a minute.
 - **Screens fade in with a browser animation** (`ui._fade_style`), never with pictures sent one by one: those
   stutter. Do not add animations made of several pictures to the table screens.
+- **Cards that move on the UNO table are drawn by the browser** (`arcade/table_anim.py`), on a see-through canvas laid
+  over the picture (`ui.Slot.overlay`, CSS `game_screen_anim`). Python sends one plan (a picture of the table before
+  the move, the card pictures, where each card starts and lands and when), shows the real picture behind it and waits
+  for the animation to end (`time.sleep`) before the next move. `screens/uno.py` makes the plans (`deal_plan`, the deal
+  and the roulette; `move_plan`, from `logic.uno.changes(before, after)`), offline and online. The overlay is laid
+  first and the picture second, so the new picture is never seen before the cards land.
 - **The only JavaScript is `INPUT_JS` and `FULLSCREEN_JS` in `arcade/ui.py`, `SOUND_JS` in `arcade/sound.py`,
-  `ROOM_JS` in `arcade/room.py`, `TITLE_JS` in `arcade/title_view.py` and `JS` in `arcade/tiles.py`.** `INPUT_JS` reports clicks on the game picture.
+  `ROOM_JS` in `arcade/room.py`, `TITLE_JS` in `arcade/title_view.py`, `ANIM_JS` in `arcade/table_anim.py` and `JS` in
+  `arcade/tiles.py`.** `ANIM_JS` only draws (and plays the card sounds through `SOUND_JS`) and never sends anything back. `INPUT_JS` reports clicks on the game picture.
   `FULLSCREEN_JS` is the FULL SCREEN button (and the F key) and sends nothing back. `SOUND_JS` only plays sounds by
   name (and draws the MUSIC button, which does what M does) and never sends anything back. Its tunes come from
   `arcade/music.py`, written into the script once (`__SCORE__`); each run only sends the name of the tune the screen

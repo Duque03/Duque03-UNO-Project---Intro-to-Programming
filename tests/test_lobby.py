@@ -5,7 +5,9 @@ import random
 import pytest
 
 from arcade.logic.connect4 import RED
-from arcade.logic.lobby import MAX_PLAYERS, TURN_SECONDS, UNO_SECONDS, LobbyError, Lobbies, online_coins
+from arcade.logic.lobby import (
+    MAX_PLAYERS, TURN_SECONDS, UNO_INTRO_SECONDS, UNO_SECONDS, LobbyError, Lobbies, online_coins,
+)
 from arcade.logic.uno import IllegalMove as UnoIllegal
 
 
@@ -194,7 +196,24 @@ def _uno(setup, names=("ANA", "BRUNO", "CARLA")):
         lobbies.join(code, _player(name))
     lobbies.choose(code, names[0], "uno")
     lobbies.start(code, names[0])
+    with lobbies._lock:  # these tests start with the first player (the real start is picked at random)
+        lobbies._find(code).table.turn = 0
     return lobbies, clock, code
+
+
+def test_anyone_can_start_online_uno_and_the_deal_gets_its_time(setup):
+    _, clock = setup
+    starters = set()
+    for seed in range(12):
+        lobbies = Lobbies(random.Random(seed), clock=clock)
+        code = lobbies.create(_player("ANA"))
+        lobbies.join(code, _player("BRUNO"))
+        lobbies.choose(code, "ANA", "uno")
+        lobbies.start(code, "ANA")
+        lobby = lobbies.get(code)
+        starters.add(lobby.current())
+        assert lobby.deadline == clock() + TURN_SECONDS + UNO_INTRO_SECONDS
+    assert starters == {"ANA", "BRUNO"}
 
 
 def test_uno_online_has_no_bots_and_checks_the_rules(setup):

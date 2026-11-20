@@ -80,7 +80,9 @@ def start_game() -> None:
     match = S.match
     me = S.player["name"]
     if match["game"] == "uno":
-        S.game = UnoGame([me] + match["bots"], state.rng())
+        players = [me] + match["bots"]
+        S.game = UnoGame(players, state.rng(), start=state.rng().randrange(len(players)))  # anyone may start
+        S.uno_intro = True  # the cards are dealt one by one, then a roulette shows who starts (screens/uno.py)
     elif match["game"] == "checkers":
         S.game = CheckersGame()
     else:
@@ -91,7 +93,7 @@ def start_game() -> None:
     S.pending_wild = None
     S.uno_pick, S.uno_deadline = [], None  # UNO house rules: cards picked so far, time left to say UNO
     S.turn_deadline = None  # the clock for the player's turn starts when their first turn begins
-    for key in ("uno_focus", "uno_colour_focus", "checkers_cursor", "c4_column"):
+    for key in ("uno_focus", "uno_colour_focus", "checkers_cursor", "c4_column", "uno_before", "uno_before_picks"):
         S.pop(key, None)  # the keyboard highlights start fresh: first playable card, a movable piece, the middle column
     S.screen = match["game"]
 

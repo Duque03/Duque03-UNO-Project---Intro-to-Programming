@@ -1,15 +1,81 @@
-"""Draws the playing cards for the UNO table (our own simple card design)."""
+"""Draws the playing cards for the UNO table (our own pixel card design, not the shop game's)."""
 
 from __future__ import annotations
 
-from PIL import ImageDraw
+from PIL import Image, ImageDraw
 
 from arcade.art.pixel import draw_text, mix, rgb, shade
 
 CARD_W, CARD_H = 66, 96
 COLOUR_HEX = {"red": "#e2413c", "yellow": "#f2c230", "green": "#3fae5a", "blue": "#3a78e8", "wild": "#1d1a2b"}
-_BIG = {"skip": ("SKIP", 2), "reverse": ("<>", 4), "draw2": ("+2", 4), "wild": ("WILD", 2), "wild4": ("+4", 4)}
-_SMALL = {"skip": "SKIP", "reverse": "<>", "draw2": "+2", "wild": "W", "wild4": "+4"}
+
+# Our own chunky pixel glyphs ("X" = a pixel), drawn white with a dark outline in the middle of the card.
+DIGITS = {
+    "0": [".XXXX.", "XXXXXX", "XX..XX", "XX..XX", "XX..XX", "XX..XX", "XX..XX", "XXXXXX", ".XXXX."],
+    "1": ["..XX..", ".XXX..", "XXXX..", "..XX..", "..XX..", "..XX..", "..XX..", "XXXXXX", "XXXXXX"],
+    "2": [".XXXX.", "XXXXXX", "XX..XX", "....XX", "...XXX", "..XXX.", ".XXX..", "XXXXXX", "XXXXXX"],
+    "3": ["XXXXX.", "XXXXXX", "....XX", "..XXXX", "..XXX.", "....XX", "....XX", "XXXXXX", "XXXXX."],
+    "4": ["...XX.", "..XXX.", ".XXXX.", "XX.XX.", "XXXXXX", "XXXXXX", "...XX.", "...XX.", "...XX."],
+    "5": ["XXXXXX", "XXXXXX", "XX....", "XXXXX.", "XXXXXX", "....XX", "....XX", "XXXXXX", "XXXXX."],
+    "6": [".XXXX.", "XXXXX.", "XX....", "XXXXX.", "XXXXXX", "XX..XX", "XX..XX", "XXXXXX", ".XXXX."],
+    "7": ["XXXXXX", "XXXXXX", "....XX", "...XX.", "...XX.", "..XX..", "..XX..", "..XX..", "..XX.."],
+    "8": [".XXXX.", "XXXXXX", "XX..XX", "XXXXXX", ".XXXX.", "XX..XX", "XX..XX", "XXXXXX", ".XXXX."],
+    "9": [".XXXX.", "XXXXXX", "XX..XX", "XX..XX", "XXXXXX", ".XXXXX", "....XX", ".XXXXX", ".XXXX."],
+    "+": ["......", "......", "..XX..", "..XX..", "XXXXXX", "XXXXXX", "..XX..", "..XX..", "......"],
+}
+# Skip: jump over the next player (two arrowheads and a bar). Reverse: one arrow each way.
+SKIP = ["X....X.....XX", "XX...XX....XX", "XXX..XXX...XX", "XXXX.XXXX..XX", "XXXXXXXXXX.XX",
+        "XXXX.XXXX..XX", "XXX..XXX...XX", "XX...XX....XX", "X....X.....XX"]
+_RIGHT = ["........X....", "........XX...", "XXXXXXXXXXX..", "XXXXXXXXXXXX.", "XXXXXXXXXXX..",
+          "........XX...", "........X...."]
+REVERSE = _RIGHT + ["............."] + [row[::-1] for row in _RIGHT]
+
+
+def _join(*glyphs, gap=1):
+    """Glyphs side by side, with `gap` empty columns between them."""
+    return ["".join((g[r] + "." * gap) for g in glyphs)[:-gap or None] for r in range(len(glyphs[0]))]
+
+
+def _stamp(d, bitmap, x, y, unit, colour):
+    for r, row in enumerate(bitmap):
+        for c, ch in enumerate(row):
+            if ch == "X":
+                d.rectangle([x + c * unit, y + r * unit, x + (c + 1) * unit - 1, y + (r + 1) * unit - 1], fill=colour)
+
+
+def _glyph(d, bitmap, cx, cy, unit, ink, outline):
+    """A glyph centred on (cx, cy), with a one-pixel outline all round and a shadow underneath."""
+    x, y = cx - len(bitmap[0]) * unit // 2, cy - len(bitmap) * unit // 2
+    _stamp(d, bitmap, x + unit, y + 2 * unit, unit, outline)
+    for dx in (-unit, 0, unit):
+        for dy in (-unit, 0, unit):
+            _stamp(d, bitmap, x + dx, y + dy, unit, outline)
+    _stamp(d, bitmap, x, y, unit, ink)
+
+
+def _diamond(d, cx, cy, radius, unit, colours, outline):
+    """The wild sign: a diamond in four colours (top-left, top-right, bottom-left, bottom-right)."""
+    for row in range(-radius - 1, radius + 2):
+        for col in range(-radius - 1, radius + 2):
+            inside = abs(row + 0.5) + abs(col + 0.5) <= radius
+            edge = abs(row + 0.5) + abs(col + 0.5) <= radius + 1.2
+            if not edge:
+                continue
+            colour = outline if not inside else colours[(row >= 0) * 2 + (col >= 0)]
+            px, py = cx + col * unit, cy + row * unit
+            d.rectangle([px, py, px + unit - 1, py + unit - 1], fill=colour)
+
+
+def _corner(d, img, x, y, value, ink, outline):
+    """The small sign in the top-left corner (what shows when the cards overlap in the hand)."""
+    if value in ("skip", "reverse"):
+        _glyph(d, SKIP if value == "skip" else REVERSE, x + 14, y + 13, 1, ink, outline)
+    elif value in ("wild", "wild4"):
+        _diamond(d, x + 13, y + 13, 4, 1, [rgb(COLOUR_HEX[c]) for c in ("red", "yellow", "green", "blue")], ink)
+        if value == "wild4":
+            draw_text(img, (x + 21, y + 9), "+4", 1, ink, "lt", shadow=outline)
+    else:
+        draw_text(img, (x + 9, y + 9), {"draw2": "+2"}.get(value, value), 1, ink, "lt", shadow=outline)
 
 
 def _body(d, x, y, w, h, fill, edge):
@@ -19,35 +85,44 @@ def _body(d, x, y, w, h, fill, edge):
 
 
 def draw_card(img, x, y, card, dim=False, glow=False):
-    """Draw one face-up card with its top-left corner at (x, y)."""
+    """Draw one face-up card with its top-left corner at (x, y). Our own pixel design (see DIGITS, SKIP, REVERSE)."""
     colour, value = card
     d = ImageDraw.Draw(img)
     w, h = CARD_W, CARD_H
     x, y = int(x), int(y)
     fill = rgb(COLOUR_HEX[colour])
     edge, ink = (255, 255, 255), (255, 255, 255)
+    quads = [rgb(COLOUR_HEX[c]) for c in ("red", "yellow", "green", "blue")]
     if dim:
         fill, edge, ink = mix(fill, "#16122b", 0.55), (150, 146, 170), (170, 166, 190)
+        quads = [mix(q, "#16122b", 0.55) for q in quads]
+    outline = shade(fill, 0.4) if colour != "wild" else (6, 5, 14)
     d.rectangle([x + 4, y + 4, x + w + 3, y + h + 3], fill=(10, 8, 24))  # shadow
     if glow:
         d.rectangle([x - 3, y - 3, x + w + 2, y + h + 2], fill=(255, 233, 74))
     _body(d, x, y, w, h, fill, edge)
-    d.rectangle([x + 12, y + 20, x + w - 13, y + h - 21], outline=shade(fill, 1.35), width=3)
-    if colour == "wild":
-        size = 12
-        cx, cy = x + w // 2, y + h // 2 - (16 if value == "wild4" else 14)
-        for i, name in enumerate(("red", "yellow", "green", "blue")):
-            quad = rgb(COLOUR_HEX[name])
-            if dim:
-                quad = mix(quad, "#16122b", 0.55)
-            qx, qy = cx - size + (i % 2) * size, cy - size + (i // 2) * size
-            d.rectangle([qx, qy, qx + size - 1, qy + size - 1], fill=quad)
-        label, scale = _BIG[value]
-        draw_text(img, (x + w // 2, y + h - 24), label, 2 if value == "wild" else 3, ink, "mm", shadow=(10, 8, 24))
+    # a light top edge and a darker bottom edge make the card look like a raised pixel tile
+    d.rectangle([x + 6, y + 6, x + w - 7, y + 8], fill=shade(fill, 1.25) if colour != "wild" else (52, 47, 74))
+    d.rectangle([x + 6, y + h - 9, x + w - 7, y + h - 7], fill=shade(fill, 0.78) if colour != "wild" else (8, 7, 18))
+    # the middle panel the sign sits on
+    panel = shade(fill, 0.86) if colour != "wild" else (40, 36, 60)
+    d.rectangle([x + 12, y + 22, x + w - 13, y + h - 23], fill=panel)
+    d.rectangle([x + 15, y + 19, x + w - 16, y + h - 20], fill=panel)
+    cx, cy = x + w // 2, y + h // 2
+    if value == "wild":
+        _diamond(d, cx - 1, cy - 1, 7, 3, quads, ink)
+    elif value == "wild4":
+        _diamond(d, cx - 1, cy - 14, 4, 3, quads, ink)
+        _glyph(d, _join(DIGITS["+"], DIGITS["4"]), cx, cy + 15, 3, ink, outline)
+    elif value == "draw2":
+        _glyph(d, _join(DIGITS["+"], DIGITS["2"]), cx, cy, 3, ink, outline)
+    elif value == "skip":
+        _glyph(d, SKIP, cx, cy, 3, ink, outline)
+    elif value == "reverse":
+        _glyph(d, REVERSE, cx, cy, 3, ink, outline)
     else:
-        label, scale = _BIG.get(value, (value, 6))
-        draw_text(img, (x + w // 2 + 1, y + h // 2), label, scale, ink, "mm", shadow=shade(fill, 0.45))
-    draw_text(img, (x + 9, y + 9), _SMALL.get(value, value), 1, ink, "lt")
+        _glyph(d, DIGITS[value], cx, cy, 4, ink, outline)
+    _corner(d, img, x, y, value, ink, outline)
 
 
 def draw_back(img, x, y, w=CARD_W, h=CARD_H):
@@ -62,3 +137,17 @@ def draw_back(img, x, y, w=CARD_W, h=CARD_H):
     if w >= 40:
         for i, colour in enumerate(("#ff4fa3", "#3ad6ff", "#ffe94a")):
             d.rectangle([x + 18 + i * 3, y + 30 + i * 12, x + w - 19 - i * 3, y + 36 + i * 12], fill=rgb(colour))
+
+
+def card_sprite(card):
+    """One face-up card on a see-through picture (with its shadow), for the animations on the table."""
+    img = Image.new("RGBA", (CARD_W + 4, CARD_H + 4), (0, 0, 0, 0))
+    draw_card(img, 0, 0, card)
+    return img
+
+
+def back_sprite():
+    """One face-down card on a see-through picture (with its shadow), for the animations on the table."""
+    img = Image.new("RGBA", (CARD_W + 3, CARD_H + 3), (0, 0, 0, 0))
+    draw_back(img, 0, 0)
+    return img

@@ -11,17 +11,19 @@ appears for UNO_SECONDS; press it (or U) in time, or draw 2.
 
 from __future__ import annotations
 
+import copy
 import time
+from collections import Counter
 
 import streamlit as st
 from PIL import ImageDraw
 
-from arcade import bots, match, sound, ui
+from arcade import bots, match, sound, table_anim, ui
 from arcade.art import cards, scenes
 from arcade.art.pixel import darken, draw_text, key_icon, panel, rgb
 from arcade.config import SCALE, SCREEN_H, SCREEN_W, UNO_LEVELS
 from arcade.logic import cursor
-from arcade.logic.uno import COLOURS, NUMBERS, WILD, IllegalMove, card_name, ordinal
+from arcade.logic.uno import COLOURS, NUMBERS, WILD, IllegalMove, card_name, changes, ordinal
 from arcade.screens import common
 from arcade.state import S
 
@@ -30,6 +32,11 @@ HAND_Y, PILE_Y, DRAW_X, DISCARD_X = 434, 250, 384, 494
 UNO_SECONDS = 2.0  # time to press UNO after going down to one card
 UNO_GRACE = 0.35  # the click needs a moment to travel to the server
 UNO_BOX = (744, 236, 936, 336)  # where the big UNO button is on the picture
+# Animations (milliseconds): the deal, then the roulette that shows who starts; cards drawn and played during the game
+DEAL_GAP, DEAL_FLIGHT, SPIN_MS, LABEL_MS = 90, 300, 2400, 1300
+MOVE_GAP, MOVE_FLIGHT = 280, 420
+SMALL = 16 / cards.CARD_W  # how big the opponents' face-down cards are, next to a whole card
+DECK, PILE = (DRAW_X, PILE_Y), (DISCARD_X, PILE_Y)
 _COLOUR_ORDER = {colour: i for i, colour in enumerate(COLOURS + (WILD,))}
 _VALUE_ORDER = {value: i for i, value in enumerate(NUMBERS + ("skip", "reverse", "draw2", "wild", "wild4"))}
 
@@ -50,25 +57,36 @@ def can_add(hand, picks, index) -> bool:
     return bool(picks) and index not in picks and 0 <= index < len(ordered) and ordered[index][1] == ordered[picks[0]][1]
 
 
+def hand_layout(count: int) -> tuple[float, float]:
+    """Where the player's hand starts (x of the first card) and the distance between two cards."""
+    step = min(cards.CARD_W + 6, (860 - cards.CARD_W) / max(1, count - 1))
+    return (SCREEN_W - (step * (count - 1) + cards.CARD_W)) / 2, step
+
+
 def _uno_left() -> float:
     deadline = S.get("uno_deadline")
     return max(0.0, deadline - time.time()) if deadline else 0.0
 
 
-def draw(game, me, opponents, flash="", choosing=False, picks=(), uno_open=False, focus=None, colour_focus=None):
+def draw(game, me, opponents, flash="", choosing=False, picks=(), uno_open=False, focus=None, colour_focus=None,
+         hide=(), dealing=False):
     """Returns (picture, clickable regions).
 
     focus: the card of the hand (position in the sorted hand) the arrow keys are on; colour_focus: the colour
     (position in COLOURS) while choosing a wild's colour. Both get a yellow frame; None draws none.
+    For the animations (see deal_plan and move_plan): hide leaves out these cards of the hand (they are flying);
+    dealing draws the table before the cards are dealt (no hands, no pile, nobody's turn yet).
     """
-    my_turn = game.winner is None and game.current == me and not uno_open
-    img = scenes.table_scene("uno", opponents, None if game.winner else game.current)
+    my_turn = game.winner is None and game.current == me and not uno_open and not dealing
+    img = scenes.table_scene("uno", opponents, None if game.winner or dealing else game.current)
     d = ImageDraw.Draw(img)
     regions = []
     common.header(img, "UNO")
 
     # how many cards each opponent holds
     for x, opponent in zip(scenes.seat_positions(len(opponents)), opponents):
+        if dealing:
+            break
         if opponent["name"] in game.out:  # finished: their place instead of their cards
             place = ordinal(game.out.index(opponent["name"]) + 1).upper()
             draw_text(img, (x * SCALE, 216), f"{place}!", 4, "#ffe94a", "mm", shadow="#16122b")
@@ -85,11 +103,14 @@ def draw(game, me, opponents, flash="", choosing=False, picks=(), uno_open=False
     # draw pile, discard pile, colour in play
     cards.draw_back(img, DRAW_X - 5, PILE_Y - 5)
     cards.draw_back(img, DRAW_X, PILE_Y)
-    label = f"DRAW {game.pending}!" if game.pending else f"DECK {len(game.deck)}"
+    deck = len(game.deck) + (len(game.discard) + sum(map(len, game.hands.values())) if dealing else 0)
+    label = f"DRAW {game.pending}!" if game.pending else f"DECK {deck}"
     draw_text(img, (DRAW_X + cards.CARD_W // 2, PILE_Y + cards.CARD_H + 8), label, 1,
               "#d9d4ff" if not game.pending else "#ff8a8a", "mt")
     if my_turn and game.can_draw(me):
         regions.append(((DRAW_X - 5, PILE_Y - 5, DRAW_X + cards.CARD_W, PILE_Y + cards.CARD_H), ("draw",)))
+    if dealing:  # nothing on the table yet but the deck
+        return img, regions
     for i, card in enumerate(game.discard[-3:-1]):  # the cards just below show when several were played
         cards.draw_card(img, DISCARD_X - 8 + i * 4, PILE_Y - 6 + i * 3, card)
     cards.draw_card(img, DISCARD_X, PILE_Y, game.top)
@@ -120,14 +141,14 @@ def draw(game, me, opponents, flash="", choosing=False, picks=(), uno_open=False
 
     # my hand: nothing glows; a picked card stands up a little
     count = len(hand)
-    step = min(cards.CARD_W + 6, (860 - cards.CARD_W) / max(1, count - 1))
-    left = (SCREEN_W - (step * (count - 1) + cards.CARD_W)) / 2
+    left, step = hand_layout(count)
     for i, card in enumerate(hand):
         x = left + i * step
         picked = i in picks
         y = HAND_Y - (22 if picked else 0)
-        cards.draw_card(img, x, y, card)
-        if picked:
+        if i not in hide:
+            cards.draw_card(img, x, y, card)
+        if picked and i not in hide:
             order = list(picks).index(i) + 1
             bx, by = x + cards.CARD_W - 26, y + cards.CARD_H - 30  # the order it was picked in, inside the card
             d.ellipse([bx, by, bx + 22, by + 22], fill=(22, 18, 43))
@@ -164,6 +185,128 @@ def draw(game, me, opponents, flash="", choosing=False, picks=(), uno_open=False
     return img, regions
 
 
+# ---------------------------------------------------------------- animations (drawn by arcade/table_anim.py)
+
+def _my_spot(index: int, count: int, raised: bool = False) -> list:
+    """Top-left corner of the card at this position of the player's sorted hand."""
+    left, step = hand_layout(count)
+    return [round(left + index * step), HAND_Y - (22 if raised else 0)]
+
+
+def _their_spot(opponents, seat: int, count: int, index: int) -> list:
+    """Top-left corner of an opponent's face-down card number `index` (the row in front of them)."""
+    shown = min(max(count, 1), 9)
+    left = scenes.seat_positions(len(opponents))[seat] * SCALE - (shown * 9 + 8) // 2 - 14
+    return [left + min(index, shown - 1) * 9, 204]
+
+
+def _seat_boxes(me_count: int, opponents) -> list:
+    """The places the roulette lights up: the player's hand first, then the opponents from left to right."""
+    left, step = hand_layout(me_count)
+    width = step * (me_count - 1) + cards.CARD_W
+    boxes = [[round(left) - 16, HAND_Y - 14, round(width) + 32, SCREEN_H - HAND_Y + 10]]
+    return boxes + [[x * SCALE - 78, 26, 156, 214] for x in scenes.seat_positions(len(opponents))]
+
+
+def deal_plan(game, me, opponents, starter: int) -> dict:
+    """The start of a game: the cards are dealt one at a time around the table, the first card of the pile turns up,
+    then a roulette goes round the players and stops on the one who starts (starter: 0 is the player, 1, 2, 3 the
+    opponents from left to right)."""
+    hand = sorted_hand(game.hands[me])
+    sprites = {"back": cards.back_sprite(), "top": cards.card_sprite(game.discard[0])}
+    moves, t = [], 0
+    for r in range(len(hand)):
+        sprites[f"mine{r}"] = cards.card_sprite(hand[r])  # the player's cards arrive face up, in order
+        moves.append({"img": f"mine{r}", "from": DECK, "to": _my_spot(r, len(hand)), "at": t, "dur": DEAL_FLIGHT,
+                      "arc": 30, "stay": True, "sound": "card"})
+        t += DEAL_GAP
+        for seat, opponent in enumerate(opponents):
+            moves.append({"img": "back", "from": DECK, "to": _their_spot(opponents, seat, len(hand), r), "at": t,
+                          "dur": DEAL_FLIGHT, "s1": SMALL, "arc": 20, "stay": True, "sound": "card"})
+            t += DEAL_GAP
+    t += DEAL_FLIGHT + 250
+    moves.append({"img": "top", "from": DECK, "to": PILE, "at": t, "dur": 400, "arc": 26, "stay": True,
+                  "sound": "card"})
+    t += 400 + 350
+    name = "YOU" if starter == 0 else opponents[starter - 1]["name"]
+    sprites["label"] = scenes.big_word("YOU START!" if starter == 0 else f"{name} STARTS!")
+    return {"id": table_anim.new_id("uno-deal"), "total": t + SPIN_MS + LABEL_MS, "moves": moves,
+            "under": draw(game, me, opponents, dealing=True)[0], "sprites": sprites,
+            "spin": {"seats": _seat_boxes(len(hand), opponents), "winner": starter, "at": t, "dur": SPIN_MS,
+                     "label": "label"}}
+
+
+def move_plan(before, after, me, opponents, picks=()) -> dict | None:
+    """The cards that changed hands between two moments of the game, one at a time: drawn cards fly from the deck,
+    played cards fly to the pile. picks: the cards the player had picked (they stand up). None if nothing moved."""
+    seat_of = {o["name"]: i for i, o in enumerate(opponents)}
+    events = [event for event in changes(before, after) if event[0] == me or event[0] in seat_of]
+    if not events:
+        return None
+    old_hand, new_hand = sorted_hand(before.hands[me]), sorted_hand(after.hands[me])
+    # The picture underneath: the player's hand as it was, without the cards that leave it; or, when cards arrive,
+    # the hand as it is now with gaps where they will land.
+    new_layout = any(player == me and kind == "drew" for player, kind, _ in events)
+    hide, taken = [], set()
+
+    def place(hand, card, prefer=()):
+        """The position of this card in the hand (one not used yet), trying the picked cards first."""
+        for i in [*prefer, *range(len(hand) - 1, -1, -1)]:
+            if 0 <= i < len(hand) and i not in taken and hand[i] == card:
+                taken.add(i)
+                return i
+        return None
+
+    drawn = {player: len(moved) for player, kind, moved in events if kind == "drew"}
+    sprites, moves = {"back": cards.back_sprite()}, []
+    for player, kind, moved in events:
+        for j, card in enumerate(moved):
+            name = f"c{len(moves)}"
+            sprites[name] = cards.card_sprite(card)
+            if player == me and kind == "drew":
+                i = place(new_hand, card)
+                hide += [] if i is None else [i]
+                move = {"img": name, "from": DECK, "arc": 34,
+                        "to": _my_spot(len(new_hand) // 2 if i is None else i, len(new_hand))}
+            elif player == me:
+                i = None if new_layout else place(old_hand, card, prefer=picks)
+                hide += [] if i is None else [i]
+                move = {"img": name, "to": PILE, "arc": 40,
+                        "from": _my_spot(0, 1) if i is None else _my_spot(i, len(old_hand), i in picks)}
+            else:
+                seat, count = seat_of[player], len(before.hands[player]) + drawn.get(player, 0)
+                if kind == "drew":
+                    spot = _their_spot(opponents, seat, count, len(before.hands[player]) + j)
+                    move = {"img": "back", "from": DECK, "to": spot, "s1": SMALL, "arc": 22}
+                else:
+                    spot = _their_spot(opponents, seat, count, count - 1)
+                    move = {"img": name, "from": spot, "to": PILE, "s0": SMALL, "s1": 1, "arc": 30}
+            moves.append(dict(move, at=len(moves) * MOVE_GAP, dur=MOVE_FLIGHT, stay=True, sound="card"))
+    under = copy.deepcopy(before)
+    if new_layout:
+        under.hands[me] = list(after.hands[me])
+    keep = [] if new_layout else list(picks)
+    return {"id": table_anim.new_id("uno-move"), "total": (len(moves) - 1) * MOVE_GAP + MOVE_FLIGHT + 120,
+            "moves": moves, "under": draw(under, me, opponents, picks=keep, hide=hide)[0],
+            "sprites": {k: v for k, v in sprites.items() if any(m["img"] == k for m in moves)}}
+
+
+def _animate(slot, plan, after_img) -> None:
+    """Play an animation over the table, then leave the picture of the table as it is now."""
+    if plan is None:
+        common.show(slot, after_img, "uno")
+        return
+    table_anim.play(slot, plan)  # the canvas covers the old picture first, so the new one arrives unseen
+    time.sleep(0.12)
+    common.show(slot, after_img, "uno")
+    time.sleep(max(0.0, table_anim.seconds(plan) - 0.12))
+
+
+def _remember(game, picks=()) -> None:
+    """Keep a copy of the table just before the player's move: the next run animates what changed."""
+    S.uno_before, S.uno_before_picks = copy.deepcopy(game), list(picks)
+
+
 @st.fragment(run_every=0.25)
 def _uno_clock() -> None:
     """While the UNO button is up, check four times a second whether time ran out."""
@@ -171,6 +314,7 @@ def _uno_clock() -> None:
     if S.screen != "uno" or game is None or S.get("uno_deadline") is None:
         return
     if time.time() > S.uno_deadline + UNO_GRACE:
+        _remember(game)
         game.miss_uno(S.player["name"])
         S.uno_deadline = None
         S.flash = "You forgot to say UNO! +2 cards"
@@ -183,7 +327,9 @@ def _play(game, me, chosen, colour=None) -> None:
     if chosen[-1][0] == WILD and colour is None:
         S.pending_wild = list(chosen)
         return
+    before = copy.deepcopy(game)
     game.play(me, chosen, colour)
+    S.uno_before, S.uno_before_picks = before, list(S.get("uno_pick") or [])  # the next run animates the cards
     S.uno_pick, S.pending_wild, S.flash = [], None, ""
     S.uno_focus = None  # next turn the frame starts on the first card that can be played
     if game.held and game.held[0] == me:
@@ -236,19 +382,34 @@ def render() -> None:
         key = None
     if common.run_clock(not bots_were_playing and game.winner is None and not uno_open):
         S.pending_wild, S.uno_pick, S.uno_focus = None, [], None  # 15 seconds went by: draw and pass for the player
+        _remember(game)
         game.auto_turn(me)
         common.restart_clock()
         S.flash = "Time's up! You drew and your turn passed"
         st.rerun()
 
     champ = S.match["mode"] == "champ"
+    names = [o["name"] for o in opponents]
+    if S.pop("uno_intro", False):  # a new game: the cards are dealt, then the roulette shows who starts
+        starter = 0 if game.current == me else names.index(game.current) + 1
+        _animate(slot, deal_plan(game, me, opponents, starter), draw(game, me, opponents)[0])
+        common.restart_clock()  # the player's 15 seconds start after the show
+    before = S.pop("uno_before", None)
+    if before is not None:  # the player's own move (made in the run before): their cards fly
+        plan = move_plan(before, game, me, opponents, S.pop("uno_before_picks", []))
+        _animate(slot, plan, draw(game, me, opponents, S.flash, uno_open=uno_open)[0])
+        if plan and S.get("uno_deadline"):
+            S.uno_deadline += table_anim.seconds(plan)  # the time to say UNO starts when the card has landed
+        if plan and game.current == me:
+            common.restart_clock()
     # The bots play, one visible move at a time, while the player is still in.
     while not uno_open and game.winner is None and game.current != me and me not in game.out:
-        seat = [o["name"] for o in opponents].index(game.current)
-        common.show(slot, common.thinking(draw(game, me, opponents)[0], seat, len(opponents)), "uno")
-        started = time.time()
-        game.bot_turn(game.current, **UNO_LEVELS[bots.level(game.current)])  # each bot plays at its own level
+        bot = game.current
+        common.show(slot, common.thinking(draw(game, me, opponents)[0], names.index(bot), len(opponents)), "uno")
+        before, started = copy.deepcopy(game), time.time()
+        game.bot_turn(bot, **UNO_LEVELS[bots.level(bot)])  # each bot plays at its own level
         common.bot_pause(since=started)
+        _animate(slot, move_plan(before, game, me, opponents), draw(game, me, opponents)[0])  # its cards fly
 
     if game.winner is None and me in game.out:
         # The player's place is settled: the others finish the game at once instead of the player watching.
@@ -300,6 +461,7 @@ def render() -> None:
             uno_pressed = ui.button("UNO!", "uno_call", "U", type="primary")
         common.pause_button(bar[3], "uno")
         if uno_pressed or action == ("uno",):
+            _remember(game)
             if time.time() <= S.uno_deadline + UNO_GRACE:
                 game.call_uno(me)
                 sound.play("coin")
@@ -344,6 +506,7 @@ def render() -> None:
                 else:
                     _play(game, me, chosen)
         elif draw_pressed or action == ("draw",):
+            _remember(game)
             drawn = game.draw(me)
             S.uno_pick = []
             common.restart_clock()  # 15 new seconds to play, draw again or pass
