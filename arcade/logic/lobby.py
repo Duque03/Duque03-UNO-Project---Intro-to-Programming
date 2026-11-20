@@ -22,6 +22,7 @@ import time
 
 from arcade.logic.checkers import BOTTOM, CheckersGame
 from arcade.logic.connect4 import RED, Connect4Game
+from arcade.logic.trivia import CUT_PENALTY, Duel, TriviaError
 from arcade.logic.uno import UnoGame
 
 # No I or O (they look like 1 and 0), no C or R (Streamlit keeps those keys for itself), no M or F (the game's keys
@@ -53,6 +54,7 @@ class Lobby:
         self.seats: list[str] = []  # who sits where at the table (for checkers and Connect Four: first player first)
         self.deadline: float | None = None  # when the current player's 15 seconds are up
         self.uno_deadline: float | None = None  # when the player who must say UNO runs out of time
+        self.duel: Duel | None = None  # a Corta UNO face-off (logic/trivia.py): nothing else moves meanwhile
         self.result: dict | None = None  # {"places": [...]} or {"winner": name or None}, when the game is over
         self.round = 0  # how many games this lobby has started (a screen uses it to give coins once per game)
         self.version = 0
@@ -150,6 +152,7 @@ class Lobbies:
                 lobby.host = lobby.players[0]["name"]
             if lobby.table is not None and lobby.result is None:
                 lobby.result = {"winner": None, "left": name}
+                lobby.duel = None
             self._changed(lobby)
 
     def choose(self, code: str, name: str, game: str) -> None:
@@ -181,7 +184,7 @@ class Lobbies:
                 lobby.table = CheckersGame()
             else:
                 lobby.table = Connect4Game()
-            lobby.result, lobby.uno_deadline = None, None
+            lobby.result, lobby.uno_deadline, lobby.duel = None, None, None
             lobby.round += 1
             lobby.deadline = self._clock() + TURN_SECONDS + (UNO_INTRO_SECONDS if lobby.game == "uno" else 0)
             self._changed(lobby)
@@ -208,9 +211,24 @@ class Lobbies:
                 raise LobbyError("No game is being played.")
             if name not in lobby.seats:
                 raise LobbyError("You are not playing this game.")
-            if move == "uno":  # saying UNO is not a turn: it is allowed at any time
+            if lobby.duel is not None:  # a face-off: only its two players move, and only to answer
+                if move != "answer":
+                    raise LobbyError("Wait for the Corta UNO face-off to end.")
+                try:
+                    lobby.duel.answer(name, bool(args.get("yes")), self._clock())
+                except TriviaError as problem:
+                    raise LobbyError(str(problem)) from None
+            elif move == "uno":  # saying UNO is not a turn: it is allowed at any time
                 table.call_uno(name)
                 lobby.uno_deadline = None if table.uno_due is None else lobby.uno_deadline
+            elif move == "cut":  # Corta UNO: someone else is down to one card and has not said UNO yet
+                holder = getattr(table, "uno_due", None)
+                if holder is None or holder == name or name not in table.active:
+                    raise LobbyError("There is no UNO to cut.")
+                lobby.duel = Duel(holder, name, self._rng, self._clock())
+                lobby.uno_deadline = None
+            elif move == "answer":
+                raise LobbyError("There is no face-off.")
             else:
                 if lobby.current() != name:
                     raise LobbyError("It is not your turn.")
@@ -256,6 +274,18 @@ class Lobbies:
         if table is None or lobby.result is not None:
             return
         changed = False
+        if lobby.duel is not None:  # the face-off runs on its own clock; the game waits for it
+            if lobby.duel.tick(now):
+                if lobby.duel.phase == "done":
+                    duel, lobby.duel = lobby.duel, None
+                    if duel.result == "holder":
+                        table.lose_cut(duel.holder, CUT_PENALTY)
+                    else:
+                        table.call_uno(duel.holder)
+                    lobby.deadline = now + TURN_SECONDS  # the player whose turn it is gets fresh seconds
+                    self._check_over(lobby)
+                self._changed(lobby)
+            return
         if isinstance(table, UnoGame) and table.uno_due and lobby.uno_deadline and now > lobby.uno_deadline:
             table.miss_uno(table.uno_due)
             lobby.uno_deadline = None
@@ -283,6 +313,7 @@ class Lobbies:
             first = table.winner == (BOTTOM if isinstance(table, CheckersGame) else RED)
             lobby.result = {"winner": lobby.seats[0] if first else lobby.seats[1]}
         lobby.deadline = lobby.uno_deadline = None
+        lobby.duel = None
 
     def _forget_old(self) -> None:
         now = self._clock()

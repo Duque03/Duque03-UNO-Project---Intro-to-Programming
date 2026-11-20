@@ -116,6 +116,9 @@ changing these files, and change them in a small pull request of their own.
   for the animation to end (`time.sleep`) before the next move. `screens/uno.py` makes the plans (`deal_plan`, the deal
   and the roulette; `move_plan`, from `logic.uno.changes(before, after)`), offline and online. The overlay is laid
   first and the picture second, so the new picture is never seen before the cards land.
+- **Corta UNO** (`logic/trivia.py`): the face-off is plain logic that is given the time (`now`), so the same `Duel`
+  runs offline (`screens/corta.py`, with fragments that let the bot answer and close questions four times a second)
+  and online (`Lobby.duel`, moved on by `Lobbies._tick`). While a face-off runs, nothing else in the game moves.
 - **The only JavaScript is `INPUT_JS` and `FULLSCREEN_JS` in `arcade/ui.py`, `SOUND_JS` in `arcade/sound.py`,
   `ROOM_JS` in `arcade/room.py`, `TITLE_JS` in `arcade/title_view.py`, `ANIM_JS` in `arcade/table_anim.py` and `JS` in
   `arcade/tiles.py`.** `ANIM_JS` only draws (and plays the card sounds through `SOUND_JS`) and never sends anything back. `INPUT_JS` reports clicks on the game picture.

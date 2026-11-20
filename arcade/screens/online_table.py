@@ -12,6 +12,7 @@ import time
 import streamlit as st
 
 from arcade import online, sound, state, table_anim, ui
+from arcade.art import duel as duel_art
 from arcade.art import scenes
 from arcade.logic import cursor
 from arcade.logic.checkers import SIZE
@@ -42,13 +43,14 @@ def _act(move: str, **args) -> None:
 
 
 @st.fragment(run_every=1.0)
-def _watch(code: str, seen: int, turn: str | None, deadline: float | None, me: str) -> None:
-    """Once a second: the time left for whoever is playing, and a new picture as soon as the game changes."""
+def _watch(code: str, seen: int, turn: str | None, deadline: float | None, me: str, label: str | None = None) -> None:
+    """Once a second: the time left for whoever is playing (or to answer, in a Corta UNO face-off), and a new
+    picture as soon as the game changes."""
     if online.lobbies().version(code) != seen:
         st.rerun(scope="app")
-    if turn and deadline:
+    if (turn or label) and deadline:
         left = max(0, int(deadline - time.time() + 0.99))
-        who = "YOUR TURN" if turn == me else f"{turn}'S TURN"
+        who = label or ("YOUR TURN" if turn == me else f"{turn}'S TURN")
         colour = "#ff4f6d" if left <= 5 else "#3ad6ff"
         st.markdown(f"<div style='text-align:right;font:1.15rem \"Jersey 10\",monospace;color:{colour};"
                     f"letter-spacing:.05em'>{who}: {left}s</div>", unsafe_allow_html=True)
@@ -115,7 +117,11 @@ def render() -> None:
         _finish(lobby, me)
     draw = {"uno": _uno, "checkers": _checkers, "connect4": _connect4}[lobby.game]
     draw(lobby, me, mine, over)
-    _watch(code, lobby.version, turn, lobby.deadline, me)
+    duel = lobby.duel
+    if duel is not None:  # the face-off's own clock
+        _watch(code, lobby.version, None, duel.deadline if duel.phase == "ask" else None, me, "ANSWER")
+    else:
+        _watch(code, lobby.version, turn, lobby.deadline, me)
 
 
 def _bar_end(bar, lobby, me: str, over: bool) -> None:
@@ -178,6 +184,10 @@ def _uno(lobby, me: str, mine: bool, over: bool) -> None:
     wild = S.get("ouno_wild")
     uno_open = game.uno_due == me and not over
     key = ui.keys("ouno", {"Left": "left", "Right": "right", "Space": "space"})  # on every run (see AGENTS.md)
+    if lobby.duel is not None and not over:  # Corta UNO: the face-off takes over every screen at the table
+        _uno_duel(lobby, me, opponents, key)
+        return
+    cut_open = game.uno_due not in (None, me) and me in game.active and not over  # Corta UNO can be pressed
     if not mine:
         key = None if not uno_open else key
     if uno_open and lobby.uno_deadline:
@@ -197,13 +207,15 @@ def _uno(lobby, me: str, mine: bool, over: bool) -> None:
             sound.play("blip")
         S.ouno_colour = colour_focus
     flash = S.online_flash or ("" if mine or over else f"Waiting for {lobby.current()}...")
+    if cut_open:
+        flash = f"{game.uno_due} has one card! Cut the UNO before they say it (K)"
     img, regions = uno_screen.draw(game, me, opponents, flash, choosing=wild is not None, picks=picks,
-                                   uno_open=uno_open, focus=focus, colour_focus=colour_focus)
+                                   uno_open=uno_open, focus=focus, colour_focus=colour_focus, cut_open=cut_open)
     regions = _show(img, regions, lobby, me, over, _uno_plan(lobby, me, opponents))
-    point = ui.click() if (mine or uno_open) and not over else None
+    point = ui.click() if (mine or uno_open or cut_open) and not over else None
     action = ui.hit(regions, point)
 
-    bar = st.columns([1.3, 1, 1, 1, 1, 1])
+    bar = st.columns([1.3, 1, 1, 1.4, 1, 1])
     if over:
         _bar_end(bar, lobby, me, over)
         return
@@ -215,7 +227,10 @@ def _uno(lobby, me: str, mine: bool, over: bool) -> None:
     with bar[2]:
         passed = ui.button("Pass", "ouno_pass", "P", disabled=not mine or not game.draws)
     with bar[3]:
-        uno = ui.button("UNO!", "ouno_uno", "U", type="primary" if uno_open else "secondary")
+        if cut_open:
+            cut, uno = ui.button("Corta UNO!", "ouno_cut", "K", type="primary"), False
+        else:
+            cut, uno = False, ui.button("UNO!", "ouno_uno", "U", type="primary" if uno_open else "secondary")
     with bar[4]:
         cancel = ui.button("Cancel", "ouno_cancel", "X", disabled=not mine or (not picks and wild is None))
     _bar_end(bar, lobby, me, over)
@@ -223,6 +238,8 @@ def _uno(lobby, me: str, mine: bool, over: bool) -> None:
     if uno or action == ("uno",):
         sound.play("coin")
         _act("uno")
+    if cut or action == ("cut",):
+        _act("cut")
     if not mine:
         return
     if cancel or (wild is not None and action == ("cancel",)):
@@ -261,6 +278,40 @@ def _uno(lobby, me: str, mine: bool, over: bool) -> None:
         S.ouno_focus, S.online_flash = index, ""
         sound.play("blip")
         st.rerun()
+
+
+def _uno_duel(lobby, me: str, opponents, key) -> None:
+    """The Corta UNO face-off (logic/trivia.py): its two players answer YES or NO; everyone else watches."""
+    duel, game = lobby.duel, lobby.table
+    playing = me in duel.players
+    asking = playing and duel.phase == "ask" and me not in duel.answers
+    focus = S.get("oduel_focus", 0)
+    if asking and key in ("left", "right"):
+        focus = cursor.step(focus, key, 2)
+        sound.play("blip")
+    S.oduel_focus = focus
+    looks = {p["name"]: p["look"] for p in opponents}
+    looks[me] = lobby.player(me)["look"]
+    view = {"holder": duel.holder, "cutter": duel.cutter, "looks": looks, "me": me, "round": duel.round,
+            "question": duel.question, "phase": duel.phase, "answered": {p: p in duel.answers for p in duel.players},
+            "answers": dict(duel.answers) if duel.phase != "ask" else {me: duel.answers[me]} if me in duel.answers
+            else {}, "right": dict(duel.right), "truth": duel.truth, "result": duel.result,
+            "focus": focus if asking else None}
+    table = uno_screen.draw(game, me, opponents)[0]
+    img, regions = duel_art.duel_picture(table, view)
+    ui.show(ui.screen(), img)
+    action = ui.hit(regions, ui.click() if asking else None)
+    bar = st.columns([1.3, 1, 1, 1, 1, 1])
+    with bar[0]:
+        yes = ui.button("Yes", "oduel_yes", "Y", type="primary", disabled=not asking)
+    with bar[1]:
+        no = ui.button("No", "oduel_no", "N", type="primary", disabled=not asking)
+    _bar_end(bar, lobby, me, False)
+    if asking and key == "space":
+        action = ("yes",) if focus == 0 else ("no",)
+    if asking and (yes or no or action in (("yes",), ("no",))):
+        sound.play("blip")
+        _act("answer", yes=bool(yes or action == ("yes",)))
 
 
 def _play_cards(cards: list) -> None:

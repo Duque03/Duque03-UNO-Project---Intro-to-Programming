@@ -283,6 +283,17 @@ class UnoGame:
                 self._advance(1)
         return True
 
+    def lose_cut(self, player: str, penalty: int = 7) -> None:
+        """Corta UNO (logic/trivia.py): the player with UNO lost the face-off. They draw `penalty` cards and keep
+        the card that was waiting (if any) in their hand."""
+        if self.uno_due != player:
+            raise IllegalMove("Only a player waiting to say UNO can lose a cut.")
+        self.uno_due = None
+        if self.held and self.held[0] == player:
+            self.held = None
+        self._give(player, penalty)
+        self.last_event = f"{player}'s UNO was cut! +{penalty}"
+
     def miss_uno(self, player: str) -> None:
         """The player did not say UNO in time: they draw 2 cards."""
         if self.uno_due != player:
@@ -294,7 +305,7 @@ class UnoGame:
         self.last_event = f"{player} forgot to say UNO! +{UNO_PENALTY}"
 
     def bot_turn(self, player: str, forget_uno: float = 0.15, twins: float = 1.0, stack: float = 1.0,
-                 smart: float = 1.0) -> None:
+                 smart: float = 1.0, say_uno: bool = True) -> None:
         """A simple computer player: play something sensible, otherwise draw.
 
         The numbers are chances between 0 and 1 (config.py sets them for the real game):
@@ -302,6 +313,8 @@ class UnoGame:
         twins       the bot plays all its matching cards at once instead of just one
         stack       the bot answers a +2 / +4 with its own instead of taking the cards
         smart       the bot picks its best card instead of any card it can play
+        say_uno=False leaves a bot that is down to one card waiting to say UNO (the screen gives the others a moment
+        to cut it, then calls call_uno or miss_uno itself).
         """
         self._check_turn(player)
         if self.pending:
@@ -309,7 +322,7 @@ class UnoGame:
             if not answers or self.rng.random() >= stack:
                 self.draw(player)
                 return
-            self._bot_play(player, answers[0], forget_uno, twins)
+            self._bot_play(player, answers[0], forget_uno, twins, say_uno)
             return
         options = self.playable_cards(player)
         while not options:  # nothing fits: draw, one card at a time (after the second, the turn passes by itself)
@@ -331,7 +344,7 @@ class UnoGame:
         if self.rng.random() < smart:
             best = max(score(c) for c in options)
             options = [c for c in options if score(c) == best]
-        self._bot_play(player, self.rng.choice(options), forget_uno, twins)
+        self._bot_play(player, self.rng.choice(options), forget_uno, twins, say_uno)
 
     def auto_turn(self, player: str) -> None:
         """The player's time ran out: they draw one card (or take the +2 / +4 cards) and their turn passes."""
@@ -342,7 +355,8 @@ class UnoGame:
             self.pass_turn(player)
 
     # ----- helpers
-    def _bot_play(self, player: str, first: Card, forget_uno: float, twins_chance: float = 1.0) -> None:
+    def _bot_play(self, player: str, first: Card, forget_uno: float, twins_chance: float = 1.0,
+                  say_uno: bool = True) -> None:
         """Play `first` (with its twins, sometimes), ending on the colour the bot holds most of."""
         twins = self.partners(player, first) if self.rng.random() < twins_chance else []
         rest = list(self.hands[player])
@@ -353,7 +367,7 @@ class UnoGame:
         twins.sort(key=lambda c: c[0] == favourite)  # the favourite colour (if any) goes last
         cards = [first] + twins
         self.play(player, cards, favourite if cards[-1][0] == WILD else None)
-        if self.uno_due == player:
+        if self.uno_due == player and say_uno:
             if self.rng.random() < forget_uno:
                 self.miss_uno(player)
             else:
