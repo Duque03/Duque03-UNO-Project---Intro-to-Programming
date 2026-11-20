@@ -134,6 +134,12 @@ def scene(sent: set, *, actors, coins, champ_locked, bubbles, player, cutscene=N
                           "action": prompt.get("action")})
         data["bubbles"][str(hubmap.NEAR_CODES[spot])] = items
 
+    data["alive"] = []  # the machines' screens and lights, the claw, the bunting: looped by the browser
+    for i, patch in enumerate(layers.alive_patches()):
+        w, h = patch["frames"][0].size
+        keys = [s.use(f"alive:{i}:{k}", lambda img=frame: img) for k, frame in enumerate(patch["frames"])]
+        data["alive"].append({"x": patch["x"], "y": patch["y"], "w": w, "h": h, "fps": patch["fps"], "frames": keys})
+
     data["boxes"] = [{"box": list(box), "stand": list(hubmap.SPOTS[spot]["stand"])}
                      for spot, box in hubmap.CLICK_BOXES.items()]
     data["cutscene"] = cutscene
@@ -516,6 +522,10 @@ export default function (component) {
 
         const bg = img(d.bg);
         if (bg) ctx.drawImage(bg, 0, 0); else { ctx.fillStyle = "#0d0a1f"; ctx.fillRect(0, 0, 960, 540); }
+        for (const p of d.alive || []) {  // the games on the screens, the blinking lights, the claw, the bunting
+            const frame = img(p.frames[Math.floor(t * p.fps) % p.frames.length]);
+            if (frame) ctx.drawImage(frame, p.x * S, p.y * S, p.w * S, p.h * S);
+        }
 
         // who stands where, then paint from back to front (tables first on a tie, as in hub_scene)
         const people = [];

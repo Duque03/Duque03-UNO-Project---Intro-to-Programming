@@ -644,24 +644,6 @@ def table_seats(count: int) -> list[dict]:
 
 
 @lru_cache(maxsize=1)
-def _table_backdrop() -> Image.Image:
-    """The wall of the arcade as seen from a seat at a table (a little darker than in the room)."""
-    img = new_base(WALL)
-    d = ImageDraw.Draw(img)
-    for i, y in enumerate(range(0, 72, 6)):
-        rect(d, 0, y, BASE_W, 1, MORTAR)
-        for x in range(-6 if i % 2 else 0, BASE_W, 12):
-            rect(d, x, y, 1, 6, MORTAR)
-    props = new_layer()
-    pd = ImageDraw.Draw(props)
-    for game, (cx, body, screen) in enumerate(((14, "#5a3fa8", "#58c4d8"), (112, "#8a3f86", "#f0a060"),
-                                               (208, "#3f5fae", "#8fd860"), (306, "#5a3fa8", "#ff7ac8"))):
-        _machine(pd, cx, 72, rgb(body), rgb(screen), w=24, h=52, game=game % 3)
-    stamp(img, outlined(props))
-    return Image.blend(img, new_base("#0d0a1f"), 0.35)
-
-
-@lru_cache(maxsize=1)
 def _checker() -> Image.Image:
     """Every other pixel of the small canvas (a checkerboard), for dithered edges."""
     img = Image.new("L", (BASE_W, BASE_H), 0)
@@ -680,41 +662,56 @@ def _dithered_oval(img, centre, rx, ry, colour, edge=2) -> None:
     img.paste(tuple(colour)[:3] + (255,) if img.mode == "RGBA" else colour, (0, 0), rim)
 
 
-def _dithered_frame(img):
-    """The edges of the picture a little darker, in two checkered steps (pixel art instead of a smooth vignette).
-    img: the big picture (the checks are pixels of the small canvas)."""
-    img = img.convert("RGB")
-    dark = Image.blend(img, Image.new("RGB", img.size, (13, 10, 31)), 0.35)
+EDGE_DARK = ((13, 10, 31), 0.35)  # the edges of a table picture are this much darker (towards this colour)
+
+
+@lru_cache(maxsize=1)
+def frame_mask() -> Image.Image:
+    """Which pixels of the small canvas the dithered frame darkens (255), in two checkered steps."""
     outer, inner = Image.new("L", (BASE_W, BASE_H), 255), Image.new("L", (BASE_W, BASE_H), 255)
     ImageDraw.Draw(outer).rectangle([10, 8, BASE_W - 11, BASE_H - 9], fill=0)
     ImageDraw.Draw(inner).rectangle([4, 3, BASE_W - 5, BASE_H - 4], fill=0)
     outer.paste(0, (0, 0), ImageChops.invert(_checker()))
     outer.paste(255, (0, 0), inner)
-    img.paste(dark, (0, 0), upscale(outer))
+    return outer
+
+
+def _dithered_frame(img):
+    """The edges of the picture a little darker, in two checkered steps (pixel art instead of a smooth vignette).
+    img: the big picture (the checks are pixels of the small canvas)."""
+    img = img.convert("RGB")
+    dark = Image.blend(img, Image.new("RGB", img.size, EDGE_DARK[0]), EDGE_DARK[1])
+    img.paste(dark, (0, 0), upscale(frame_mask()))
     return img
 
-def _carpet(d) -> None:
-    """The floor round the table: a dark carpet with a small pattern."""
-    rect(d, 0, 72, BASE_W, BASE_H - 72, (30, 22, 64))
-    for y in range(76, BASE_H, 8):
-        for x in range((y // 8 % 2) * 8, BASE_W, 16):
-            rect(d, x, y, 2, 2, (40, 30, 84))
 
+def _room_with_chairs(kind: str, count: int) -> Image.Image:
+    """The room behind the table (arcade/art/table_room.py) with the backs of the opponents' chairs (small canvas)."""
+    from arcade.art import table_room  # (table_room uses this module's drawings)
+
+    img = table_room.backdrop(kind).copy()
+    d = ImageDraw.Draw(img)
+    for seat in table_seats(count):
+        x, waist, scale = seat["x"], seat["waist"] // SCALE, seat["scale"]
+        back, top = round(11 * scale / 2), waist - round(12 * scale)
+        rect(d, x - back, top, 2 * back, waist - top + 4, (46, 22, 24))
+        rect(d, x - back + 2, top + 2, 2 * back - 4, waist - top, (98, 42, 44))
+    return img
+
+
+@lru_cache(maxsize=12)
+def empty_table_room(kind: str, count: int) -> Image.Image:
+    """The big picture of the room behind a table with nobody in it and no table (what the moving parts of the wall
+    are compared with, to know where they can be seen). Kept: do not draw on it."""
+    return _dithered_frame(upscale(_room_with_chairs(kind, count)))
 
 def table_scene(kind, opponents, active=None, t=0):
     """The view from the player's chair: an oval table, the opponents sitting round it (see table_seats).
 
     opponents: list of dicts with name, look and tag, in turn order. active: name of whoever's turn it is.
     """
-    img = _table_backdrop().copy()
-    d = ImageDraw.Draw(img)
-    _carpet(d)
+    img = _room_with_chairs(kind, len(opponents))
     seats = table_seats(len(opponents))
-    for seat in seats:  # the backs of their chairs
-        x, waist, scale = seat["x"], seat["waist"] // SCALE, seat["scale"]
-        back, top = round(11 * scale / 2), waist - round(12 * scale)
-        rect(d, x - back, top, 2 * back, waist - top + 4, (46, 22, 24))
-        rect(d, x - back + 2, top + 2, 2 * back - 4, waist - top, (98, 42, 44))
     # the table is drawn on its own sheet, laid over the players (it hides their legs)
     table = Image.new("RGBA", img.size, (0, 0, 0, 0))
     d = ImageDraw.Draw(table)
@@ -756,6 +753,7 @@ def table_scene(kind, opponents, active=None, t=0):
                 d.rectangle([seat["cx"] - tw // 2 - 9 - grow, bottom - th - 6 - grow,
                              seat["cx"] + tw // 2 + 9 + grow, bottom + grow], fill=colour)
         sprites.draw_name_tag(big, seat["cx"], bottom, opponent["name"], opponent.get("tag"), t)
+    big.info["alive"] = (kind, len(opponents))  # the wall behind can move (ui.show; arcade/art/table_room.py)
     return big
 
 

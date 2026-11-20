@@ -116,11 +116,19 @@ changing these files, and change them in a small pull request of their own.
   for the animation to end (`time.sleep`) before the next move. `screens/uno.py` makes the plans (`deal_plan`, the deal
   and the roulette; `move_plan`, from `logic.uno.changes(before, after)`), offline and online. The overlay is laid
   first and the picture second, so the new picture is never seen before the cards land.
+- **The arcade moves by itself** (`arcade/art/alive.py`): the games on the machines' screens, their marquee lights,
+  the claw, the neon signs and the bunting are short loops of small pictures that the browser plays. In the room they
+  are drawn by `ROOM_JS` right after the background (`room_layers.alive_patches`). Behind a table (`art/table_room.py`:
+  the same wall as the room, the part behind that table) they are drawn by `ALIVE_JS` on a see-through canvas over the
+  picture (`ui.Slot.alive_layer`, CSS `game_screen_alive`, under the animations). `scenes.table_scene` marks its picture
+  (`img.info["alive"]`); `ui.show` then sends only the parts that can be seen, each with a mask of where nothing stands
+  in front (the picture compared with `scenes.empty_table_room`), so cards, players, bubbles and a dimmed picture are
+  never painted over. A new prop on the wall needs its patch next to it in `LAYOUT` / `alive_patches`.
 - **Corta UNO** (`logic/trivia.py`): the face-off is plain logic that is given the time (`now`), so the same `Duel`
   runs offline (`screens/corta.py`, with fragments that let the bot answer and close questions four times a second)
   and online (`Lobby.duel`, moved on by `Lobbies._tick`). While a face-off runs, nothing else in the game moves.
 - **The only JavaScript is `INPUT_JS` and `FULLSCREEN_JS` in `arcade/ui.py`, `SOUND_JS` in `arcade/sound.py`,
-  `ROOM_JS` in `arcade/room.py`, `TITLE_JS` in `arcade/title_view.py` and `ANIM_JS` in `arcade/table_anim.py`.** `ANIM_JS` only draws (and plays the card sounds through `SOUND_JS`) and never sends anything back. `INPUT_JS` reports clicks on the game picture.
+  `ROOM_JS` in `arcade/room.py`, `TITLE_JS` in `arcade/title_view.py` and `ANIM_JS` and `ALIVE_JS` in `arcade/table_anim.py`.** `ANIM_JS` only draws (and plays the card sounds through `SOUND_JS`) and never sends anything back. `ALIVE_JS` only loops the moving parts of the wall behind a table (see below). `INPUT_JS` reports clicks on the game picture.
   `FULLSCREEN_JS` is the small full-screen icon (and the F key) and sends nothing back. `SOUND_JS` only plays sounds
   by name (and draws the small music icon, which does what M does) and never sends anything back. Its tunes come from
   `arcade/music.py`, written into the script once (`__SCORE__`); each run only sends the name of the tune the screen

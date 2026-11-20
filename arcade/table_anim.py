@@ -148,3 +148,83 @@ def play(slot, plan: dict) -> None:
 def seconds(plan: dict) -> float:
     """How long the animation lasts, in seconds (Python waits that long before it goes on)."""
     return plan.get("total", 0) / 1000
+
+
+# ---------------------------------------------------------------- the wall behind the table, alive
+
+ALIVE_JS = r"""
+export default function (component) {
+    // The moving parts of the wall behind the table (arcade/art/table_room.py): little pictures looped on a
+    // see-through canvas over the table picture, each cut by a mask to where nothing stands in front of it.
+    // It only draws, and never sends anything back.
+    const { data, parentElement } = component;
+    let canvas = parentElement.querySelector("canvas");
+    if (!canvas) {
+        canvas = document.createElement("canvas");
+        canvas.width = 960; canvas.height = 540;
+        canvas.style.cssText = "display:block;width:100%;height:auto;aspect-ratio:16/9;pointer-events:none;";
+        parentElement.appendChild(canvas);
+    }
+    const L = canvas.__alive || (canvas.__alive = { patches: [], running: false, scratch: null });
+    const cache = window.__arcadeAliveImages || (window.__arcadeAliveImages = {});  // kept when the canvas is new
+    const load = (src) => {
+        if (!src) return null;
+        let img = cache[src];
+        if (!img) { img = new Image(); img.src = src; cache[src] = img; }
+        return img;
+    };
+    L.patches = ((data && data.patches) || []).map((p) => ({
+        x: p.x * 3, y: p.y * 3, w: p.w * 3, h: p.h * 3, fps: p.fps || 6,
+        frames: p.frames.map(load), mask: load(p.mask),
+    }));
+    const ready = (img) => img && img.complete && img.naturalWidth;
+    const draw = (t) => {
+        const ctx = canvas.getContext("2d");
+        ctx.imageSmoothingEnabled = false;
+        ctx.clearRect(0, 0, 960, 540);
+        for (const p of L.patches) {
+            const frame = p.frames[Math.floor(t * p.fps) % p.frames.length];
+            if (!ready(frame)) continue;
+            if (!p.mask) { ctx.drawImage(frame, p.x, p.y, p.w, p.h); continue; }
+            if (!ready(p.mask)) continue;
+            const s = L.scratch || (L.scratch = document.createElement("canvas"));
+            s.width = p.w; s.height = p.h;
+            const sx = s.getContext("2d");
+            sx.imageSmoothingEnabled = false;
+            sx.globalCompositeOperation = "source-over";
+            sx.drawImage(frame, 0, 0, p.w, p.h);
+            sx.globalCompositeOperation = "destination-in";
+            sx.drawImage(p.mask, 0, 0, p.w, p.h);
+            ctx.drawImage(s, p.x, p.y);
+        }
+    };
+    if (!L.running) {
+        L.running = true;
+        let last = -1;
+        const loop = (ms) => {
+            if (!canvas.isConnected) { L.running = false; return; }
+            const tick = Math.floor(ms / 1000 * 12);  // twelve pictures a second is plenty for 3 to 6 fps loops
+            if (tick !== last) { last = tick; draw(ms / 1000); }
+            requestAnimationFrame(loop);
+        };
+        requestAnimationFrame(loop);
+    } else {
+        draw(performance.now() / 1000);
+    }
+}
+"""
+_alive = st.components.v2.component("arcade_table_alive", js=ALIVE_JS)
+
+
+def alive(slot, img) -> None:
+    """Lay the moving parts of the wall over this table picture, where they can be seen (nothing when the picture is
+    not a table seen from a chair, for example the podium or a dimmed table: then the canvas is cleared)."""
+    from arcade.art import scenes, table_room  # (only needed at the tables)
+
+    patches = []
+    where = img.info.get("alive") if hasattr(img, "info") else None
+    if where:
+        kind, count = where
+        patches = table_room.visible_patches(img, scenes.empty_table_room(kind, count), kind)
+    with slot.alive_layer():  # (an empty placeholder: a second picture in the same run replaces the first)
+        _alive(data={"patches": patches})
