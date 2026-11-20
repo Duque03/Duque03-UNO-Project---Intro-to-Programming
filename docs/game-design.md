@@ -99,15 +99,16 @@ Numbers live in `arcade/config.py`.
   | Checkers | 59 / 18 / 1 / – % | 96 / 85 / 9 / – % (expert is slow to simulate; it is stronger than hard) |
   | UNO (1st place out of 4) | 70 / 45 / 20 / 15 % | 81 / 64 / 34 / 27 % |
 - The player and the chosen bots walk to the table. When everyone has arrived the view zooms in and the game starts.
-- At the table the view is from the player's chair, close to a round table that fills the picture; the player's own
-  hands hold their cards at the bottom. The opponents sit round it in turn order: one opponent sits across; two sit
-  left and right; three sit left, across and right. The ones at the sides sit closer, so they look bigger (the edge
-  of the picture cuts them a little). In UNO each one holds their cards up in a fan, with how many they hold on the
-  table in front of them. The draw pile and the discard pile lie flat on the table. After a wild, the discard pile
+- At the table the view is from the player's chair, close to a round table for four that shows whole, sized for the
+  players and the deck; the player's own hands hold their cards at the bottom. The opponents sit round it in turn
+  order: one opponent sits across; two sit left and right; three sit left, across and right. The ones at the sides
+  sit closer, so they look bigger. A lamp over the table lights the middle of the felt in flat pixel rings. In UNO
+  each one holds their cards up in a fan, with how many they hold on the table in front of them. The draw pile and
+  the discard pile lie flat in the middle, a little bigger than a card in the hand. After a wild, the discard pile
   glows in the colour that was chosen.
 - A bot thinks for a random 1 to 3 seconds before each move, with a "..." speech bubble next to it (in checkers, the
   extra jumps of a chain follow quickly).
-- The player has **15 seconds** for each turn, shown by a countdown bar under the table (red for the last 5 seconds).
+- The player has **15 seconds** for each turn, shown by a pixel countdown strip at the top (red for the last 5 seconds).
   When time runs out the game plays for the player: in UNO they draw (or take the +2 / +4 cards) and their turn
   passes; in checkers and Connect Four a random legal move is played (every jump of a chain). Drawing a card in UNO
   or jumping again in checkers starts a fresh 15 seconds. Pausing or opening the rules stops the clock; it starts
@@ -253,7 +254,7 @@ Saved per player name: coins, owned cosmetics, equipped cosmetics, wins per game
   others sit round the table in turn order; in checkers and Connect Four the host is red and moves first, and the
   second player's checkers board is turned round so their pieces are at the bottom. The same rules as offline (UNO
   places included). Moves out of turn are refused; a yellow frame shows whose turn it is.
-- Each player has **15 seconds** a turn (shown under the table for everyone). When time runs out the game plays for them,
+- Each player has **15 seconds** a turn (shown at the top for everyone). When time runs out the game plays for them,
   as offline. In UNO, a player down to one card has 3 seconds to say UNO (U) or draws 2. Online UNO also starts with
   the deal and the roulette (the server picks who starts), so the first turn gets 9 more seconds; each browser
   animates the cards that moved since it last looked.

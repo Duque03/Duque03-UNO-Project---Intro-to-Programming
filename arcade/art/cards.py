@@ -130,11 +130,11 @@ def draw_back(img, x, y, w=CARD_W, h=CARD_H):
     d = ImageDraw.Draw(img)
     x, y = int(x), int(y)
     d.rectangle([x + 3, y + 3, x + w + 2, y + h + 2], fill=(10, 8, 24))
-    unit = 3 if w >= 40 else 1
+    unit = 3 if w >= 60 else 2 if w >= 36 else 1  # the white border: thinner on the small cards in the fans
     d.rectangle([x + unit, y, x + w - unit - 1, y + h - 1], fill=(255, 255, 255))
     d.rectangle([x, y + unit, x + w - 1, y + h - unit - 1], fill=(255, 255, 255))
     d.rectangle([x + 2 * unit, y + 2 * unit, x + w - 2 * unit - 1, y + h - 2 * unit - 1], fill=(58, 34, 110))
-    if w >= 40:
+    if w >= 60:
         for i, colour in enumerate(("#ff4fa3", "#3ad6ff", "#ffe94a")):
             d.rectangle([x + 18 + i * 3, y + 30 + i * 12, x + w - 19 - i * 3, y + 36 + i * 12], fill=rgb(colour))
 
@@ -156,9 +156,10 @@ def back_sprite():
 LYING = 0.6  # a card lying on the table looks this tall (perspective), next to one held up
 
 
-def lie(sprite):
-    """A card picture as it looks lying flat on the table: shorter, the far edge a little narrower."""
-    w, h = sprite.size
+def lie(sprite, scale=1.0):
+    """A card picture as it looks lying flat on the table: shorter, the far edge a little narrower.
+    scale makes it bigger (the piles in the middle of the table)."""
+    w, h = round(sprite.width * scale), sprite.height * scale
     flat = sprite.resize((w, round(h * LYING)), Image.NEAREST)
     inset = 3  # how much narrower the far edge looks, on each side
     out = Image.new("RGBA", flat.size, (0, 0, 0, 0))
@@ -169,15 +170,15 @@ def lie(sprite):
     return out
 
 
-def draw_lying_card(img, x, y, card):
+def draw_lying_card(img, x, y, card, scale=1.0):
     """A face-up card lying on the table, its far-left corner at (x, y)."""
-    face = lie(card_sprite(card))
+    face = lie(card_sprite(card), scale)
     img.paste(face, (int(x), int(y)), face)
 
 
-def draw_lying_back(img, x, y):
+def draw_lying_back(img, x, y, scale=1.0):
     """A face-down card lying on the table, its far-left corner at (x, y)."""
-    back = lie(back_sprite())
+    back = lie(back_sprite(), scale)
     img.paste(back, (int(x), int(y)), back)
 
 
