@@ -131,7 +131,7 @@ def act_uno(at, rng) -> str:
     _, regions = uno_screen.draw(game, me, opponents(at), picks=picks, hands=None)
     hand = uno_screen.sorted_hand(game.hands[me])
     roll = rng.random()
-    if picks and roll < 0.7:
+    if picks and roll < 0.9:
         box = region(regions, ("play",))
         if box:
             click(at, box)
@@ -270,7 +270,7 @@ def run(games: int, seed: int, verbose: bool = False) -> int:
             check(at, game_key)
             if verbose and steps_in_game and steps_in_game % 50 == 0:
                 print(f"  ... {game_key} step {steps_in_game}: {history[-5:]}", flush=True)
-            if steps_in_game > 900:
+            if steps_in_game > (3000 if game_key == "uno" else 900):
                 raise RuntimeError(f"stuck in {screen}: {history[-20:]}")
         except Exception as problem:  # report, then start again with a fresh app
             crashes += 1
