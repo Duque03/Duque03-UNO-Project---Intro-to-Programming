@@ -117,8 +117,12 @@ Numbers live in `arcade/config.py`.
   - win: "Congratulations!! You won!" and the coins of the bot's level: **easy 5, medium 15, hard 25, expert 40**;
   - UNO is played until only one player is left, so it has places. The prize is the average of the three bots'
     coins, rounded (easy + medium + hard = 15): **1st** wins all of it, **2nd** half, **3rd** a quarter (halves round
-    up: 15 / 8 / 4), **last** nothing. The box shows everyone's place. Only 1st counts as a win (for the championship
-    cabinet). Once the player has finished, the bots finish the game at once instead of the player watching;
+    up: 15 / 8 / 4), **last** nothing. Instead of a box, everyone stands on a **podium** (also online): 1st in the
+    middle and highest, 2nd on the left, 3rd on the right, each with a gold, silver or bronze medal, and the last
+    player beside it on the floor. They drop onto their steps one by one, the last player first and the winner last,
+    under a spotlight (confetti when the player wins), with the title, the coins, and CONTINUE / PLAY AGAIN (online:
+    LOBBY). Only 1st counts as a win (for the championship cabinet). Once the player has finished, the bots finish the
+    game at once instead of the player watching;
   - loss: one of 20 sentences, picked at random;
   - tie (Connect Four only): a tie message and no coins.
 - Enter closes the box and returns to the room.

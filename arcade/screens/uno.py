@@ -506,6 +506,11 @@ def render() -> None:
         match.finish([game.winner], places=game.places)
         if S.screen != "uno":
             st.rerun()
+        if S.result and S.result.get("podium"):  # everyone drops onto the podium, the winner last
+            table = draw(game, me, opponents)[0]
+            result = S.result
+            plan = common.podium_plan(table, result["title"], result["podium"], me, result["coins"])
+            common.play_podium(slot, plan, common.with_result(table, [])[0])
 
     if not uno_open and game.must_draw(me):  # a +2 / +4 the player cannot answer: they take the cards at once
         common.show(slot, draw(game, me, opponents)[0], "uno")
