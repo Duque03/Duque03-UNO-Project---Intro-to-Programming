@@ -13,7 +13,7 @@ from functools import lru_cache
 from PIL import Image, ImageDraw
 
 from arcade import catalog
-from arcade.art.pixel import CHAR_H, draw_text, mix, new_layer, outlined, readable_on, rgb, shade, text_size
+from arcade.art.pixel import draw_text, mix, new_layer, outlined, readable_on, rgb, shade, text_size
 
 SPR_W, SPR_H = 20, 28  # sprite canvas (room for tall hair)
 OX, OY = 2, 6  # where the 16x22 figure starts inside that canvas
@@ -408,6 +408,15 @@ def sprite(skin: str, pants: str, hair_id, shirt_id, direction: str = "down", st
         r(4, 9, 8, 1, skin_dark)
         r(5, 5, 1, 2, (34, 26, 30))
 
+    _draw_hair(d, hair, view, t)
+    # one spare row at the bottom so the dark edge also fits under the shoes
+    framed = new_layer((SPR_W, SPR_H + 1))
+    framed.paste(img, (0, 0))
+    return outlined(framed)
+
+
+def _draw_hair(d, hair: dict, view: str, t: int) -> None:
+    """The hair (or hat) on a figure, seen from the front, the back or the side."""
     colours = _hair_colours(hair)
     for x, y, w, h, index in _hair_rects(hair.get("style", "short"), view):
         if hair.get("rainbow") or hair.get("galaxy"):
@@ -417,12 +426,41 @@ def sprite(skin: str, pants: str, hair_id, shirt_id, direction: str = "down", st
                     colour = (_galaxy(px, py, t) if hair.get("galaxy")
                               else rgb(RAINBOW[(py + t) % len(RAINBOW)]))
                     d.point((OX + px, OY + py), fill=colour)
-        else:
-            r(x, y, w, h, colours[index])
-    # one spare row at the bottom so the dark edge also fits under the shoes
-    framed = new_layer((SPR_W, SPR_H + 1))
-    framed.paste(img, (0, 0))
-    return outlined(framed)
+        elif w > 0 and h > 0:
+            d.rectangle([OX + x, OY + y, OX + x + w - 1, OY + y + h - 1], fill=colours[index])
+
+
+MANNEQUIN, HANGER = "#2e2660", "#b8b4d0"  # what the store shows the items on
+
+
+def hair_item(hair_id, t: int = 0, head=MANNEQUIN):
+    """A hair item on its own, as the store shows it: in front of a plain head shape in a quiet colour (no outline,
+    no face, no character), so the hair keeps its form. A see-through picture cropped to the drawing."""
+    hair = Image.new("RGBA", (SPR_W, SPR_H), (0, 0, 0, 0))
+    _draw_hair(ImageDraw.Draw(hair), catalog.spec_for("hair", hair_id), "front", t)
+    img = Image.new("RGBA", (SPR_W, SPR_H), (0, 0, 0, 0))
+    ImageDraw.Draw(img).rectangle([OX + 4, OY + 2, OX + 11, OY + 9], fill=rgb(head))
+    hair = outlined(hair)
+    img.paste(hair, (0, 0), hair)
+    return img.crop(img.getbbox())
+
+
+def shirt_item(shirt_id, t: int = 0):
+    """A shirt on its own, as the store shows it: flat on a hanger (no character). A see-through picture cropped to
+    the drawing."""
+    img = Image.new("RGBA", (SPR_W, SPR_H), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    shirt = catalog.spec_for("shirt", shirt_id)
+    for x, y, w, h in ((7, 6, 2, 1), (8, 7, 1, 1), (4, 8, 8, 1), (3, 9, 10, 1)):  # the hook and the bar
+        d.rectangle([OX + x, OY + y, OX + x + w - 1, OY + y + h - 1], fill=rgb(HANGER))
+    for y in range(10, 17):
+        for x in range(4, 12):
+            d.point((OX + x, OY + y), fill=_shirt_colour(shirt, x, y, t, "front"))
+    for x in (2, 3, 12, 13):  # the sleeves, a little darker
+        for y in range(10, 14):
+            d.point((OX + x, OY + y), fill=shade(_shirt_colour(shirt, x, y, t, "front", True, y == 13), 0.82))
+    framed = outlined(img)
+    return framed.crop(framed.getbbox())
 
 
 def draw_character(canvas, cx, feet_y, look, direction="down", step=0, t=0, scale=1):
@@ -441,55 +479,18 @@ def head_icon(look, scale=3):
     return img.resize((img.width * scale, img.height * scale), Image.NEAREST)
 
 
-def portrait(look, name=None, tag_item=None, scale=8, direction="down", t=0, background="#231a4d"):
-    """A big character picture for the store and the wardrobe."""
-    w, h = SPR_W * scale + 80, SPR_H * scale + 70
-    img = Image.new("RGB", (w, h), rgb(background))
-    draw_character(img, w // 2, h - 14, look, direction, 0, t, scale)
+def showcase(look, name, tag_item=None, t=0, scale=6):
+    """The big preview in the store and the wardrobe: the character from the front, the side and the back, with the
+    name tag above, on a see-through picture (the store draws the stage behind it)."""
+    gap = 12
+    w = 3 * SPR_W * scale + 2 * gap + 20
+    h = SPR_H * scale + 64
+    img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    for k, direction in enumerate(("down", "left", "up")):
+        cx = 10 + SPR_W * scale // 2 + k * (SPR_W * scale + gap)
+        draw_character(img, cx, h - 4, look, direction, 0, t, scale)
     if name:
         draw_name_tag(img, w // 2, 44, name, catalog.spec_for("name", tag_item), t)
-    return img
-
-
-def showcase(look, name, tag_item=None, t=0, scale=6, background="#231a4d", glow="#3ad6ff"):
-    """The big preview in the store and the wardrobe: the character from the front, the side and the back,
-    on a stage lit in `glow` (the rarity colour of the item being looked at)."""
-    gap = 18
-    w = 3 * SPR_W * scale + 2 * gap + 40
-    h = SPR_H * scale + 96
-    img = Image.new("RGB", (w, h), rgb(background))
-    d = ImageDraw.Draw(img)
-    for y in range(h):  # darker at the top, lit from below
-        d.line([(0, y), (w, y)], fill=mix("#0d0a1f", background, y / h))
-    for k in range(12, 0, -1):  # a soft round spotlight behind the character
-        d.ellipse([w // 2 - k * 26, h // 2 - k * 13, w // 2 + k * 26, h // 2 + k * 13],
-                  fill=mix(background, glow, 0.35 * (1 - k / 12)))
-    d.ellipse([30, h - 40, w - 30, h - 4], fill=shade(glow, 0.35))  # the stage
-    d.ellipse([46, h - 34, w - 46, h - 10], fill=shade(glow, 0.55))
-    for k, direction in enumerate(("down", "left", "up")):
-        cx = 20 + SPR_W * scale // 2 + k * (SPR_W * scale + gap)
-        draw_character(img, cx, h - 14, look, direction, 0, t, scale)
-    if name:
-        draw_name_tag(img, w // 2, 58, name, catalog.spec_for("name", tag_item), t)
-    return img
-
-
-RARITY_COLOURS = {"common": "#3a6b5a", "rare": "#6b3ad8", "legendary": "#ffb81a"}
-
-
-def item_tile(item, look, name, size=(168, 132)):
-    """Store / wardrobe thumbnail: the item shown on the player's own character."""
-    w, h = size
-    edge = rgb(RARITY_COLOURS[item["rarity"]])
-    img = Image.new("RGB", (w, h), edge)
-    ImageDraw.Draw(img).rectangle([4, 4, w - 5, h - 5], fill=(28, 22, 66))
-    skin, pants, hair_id, shirt_id = look
-    if item["slot"] == "hair":
-        draw_character(img, w // 2, h - 8, (skin, pants, item["id"], shirt_id), "down", scale=4)
-    elif item["slot"] == "shirt":
-        draw_character(img, w // 2, h - 8, (skin, pants, hair_id, item["id"]), "down", scale=4)
-    else:
-        draw_name_tag(img, w // 2, h // 2 + 14, name, item["spec"])
     return img
 
 

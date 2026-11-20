@@ -1,7 +1,8 @@
 """The store: click an item to see it on your character, then buy it with coins.
 
-One picture (arcade/art/shop.py): the tabs (hair, shirt, name) and BACK at the top, every item of the tab as a tile
-with its price, or OWNED / WEARING, and on the right a big preview of you wearing the item on show, with BUY or WEAR.
+One picture (arcade/art/shop.py): the tabs (hair, shirt, name) and BACK at the top, every item of the tab on the
+shelves as a tile showing only the item, with its price, or OWNED / WEARING, and on the right a fitting room with you
+wearing the item on show, with BUY or WEAR on the counter.
 Keys: Left / Right the items, Up / Down the tabs, Enter buys (or wears what you own), Esc goes back.
 """
 
@@ -18,7 +19,7 @@ from arcade.state import S
 
 # How a tile's badge looks for each store.status()
 BADGES = {"worn": ("WEARING", "worn"), "owned": ("OWNED", "owned")}
-GLOWS = {"common": "#43c47e", "rare": "#8a5cff", "legendary": "#ffae1a"}  # the same colours as the tiles
+GLOWS = {"common": "#43c47e", "rare": "#8a5cff", "legendary": "#ffae1a"}  # the stage light, by rarity
 
 
 def current_tab(key: str) -> str:
@@ -49,11 +50,15 @@ def picked_item(key: str, slot: str) -> dict | None:
 
 
 def preview(player: dict, slot: str, item: dict | None):
-    """The big picture of the player wearing the item (or what they wear now)."""
+    """The big picture of the player wearing the item (or what they wear now), from three sides."""
     trying = {slot: item["id"]} if item else None
     worn = dict(player["equipped"], **(trying or {}))
-    glow = GLOWS[item["rarity"]] if item else "#3ad6ff"
-    return sprites.showcase(player_model.look(player, trying), player["name"], worn["name"], glow=glow, scale=4)
+    return sprites.showcase(player_model.look(player, trying), player["name"], worn["name"], scale=4)
+
+
+def glow(item: dict | None) -> str:
+    """The colour of the light on the stage: the rarity of the item on show."""
+    return GLOWS[item["rarity"]] if item else "#3ad6ff"
 
 
 def shop_click(action, tab: str, focus_key: str) -> None:
@@ -81,20 +86,21 @@ def render() -> None:
     focus = picked_item("store_focus", slot)
     look = player_model.look(player)
     status = store.status(player, focus["id"]) if focus else None
-    actions, note = [], ""
+    actions, note, progress = [], "", None
     if status in ("affordable", "too_expensive"):
         actions = [(f"BUY FOR {focus['price']}", "buy", status == "affordable")]
         if status == "too_expensive":
             note = f"{store.coins_missing(player, focus['id'])} more coins needed"
+            progress = (player["coins"], focus["price"])
     elif status == "owned":
         actions = [("WEAR IT", "wear", True)]
     elif status == "worn":
         actions = [("WEARING IT", "worn", False)]
     view = {"title": "STORE", "coins": player["coins"], "slot": slot,
             "sections": [(r, [_tile(player, item, look) for item in catalog.by_slot(slot, r)]) for r in RARITIES],
-            "chosen": focus["id"] if focus else None, "preview": preview(player, slot, focus),
+            "chosen": focus["id"] if focus else None, "preview": preview(player, slot, focus), "glow": glow(focus),
             "info": (focus["name"], focus["rarity"], focus["price"]) if focus else None, "actions": actions,
-            "note": note}
+            "note": note, "progress": progress}
     img, regions = shop.shop_picture(view)
     ui.show(ui.screen(), img)
     action = ui.hit(regions, ui.click())

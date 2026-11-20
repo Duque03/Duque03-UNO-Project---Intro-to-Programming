@@ -43,4 +43,23 @@ def test_only_an_action_that_can_be_done_is_clickable():
 def test_the_longest_name_fits_in_a_name_tag_tile():
     for item in catalog.by_slot("name"):
         picture = shop.tile_picture(item["id"], LOOK, "ABCDEFGHIJ")  # the whole tag (effects too), cropped to it
-        assert picture.width <= shop.TILE_W - 12 and picture.height <= 86, item["id"]
+        assert picture.width <= shop.tile_width(item) - 12 and picture.height <= 86, item["id"]
+
+
+def test_hair_and_shirt_tiles_show_only_the_item_not_the_player():
+    from arcade.art.pixel import rgb
+    skin = rgb(LOOK[0])
+    for slot in ("hair", "shirt"):
+        for item in catalog.by_slot(slot):
+            picture = shop.tile_picture(item["id"], LOOK, "MIGUEL").convert("RGBA")
+            colours = {pixel[:3] for pixel in picture.get_flattened_data() if pixel[3]}
+            assert skin not in colours, item["id"]  # no face, no hands: only the item
+            assert picture.width <= shop.tile_width(item) - 12 and picture.height <= 86, item["id"]
+
+
+def test_a_shirt_on_its_hanger_uses_the_shirt_colour():
+    from arcade.art import sprites
+    from arcade.art.pixel import rgb
+    item = catalog.by_slot("shirt", "common")[0]
+    colours = {pixel[:3] for pixel in sprites.shirt_item(item["id"]).get_flattened_data() if pixel[3]}
+    assert rgb(item["spec"]["c1"]) in colours
