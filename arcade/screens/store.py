@@ -115,9 +115,9 @@ def render() -> None:
         try:
             store.buy(player, focus["id"])
             state.save()
-            st.toast(f"Bought {focus['name']}!")
+            ui.toast(f"Bought {focus['name']}!")
         except store.StoreError as problem:
-            st.toast(str(problem))
+            ui.toast(str(problem))
         st.rerun()
     if (enter and status == "owned") or action == ("wear",):
         store.equip(player, focus["id"])

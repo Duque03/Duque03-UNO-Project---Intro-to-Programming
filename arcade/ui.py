@@ -25,6 +25,8 @@ TITLE_KEY = "title_screen"
 
 # Look of everything around the game picture (idea 1 of the visual update).
 # The pixel font is Jersey 10 (SIL Open Font License), loaded from Google Fonts. The pictures use it too (V4).
+TOAST_SECONDS = 3.6  # how long a little message (toast) stays up
+
 _CSS = f"""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Jersey+10&display=swap');
@@ -119,6 +121,13 @@ button[data-testid^="stBaseButton-primary"]:not(:disabled) * {{ color: #1a0f2e !
 [data-testid="stToast"] p {{ color: var(--yellow) !important; font-size: 1.6rem !important; letter-spacing: .06em;
     text-transform: uppercase; }}
 [data-testid="stToast"] button, [data-testid="stToastDismissButton"] {{ display: none !important; }}
+/* our own little messages (ui.toast): pixel pictures in the top-right corner of the game picture */
+.st-key-game_toasts {{ position: absolute !important; top: 13.5%; right: 1.2%; width: 40%; z-index: 6;
+    pointer-events: none; gap: .4rem !important; align-items: flex-end; }}
+.st-key-game_toasts [data-testid="stMarkdownContainer"] {{ text-align: right; }}
+img.arcade-toast {{ image-rendering: pixelated; animation: arcade-toast {TOAST_SECONDS}s steps(24, end) forwards; }}
+@keyframes arcade-toast {{ 0% {{ opacity: 0; transform: translateY(-14px); }} 8% {{ opacity: 1; transform: none; }}
+    85% {{ opacity: 1; }} 100% {{ opacity: 0; }} }}
 .rarity-legendary {{ color: #ffb81a; }} .rarity-rare {{ color: #b07aff; }} .rarity-common {{ color: #9df0c4; }}
 </style>
 """
@@ -364,3 +373,51 @@ def hit(regions, point):
         if left <= x <= right and top <= y <= bottom:
             return action
     return None
+
+
+# ---------------------------------------------------------------- little messages, in the game's pixel font
+
+TOAST_AREA = 384  # how wide the place for messages is, on the 960-wide picture (the right 40%)
+
+
+def toast(text: str) -> None:
+    """A little message in the top-right corner of the game ("Welcome back, MIGUEL!", "Bought ...!"), painted in the
+    game's own pixel font (st.toast would use the browser's font). It stays for TOAST_SECONDS, even across reruns."""
+    now = time.time()
+    count = st.session_state.get("_toast_count", 0) + 1
+    st.session_state["_toast_count"] = count
+    kept = [t for t in st.session_state.get("_toasts", []) if t["until"] > now]
+    st.session_state["_toasts"] = (kept + [{"text": text, "until": now + TOAST_SECONDS, "id": count}])[-3:]
+
+
+def toast_picture(text: str):
+    """The message as a pixel box: dark, a yellow edge with cut corners, a hard shadow, yellow capitals."""
+    from PIL import Image
+
+    from arcade.art.pixel import draw_text, panel, text_size, wrap
+
+    lines = wrap(text.upper(), 24)
+    width = max(text_size(line, 2)[0] for line in lines) + 36
+    height = 22 * len(lines) + 22
+    img = Image.new("RGBA", (width + 8, height + 8), (0, 0, 0, 0))
+    panel(img, (0, 0, width - 1, height - 1), "#16122b", "#ffe94a", bw=4, shadow=True)
+    for i, line in enumerate(lines):
+        draw_text(img, (18, 13 + i * 22), line, 2, "#ffe94a", "lt")
+    return img
+
+
+def render_toasts() -> None:
+    """Show the messages that are still up. Call it on every full run, inside game_frame."""
+    now = time.time()
+    active = [t for t in st.session_state.get("_toasts", []) if t["until"] > now]
+    st.session_state["_toasts"] = active
+    with st.container(key="game_toasts"):
+        for item in active:
+            img = toast_picture(item["text"])
+            buffer = io.BytesIO()
+            img.save(buffer, format="PNG")
+            src = "data:image/png;base64," + base64.b64encode(buffer.getvalue()).decode("ascii")
+            share = min(100.0, img.width / TOAST_AREA * 100)
+            with st.container(key=f"toast_{item['id']}"):  # (its own key: it is not redrawn when another arrives)
+                st.markdown(f'<img class="arcade-toast" src="{src}" style="width:{share:.2f}%" alt="">',
+                            unsafe_allow_html=True)

@@ -148,6 +148,9 @@ changing these files, and change them in a small pull request of their own.
 - **There is no row of buttons under the picture** (Miguel's call: everything is on the screen). A screen's buttons go
   in `ui.bar(name, widths)`, which hides them but keeps their keys, and every action also gets a click region on the
   picture (for the tables: `common.corner_buttons` for RULES / PAUSE / LEAVE, the deck, the pile, PASS).
+- **Little messages go through `ui.toast(text)`, never `st.toast`**: the browser's font is not the game's. `ui.toast`
+  paints the message in the game's pixel font and keeps it for a few seconds across reruns; `app.py` shows the ones
+  still up on every run (`ui.render_toasts`, laid on the picture at the top right).
 - **Streamlit fades the page while the script runs** (`data-stale`). `ui.py` switches that off, because in a game
   it looks like the screen going dark.
 
