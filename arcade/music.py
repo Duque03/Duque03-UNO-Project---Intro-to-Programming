@@ -198,7 +198,8 @@ TRACKS = {"title": _title(), "room": _room(), "uno": _uno(), "checkers": _checke
 # Which tune each screen plays. A screen that is not listed keeps the tune that was playing (the rules).
 SCREEN_TRACKS = {
     "title": "title",
-    "hub": "room", "store": "room", "wardrobe": "room", "versus": "room",
+    "hub": "room", "store": "room", "versus": "room",
+    "wardrobe": "silence",  # opened from the pause menu, which is quiet (and so are its rules, which keep it)
     "champ_intro": "room", "champ_rules": "room", "champ_score": "room", "champ_final": "room",
     "uno": "uno", "checkers": "checkers", "connect4": "connect4",
     "online": "title", "lobby": "title",  # an online game plays its own game's tune (screens/online_table.py)

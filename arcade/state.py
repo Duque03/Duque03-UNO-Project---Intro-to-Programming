@@ -59,7 +59,8 @@ def start_session(player: dict) -> None:
     """Walk into the arcade with a player who has signed in (see accounts.sign_in)."""
     S.player = player
     S.last_name = player["name"]
-    S.hub = {"pos": hubmap.SPAWN, "dir": "up", "bots": {}, "walk": None}
+    pressed = (S.get("hub") or {}).get("pressed", 0)  # the browser keeps counting key presses across sign-ins
+    S.hub = {"pos": hubmap.SPAWN, "dir": "up", "bots": {}, "walk": None, "pressed": pressed}
     reset_bots()
     S.match = S.game = S.result = S.champ = None
     S.screen = "hub" if player.get("look_done", True) else "create"  # a new player makes their look first

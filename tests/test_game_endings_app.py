@@ -145,5 +145,26 @@ def test_the_pause_menu_is_quiet_and_sets_the_music_level(app):
     _press(app, "pause_music")
     _press(app, "pause_music")
     assert app.session_state["player"]["music"] == "high"  # round again: high, medium, low, high
+    _press(app, "pause_wardrobe")
+    assert app.session_state["screen"] == "wardrobe" and app.session_state["_track"] == "silence"  # still paused
+    _press(app, "wardrobe_back")
+    _press(app, "pause_howto")
+    assert app.session_state["screen"] == "howto" and app.session_state["_track"] == "silence"
+    _press(app, "howto_back")
     _press(app, "pause_resume")
     assert app.session_state["screen"] == "checkers" and app.session_state["_track"] == "checkers"
+
+
+def test_signing_in_again_keeps_the_count_of_room_key_presses(app):
+    """The browser numbers E, I and Esc across the whole visit; a new sign-in must not make an old Esc look new."""
+    from arcade import state
+
+    app.session_state["hub"]["pressed"] = 7
+    app.session_state["screen"] = "title"
+    app.run()
+    player = app.session_state["player"]
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(state, "S", app.session_state)
+        patch.setattr(state, "reset_bots", lambda: None)
+        state.start_session(player)
+    assert app.session_state["hub"]["pressed"] == 7
