@@ -102,20 +102,8 @@ def draw(game, opponent, selected=None, flash="", cursor_cell=None, me=BOTTOM):
             hint = "You must capture" if capture else "Your turn"
         colour = "#ffe94a"
     if hint:
-        for i, line in enumerate(_split(hint.upper())):
-            draw_text(img, (160, 370 + i * 22), line, 2, colour, "mt", shadow="#16122b")
+        common.side_message(img, hint, colour)
     return img, regions
-
-
-def _split(text, width=20):
-    words, lines, line = text.split(), [], ""
-    for word in words:
-        if len(line) + len(word) + 1 > width and line:
-            lines.append(line)
-            line = word
-        else:
-            line = f"{line} {word}".strip()
-    return lines + [line]
 
 
 def render() -> None:
@@ -127,6 +115,8 @@ def render() -> None:
     # The keys come first, on every run, and are read before drawing (see uno.py). The arrow keys move the cursor one
     # square; Space or Enter is a click on that square. They only count on the player's turn, like a click.
     key = ui.keys("checkers", {**ui.ARROWS, "Space": "space", "Enter": "enter"})
+    if S.pop("starter_intro", False):  # a new game: the roulette shows who starts
+        common.play_starter(slot, draw(game, opponent)[0], game.turn == BOTTOM, opponent["name"], "checkers")
     if bot_was_playing:
         key = None
     if common.run_clock(game.winner is None and game.turn == BOTTOM):

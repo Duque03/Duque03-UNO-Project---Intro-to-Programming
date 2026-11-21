@@ -71,10 +71,10 @@ def draw(game, opponent, flash="", falling=None, column=None, me=RED):
         panel(img, (x0, 250, x0 + 260, 322), "#16122b", edge, shadow=False)
         draw_text(img, (x0 + 18, 268), label, 2, light, "lt")
         draw_text(img, (x0 + 18, 292), side.upper(), 3, "#ffffff", "lt")
-    if flash:
-        draw_text(img, (160, 350), flash.upper(), 2, "#ff8a8a", "mt", shadow="#16122b")
+    if flash:  # (on as many lines as it needs, under the player's score card)
+        common.side_message(img, flash, "#ff8a8a")
     elif my_turn:  # how to play is in the rules (I), not on the table
-        draw_text(img, (160, 350), "YOUR TURN", 2, "#ffe94a", "mt", shadow="#16122b")
+        common.side_message(img, "Your turn", "#ffe94a")
     return img, regions
 
 
@@ -89,6 +89,8 @@ def render() -> None:
     keys = {"Left": "left", "Right": "right", "Space": "space", "Enter": "enter", "Down": "down"}
     keys.update({str(col + 1): f"col{col + 1}" for col in range(COLS)})
     key = ui.keys("connect4", keys)
+    if S.pop("starter_intro", False):  # a new game: the roulette shows who starts
+        common.play_starter(slot, draw(game, opponent)[0], game.turn == RED, opponent["name"], "connect4")
     if bot_was_playing:
         key = None
     if common.run_clock(game.winner is None and game.turn == RED):

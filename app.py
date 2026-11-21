@@ -37,5 +37,10 @@ if st.session_state.player is None and st.session_state.screen != "howto":  # fo
     st.session_state.screen = "title"  # ("How to play" can be opened from the title screen, before a name is given)
 with st.container(key="game_frame"):  # one glowing frame around the whole game, buttons included (ui.py)
     ui.render_toasts()  # little messages in the game's pixel font, laid on the picture (top right)
-    SCREENS[st.session_state.screen]()
+    try:
+        SCREENS[st.session_state.screen]()
+    except Exception as problem:  # never a black screen: log it, say so, back to the arcade (state.recover)
+        if not state.recover(problem):
+            raise
+        st.rerun()
 sound.render()  # play the sounds asked for during this run (A7)

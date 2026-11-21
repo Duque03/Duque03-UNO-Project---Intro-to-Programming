@@ -120,8 +120,12 @@ Numbers live in `arcade/config.py`.
   each one holds their cards up in a fan, with how many they hold on the table in front of them. The draw pile and
   the discard pile lie flat in the middle, a little bigger than a card in the hand. After a wild, the discard pile
   glows in the colour that was chosen.
-- A bot thinks for a random 1 to 3 seconds before each move, with a "..." speech bubble next to it (in checkers, the
-  extra jumps of a chain follow quickly).
+- A bot thinks for a random 1 to 3 seconds before each move; now and then (not every turn) a little "?" or "?!"
+  bubble pops up next to its head (in checkers, the extra jumps of a chain follow quickly).
+- **Who starts is random in every game.** UNO shows it with the roulette after the deal (below); checkers and Connect
+  Four start with a roulette that goes between the two score cards and stops on whoever starts ("YOU START!" /
+  "DEAN STARTS!"). The player's 15 seconds only start after it. Messages beside the board (a random move after the
+  time ran out, a refused move) wrap onto several lines under the player's score card, so they always fit.
 - The player has **15 seconds** for each turn, shown by a pixel countdown strip at the top (red for the last 5 seconds).
   When time runs out the game plays for the player: in UNO they draw (or take the +2 / +4 cards) and their turn
   passes; in checkers and Connect Four a random legal move is played (every jump of a chain). Drawing a card in UNO
@@ -281,9 +285,9 @@ Saved per player name: coins, owned cosmetics, equipped cosmetics, wins per game
   second player's checkers board is turned round so their pieces are at the bottom. The same rules as offline (UNO
   places included). Moves out of turn are refused; a yellow frame shows whose turn it is.
 - Each player has **15 seconds** a turn (shown at the top for everyone). When time runs out the game plays for them,
-  as offline. In UNO, a player down to one card has 3 seconds to say UNO (U) or draws 2. Online UNO also starts with
-  the deal and the roulette (the server picks who starts), so the first turn gets 9 more seconds; each browser
-  animates the cards that moved since it last looked.
+  as offline. In UNO, a player down to one card has 3 seconds to say UNO (U) or draws 2. Online games also start with
+  the roulette (the server picks who starts; UNO after the deal), so the first turn gets 9 more seconds in UNO and 4
+  in checkers and Connect Four; each browser animates the cards that moved since it last looked.
 - Each browser looks for changes about once a second, so a friend's move shows up within about a second.
 - Prizes: winning pays **15 coins** (like a medium bot); in UNO 1st / 2nd / 3rd get 15 / 8 / 4. Online wins do not count
   towards opening the championship cabinet (that is about beating the arcade's bots).

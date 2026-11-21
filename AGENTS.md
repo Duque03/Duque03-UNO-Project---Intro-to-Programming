@@ -161,6 +161,10 @@ changing these files, and change them in a small pull request of their own.
 - **Little messages go through `ui.toast(text)`, never `st.toast`**: the browser's font is not the game's. `ui.toast`
   paints the message in the game's pixel font and keeps it for a few seconds across reruns; `app.py` shows the ones
   still up on every run (`ui.render_toasts`, laid on the picture at the top right).
+- **A screen that raises never leaves a black page**: `app.py` catches it and `state.recover` writes the traceback to
+  the log (Streamlit Cloud: Manage app > Logs), shows "Oops! Something went wrong. Back to the arcade.", clears the
+  game and goes back to the room (or the lobby) with progress saved. More than three times in a minute, or with
+  `ARCADE_STRICT` set (the tests and the simulators set it), the error is shown instead, so bugs are still seen.
 - **Streamlit fades the page while the script runs** (`data-stale`). `ui.py` switches that off, because in a game
   it looks like the screen going dark.
 

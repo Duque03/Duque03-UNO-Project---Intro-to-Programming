@@ -111,6 +111,7 @@ def render() -> None:
             S.pop(key, None)
         S.online_flash = ""
         S.ouno_intro = lobby.game == "uno"  # UNO starts with the deal and the roulette (see _uno_plan)
+        S.ostarter_intro = lobby.game in ("checkers", "connect4")  # the others with a roulette: who starts
 
     over = lobby.result is not None
     turn = lobby.current()
@@ -387,6 +388,9 @@ def _connect4(lobby, me: str, mine: bool, over: bool) -> None:
         sound.play("blip")
     if mine:
         S.oc4_col = column
+    if S.pop("ostarter_intro", False) and not over and not any(any(row) for row in game.board):
+        common.play_starter(ui.screen(), connect4_screen.draw(game, friend, me=side)[0], game.turn == side,
+                            friend["name"], None)
     flash = S.online_flash or ("" if mine or over else f"Waiting for {friend['name']}...")
     img, regions = connect4_screen.draw(game, friend, flash, column=column, me=side)
     regions = _show(img, regions, lobby, me, over)
@@ -419,6 +423,9 @@ def _checkers(lobby, me: str, mine: bool, over: bool) -> None:
         cell = (min(SIZE - 1, max(0, cell[0] + dr)), min(SIZE - 1, max(0, cell[1] + dc)))
         S.ock_cur = cell
         sound.play("blip")
+    if S.pop("ostarter_intro", False) and not over and game.last_move is None:  # (only before the first move)
+        common.play_starter(ui.screen(), checkers_screen.draw(game, friend, me=side)[0], game.turn == side,
+                            friend["name"], None)
     flash = S.online_flash or ("" if mine or over else f"Waiting for {friend['name']}...")
     img, regions = checkers_screen.draw(game, friend, selected, flash, cursor_cell=cell if mine else None, me=side)
     regions = _show(img, regions, lobby, me, over)

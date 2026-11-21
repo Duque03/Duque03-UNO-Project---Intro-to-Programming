@@ -11,7 +11,7 @@ from PIL import ImageDraw
 
 from arcade import match, state, table_anim, ui
 from arcade.art import podium, scenes
-from arcade.art.pixel import draw_text, panel, text_size
+from arcade.art.pixel import draw_text, panel, text_size, wrap
 from arcade.config import BOT_THINK, SCREEN_W, TURN_SECONDS
 from arcade.logic import turn_clock
 from arcade.state import S
@@ -23,25 +23,63 @@ def bot_pause(since: float) -> None:
     time.sleep(max(0.0, random.uniform(*BOT_THINK) - (time.time() - since)))
 
 
-def thinking(img, seat: int, seats: int):
-    """A "..." speech bubble next to the head of the bot whose turn it is (seat: 0, 1, 2 round the table)."""
+THINK_CHANCE = 0.35  # how often a bot shows a little "?" bubble while it thinks (not every time)
+THINK_MARKS = ("?", "?", "?", "?!", "!?")
+
+
+def thinking(img, seat: int, seats: int, rng=random):
+    """Now and then, a little "?" (or "?!") bubble next to the head of the bot whose turn it is (seat: 0, 1, 2 round
+    the table). Most turns there is none."""
+    if rng.random() >= THINK_CHANCE:
+        return img
+    mark = rng.choice(THINK_MARKS)
     spot = scenes.table_seats(seats)[seat]
     left_side = spot["facing"] == "left"  # the bot on the right: the bubble goes on its left, towards the table
     reach = 23 * spot["scale"]  # from the middle of the character to beside its head
-    x, top = (spot["cx"] - reach - 66 if left_side else spot["cx"] + reach), spot["head"] + 15 * spot["scale"]
-    tail = x + 66 - 4 if left_side else x + 4  # the tail points at the bot's head
+    width = 24 + text_size(mark, 3)[0]
+    x, top = (spot["cx"] - reach - width if left_side else spot["cx"] + reach), spot["head"] + 15 * spot["scale"]
+    tail = x + width - 4 if left_side else x + 4  # the tail points at the bot's head
     lean = -1 if left_side else 1
     d = ImageDraw.Draw(img)
     d.polygon([(tail, top + 44), (tail + lean * 12, top + 32), (tail + lean * 18, top + 32)], fill=(22, 18, 43))
-    d.rectangle([x, top, x + 66, top + 34], fill=(22, 18, 43))
-    d.rectangle([x + 3, top + 3, x + 63, top + 31], fill=(255, 246, 218))
+    d.rectangle([x, top, x + width, top + 34], fill=(22, 18, 43))
+    d.rectangle([x + 3, top + 3, x + width - 3, top + 31], fill=(255, 246, 218))
     d.polygon([(tail + lean * 3, top + 39), (tail + lean * 12, top + 30), (tail + lean * 16, top + 30)],
               fill=(255, 246, 218))
-    phase = int(time.time() * 3) % 3  # one dot is lifted, so it looks alive between two pictures
-    for i in range(3):
-        y = top + 12 - (3 if i == phase else 0)
-        d.rectangle([x + 12 + i * 16, y, x + 21 + i * 16, y + 9], fill=(22, 18, 43))
+    draw_text(img, (x + width // 2, top + 17), mark, 3, (22, 18, 43), "mm")
     return img
+
+
+SPIN_MS, LABEL_MS = 2400, 1300  # the roulette that shows who starts, then the name of who it landed on
+
+
+def side_message(img, text: str, colour) -> None:
+    """A short message under the player's score card (checkers, Connect Four), on as many lines as it needs."""
+    for i, line in enumerate(wrap(text.upper(), 20)[:3]):
+        draw_text(img, (160, 352 + i * 22), line, 2, colour, "mt", shadow="#16122b")
+
+
+def starter_plan(table, me_starts: bool, name: str) -> dict:
+    """Checkers and Connect Four: a roulette goes between the two score cards and stops on whoever starts."""
+    sprites = {"label": scenes.big_word("YOU START!" if me_starts else f"{name} STARTS!")}
+    boxes = [[22, 242, 276, 110], [SCREEN_W - 298, 242, 276, 110]]  # the two score cards (left: the player)
+    return {"id": table_anim.new_id("starter"), "total": 300 + SPIN_MS + LABEL_MS, "moves": [], "under": table,
+            "sprites": sprites, "spin": {"seats": boxes, "winner": 0 if me_starts else 1, "at": 300, "dur": SPIN_MS,
+                                         "label": "label"}}
+
+
+def play_starter(slot, table, me_starts: bool, name: str, screen: str | None) -> None:
+    """Show who starts (the roulette), then the table, and start the player's clock after the show.
+    screen: the table's screen (its countdown goes under the picture), or None online (it has its own)."""
+    plan = starter_plan(table, me_starts, name)
+    table_anim.play(slot, plan)
+    time.sleep(0.12)
+    if screen is None:
+        ui.show(slot, table)
+    else:
+        show(slot, table, screen)
+    time.sleep(max(0.0, table_anim.seconds(plan) - 0.12))
+    restart_clock()
 
 
 def show(slot, img, screen: str) -> None:

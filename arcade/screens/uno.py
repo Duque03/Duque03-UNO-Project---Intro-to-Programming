@@ -173,8 +173,10 @@ def draw(game, me, opponents, flash="", choosing=False, picks=(), uno_open=False
             cards.draw_card(img, x, y, card)
         right = x + (step if i < count - 1 else cards.CARD_W)
         regions.append(((x, y, right, HAND_Y + cards.CARD_H), ("card", i)))
-        if i == focus:  # the frame goes round the card, wherever it stands
-            focus_box = (x - 3, y - 3, right + 2, y + cards.CARD_H + 2)
+        if i == focus:  # the frame goes exactly round the card (what can be seen of it), wherever it stands
+            covered = i < count - 1 and not picked and step < cards.CARD_W  # the next card lies over its right side
+            width = int(step) if covered else cards.CARD_W
+            focus_box = (int(x) - 4, y - 4, int(x) + width + 3, y + cards.CARD_H + 3)
     if hands:  # the player's own hands hold the two ends of the row of cards
         _draw_hands(img, count, hands)
     if focus is not None and 0 <= focus < count:  # the yellow frame the arrow keys move (on top of the cards)
