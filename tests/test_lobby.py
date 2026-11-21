@@ -8,7 +8,7 @@ import pytest
 from arcade.logic import chat
 from arcade.logic.connect4 import RED
 from arcade.logic.lobby import (
-    MAX_PLAYERS, STARTER_SECONDS, TURN_SECONDS, UNO_COUNTDOWN, UNO_INTRO_SECONDS, UNO_SECONDS, LobbyError, Lobbies,
+    MAX_PLAYERS, STARTER_SECONDS, TURN_SECONDS, UNO_COUNTDOWN, UNO_INTRO_SECONDS, LobbyError, Lobbies,
     online_coins,
 )
 from arcade.logic.uno import IllegalMove as UnoIllegal
@@ -395,15 +395,16 @@ def test_uno_online_has_no_bots_and_checks_the_rules(setup):
     assert _t(lobbies, code).current() in ("ANA", "BRUNO")
 
 
-def test_forgetting_uno_online_costs_two_cards(setup):
+def test_a_uno_not_said_yet_stays_open_with_no_time_limit(setup):
     lobbies, clock, code = _uno(setup)
     with lobbies._lock:  # put ANA one card from UNO
         lobby = lobbies._find(code).tables["uno"]
         lobby.table.hands["ANA"] = [("red", "5"), ("red", "6")]
         lobby.table.discard, lobby.table.colour = [("red", "9")], "red"
     lobbies.act(code, "ANA", "play", cards=[("red", "5")])
-    clock.now += UNO_SECONDS + 1
-    assert len(_t(lobbies, code).table.hands["ANA"]) == 3
+    clock.now += 60  # a whole minute later: no +2, the UNO can still be said (or cut)
+    table = _t(lobbies, code)
+    assert len(table.table.hands["ANA"]) == 1 and table.table.uno_due == "ANA"
 
 
 def test_saying_uno_in_time_keeps_the_card_count(setup):
@@ -414,8 +415,11 @@ def test_saying_uno_in_time_keeps_the_card_count(setup):
         lobby.table.discard, lobby.table.colour = [("red", "9")], "red"
     lobbies.act(code, "ANA", "play", cards=[("red", "5")])
     lobbies.act(code, "ANA", "uno")
-    clock.now += UNO_SECONDS + 1
-    assert len(_t(lobbies, code).table.hands["ANA"]) == 1
+    clock.now += 60
+    table = _t(lobbies, code)
+    assert len(table.table.hands["ANA"]) == 1 and table.table.uno_due is None
+    with pytest.raises(LobbyError):
+        lobbies.act(code, "BRUNO", "cut")  # said: nobody can cut it any more
 
 
 def test_online_uno_prizes_follow_the_places():
@@ -457,8 +461,7 @@ def test_cutting_a_uno_online_starts_a_face_off_and_freezes_the_game(setup):
         lobbies.act(code, "BRUNO", "draw")  # nothing else moves during the face-off
     with pytest.raises(LobbyError):
         lobbies.act(code, "BRUNO", "answer", yes=True)  # only the two players answer
-    clock.now += UNO_SECONDS + 1
-    assert len(_t(lobbies, code).table.hands["ANA"]) == 1  # no "forgot UNO" while the face-off runs
+    assert len(_t(lobbies, code).table.hands["ANA"]) == 1  # the face-off decides: ANA still holds one card
 
 
 def test_losing_the_face_off_online_with_uno_draws_7(setup):

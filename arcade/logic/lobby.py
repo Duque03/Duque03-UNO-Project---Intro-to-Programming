@@ -12,7 +12,7 @@ at the same time.
     act            a move at the player's table, checked against the rules like any move in the arcade
     done / quit    back to the room after a game (or in the middle of one: the game ends for the others)
     tick           called on every look at the lobby: starts UNO when its countdown is over, plays for a player
-                   whose 15 seconds are up, and makes a forgotten UNO cost 2 cards
+                   whose 15 seconds are up, and ends a Corta UNO face-off
 Every change adds 1 to the lobby's version (and to the table's, when it is about that table), so a player's screen
 knows when to draw itself again.
 
@@ -45,7 +45,6 @@ UNO_COUNTDOWN = 10  # seconds UNO waits for more players once two are seated (it
 TURN_SECONDS = 15
 UNO_INTRO_SECONDS = 9  # an online UNO game starts with the deal and the roulette (screens/online_table.py)
 STARTER_SECONDS = 4  # checkers and Connect Four start with a roulette that shows who starts
-UNO_SECONDS = 3  # online, a little longer than in the arcade: the other players' screens are a second behind
 FORGET_AFTER = 2 * 60 * 60  # a lobby nobody has touched for 2 hours is removed
 ONLINE_PRIZE = 15  # coins for winning online (like beating a medium bot); UNO pays 1st / 2nd / 3rd shares of it
 
@@ -67,7 +66,6 @@ class Table:
         self.cards: dict[str, dict] = {}  # how each of them looks (kept after they leave: still drawn at the table)
         self.back: set[str] = set()  # who has gone back to the room after the game
         self.deadline: float | None = None  # when the current player's 15 seconds are up
-        self.uno_deadline: float | None = None  # when the player who must say UNO runs out of time
         self.duel: Duel | None = None  # a Corta UNO face-off (logic/trivia.py): nothing else moves at this table
         self.result: dict | None = None  # {"places": [...]} or {"winner": name or None}, when the game is over
         self.round = 0  # this game's number in the lobby (a screen uses it to give coins once per game)
@@ -322,15 +320,13 @@ class Lobbies:
                     table.duel.answer(name, bool(args.get("yes")), self._clock())
                 except TriviaError as problem:
                     raise LobbyError(str(problem)) from None
-            elif move == "uno":  # saying UNO is not a turn: it is allowed at any time
+            elif move == "uno":  # saying UNO is not a turn: it is allowed at any time (there is no time limit)
                 game.call_uno(name)
-                table.uno_deadline = None if game.uno_due is None else table.uno_deadline
             elif move == "cut":  # Corta UNO: someone else is down to one card and has not said UNO yet
                 holder = getattr(game, "uno_due", None)
                 if holder is None or holder == name or name not in game.active:
                     raise LobbyError("There is no UNO to cut.")
                 table.duel = Duel(holder, name, self._rng, self._clock())
-                table.uno_deadline = None
             elif move == "answer":
                 raise LobbyError("There is no face-off.")
             else:
@@ -349,8 +345,6 @@ class Lobbies:
                     game.drop(args["col"])
                 else:
                     raise LobbyError("Unknown move.")
-                if isinstance(game, UnoGame) and game.uno_due == name:
-                    table.uno_deadline = self._clock() + UNO_SECONDS
                 if table.current() != before or move in ("draw", "move"):
                     # a new turn, a drawn card or another jump in a chain gets a fresh 15 seconds
                     table.deadline = self._clock() + TURN_SECONDS
@@ -395,7 +389,7 @@ class Lobbies:
             table.table = CheckersGame(first=self._rng.choice((BOTTOM, TOP)))
         else:
             table.table = Connect4Game(first=self._rng.choice((RED, YELLOW)))
-        table.result, table.uno_deadline, table.duel = None, None, None
+        table.result, table.duel = None, None
         lobby.rounds += 1
         table.round = lobby.rounds
         intro = UNO_INTRO_SECONDS if table.game == "uno" else STARTER_SECONDS
@@ -408,7 +402,7 @@ class Lobbies:
             return False
         if table.playing():
             table.result = {"winner": None, "left": name}
-            table.deadline = table.uno_deadline = None
+            table.deadline = None
             table.duel = None
         self._leave_table(lobby, table, name)
         return True
@@ -446,7 +440,7 @@ class Lobbies:
                 self._changed(lobby, table)
 
     def _tick_game(self, table: Table, now: float) -> bool:
-        """Time is up for someone at this table: play for them (and make a forgotten UNO cost 2 cards)."""
+        """Time is up for someone at this table: play for them (or end the face-off when its time came)."""
         game = table.table
         if not table.playing():
             return False
@@ -462,10 +456,6 @@ class Lobbies:
                 table.deadline = now + TURN_SECONDS  # the player whose turn it is gets fresh seconds
             return True
         changed = False
-        if isinstance(game, UnoGame) and game.uno_due and table.uno_deadline and now > table.uno_deadline:
-            game.miss_uno(game.uno_due)
-            table.uno_deadline = None
-            changed = True
         if table.deadline and now > table.deadline:
             if isinstance(game, UnoGame):
                 game.auto_turn(game.current)
@@ -486,7 +476,7 @@ class Lobbies:
         else:
             first = game.winner == (BOTTOM if isinstance(game, CheckersGame) else RED)
             table.result = {"winner": table.seats[0] if first else table.seats[1]}
-        table.deadline = table.uno_deadline = None
+        table.deadline = None
         table.duel = None
 
     def _forget_old(self) -> None:

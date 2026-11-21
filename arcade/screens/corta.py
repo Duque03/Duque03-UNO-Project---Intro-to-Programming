@@ -1,7 +1,8 @@
 """Corta UNO in the arcade (offline): the moments when a UNO can be cut, and the trivia face-off.
 
 The rules are in arcade/logic/trivia.py. Here: which bot tries to cut the player's UNO and when (CUT_LEVELS in
-config.py), the short moment a bot waits before saying its own UNO (the player can cut it with K or the button), and
+config.py), the short moment a bot waits before saying its own UNO (the player can cut it with the big CORTA UNO!
+button: a click or Space), and
 the face-off screen (Y / N, or Left / Right and Enter, or a click; a countdown under the table).
 """
 
@@ -14,7 +15,7 @@ import streamlit as st
 
 from arcade import bots, player, sound, state, ui
 from arcade.art import duel as duel_art
-from arcade.config import CUT_LEVELS, UNO_LEVELS
+from arcade.config import CUT_LEVELS
 from arcade.logic import cursor
 from arcade.logic.trivia import CUT_PENALTY, ROUND_SECONDS, Duel, bot_answer
 from arcade.screens import common
@@ -37,10 +38,9 @@ def choose_cutter(game, me: str, now: float) -> dict | None:
 
 
 def bot_window(bot: str, now: float) -> dict:
-    """A bot is down to one card: how long it takes to say UNO (the player can cut it meanwhile), or if it forgets."""
+    """A bot is down to one card: how long it takes to say UNO (the player can cut it meanwhile)."""
     rng, level = state.rng(), bots.level(bot)
-    return {"bot": bot, "until": now + rng.uniform(*CUT_LEVELS[level]["say"]),
-            "forget": rng.random() < UNO_LEVELS[level]["forget_uno"]}
+    return {"bot": bot, "until": now + rng.uniform(*CUT_LEVELS[level]["say"])}
 
 
 def start(holder: str, cutter: str) -> None:
@@ -104,7 +104,6 @@ def _finish(game, me: str) -> None:
     common.restart_clock()
     S.uno_before, S.uno_before_picks = copy.deepcopy(game), []  # the next run animates the cards
     if game.uno_due != duel.holder:  # (the UNO was settled some other way meanwhile: nothing more to do)
-        S.uno_deadline = None
         return
     if duel.result == "holder":
         game.lose_cut(duel.holder, CUT_PENALTY)
@@ -114,7 +113,6 @@ def _finish(game, me: str) -> None:
         game.call_uno(duel.holder)
         S.flash = "Your UNO stands!" if duel.holder == me else f"{duel.holder}'s UNO stands"
         sound.play("win" if duel.holder == me else "lose")
-    S.uno_deadline = None
 
 
 def render_duel(slot, game, me: str, opponents, table_img, key) -> None:
@@ -168,30 +166,27 @@ def due_cut() -> dict | None:
 
 @st.fragment(run_every=0.25)
 def bot_uno_clock() -> None:
-    """While a bot waits to say UNO: when its moment comes, it says it (or forgets and draws 2)."""
+    """While a bot waits to say UNO: when its moment comes, it says it."""
     window, game = S.get("bot_uno"), S.get("game")
     if S.screen != "uno" or window is None or game is None or time.time() < window["until"]:
         return
     S.bot_uno = None
     S.uno_before, S.uno_before_picks = copy.deepcopy(game), []
     if game.uno_due == window["bot"]:
-        if window["forget"]:
-            game.miss_uno(window["bot"])
-        else:
-            game.call_uno(window["bot"])
+        game.call_uno(window["bot"])
     st.rerun()
 
 
-def render_bot_window(slot, game, me: str, picture) -> None:
-    """A bot has one card and has not said UNO yet: the CORTA UNO button is up (K or a click)."""
+def render_bot_window(slot, game, me: str, picture, space: bool = False) -> None:
+    """A bot has one card and has not said UNO yet: the big CORTA UNO! button is up (a click or Space)."""
     bot = S.bot_uno["bot"]
     common.run_clock(False)
     common.show(slot, picture, "uno")
     action = ui.hit(picture_regions(), ui.click())
     bar = ui.bar("cut", [1.4, 1.4, 1.4, 1])  # invisible: CORTA UNO! is on the picture
     with bar[0]:
-        cut = ui.button("Corta UNO!", "uno_cut", "K", type="primary")
-    if (cut or action == ("cut",)) and game.uno_due == bot:
+        cut = ui.button("Corta UNO!", "uno_cut", type="primary")
+    if (cut or space or action == ("cut",)) and game.uno_due == bot:
         start(holder=bot, cutter=me)
         st.rerun()
     bot_uno_clock()

@@ -113,8 +113,11 @@ def act_uno(at, rng) -> str:
         return "wait uno"
     if game.uno_due == me and game.winner is None:
         if rng.random() < 0.06:
-            sim_clock.sleep(2.6)  # forget to say UNO (the game's clock runs out)
-            return "forgot"
+            sim_clock.sleep(2.6)  # wait before saying UNO (a bot may cut it meanwhile: there is no time limit)
+            return "wait"
+        if rng.random() < 0.3:
+            press(at, "keys_uno_space")  # Space presses the big UNO! button
+            return "uno space"
         press(at, "uno_call")
         return "uno"
     if "pending_wild" in S and S["pending_wild"] is not None:

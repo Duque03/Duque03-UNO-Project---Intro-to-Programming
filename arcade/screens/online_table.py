@@ -237,10 +237,10 @@ def _uno(lobby, me: str, mine: bool, over: bool) -> None:
     if mine and not over and game.must_draw(me) and S.get("ouno_auto") != lobby.version:
         S.ouno_auto = lobby.version  # a +2 / +4 that cannot be answered: take the cards at once (once per state)
         _act("draw")
-    if not mine:
-        key = None if not uno_open else key
-    if uno_open and lobby.uno_deadline:
-        S.uno_deadline = min(lobby.uno_deadline, time.time() + uno_screen.UNO_SECONDS)  # for the UNO! box's bar
+    big = (uno_open or cut_open) and wild is None  # the big UNO! / CORTA UNO! button is up: Space presses it
+    space = key == "space" and big
+    if not mine or space:
+        key = None  # (Space went to the big button, not to a card)
 
     focus = colour_focus = None
     if mine and wild is None:
@@ -276,24 +276,24 @@ def _uno(lobby, me: str, mine: bool, over: bool) -> None:
         return
     with bar[0]:
         play = ui.button("Play" if wild is None else "Choose colour", "ouno_play", "Enter", type="primary",
-                         disabled=not mine or (not picks and wild is None))
+                         disabled=not mine or (not picks and wild is None and focus is None))
     with bar[1]:
         draw = ui.button("Draw", "ouno_draw", "D", disabled=not mine or not game.can_draw(me))
     with bar[2]:
         passed = ui.button("Pass", "ouno_pass", "P", disabled=not mine or not game.draws)
     with bar[3]:
-        if cut_open:
-            cut, uno = ui.button("Corta UNO!", "ouno_cut", "K", type="primary"), False
+        if cut_open:  # (Space or a click on the big button in the middle)
+            cut, uno = ui.button("Corta UNO!", "ouno_cut", type="primary"), False
         else:
-            cut, uno = False, ui.button("UNO!", "ouno_uno", "U", type="primary" if uno_open else "secondary")
+            cut, uno = False, ui.button("UNO!", "ouno_uno", type="primary" if uno_open else "secondary")
     with bar[4]:
         cancel = ui.button("Cancel", "ouno_cancel", "X", disabled=not mine or (not picks and wild is None))
     _bar_end(bar, lobby, me, over, action)
 
-    if uno or action == ("uno",):
+    if uno or (space and uno_open) or action == ("uno",):
         sound.play("coin")
         _act("uno")
-    if cut or action == ("cut",):
+    if cut or (space and cut_open) or action == ("cut",):
         _act("cut")
     if not mine:
         return
@@ -317,6 +317,8 @@ def _uno(lobby, me: str, mine: bool, over: bool) -> None:
         action = ("card", focus)
     if play or action == ("play",):  # the pile (or Enter): the picked cards go down; nothing picked, nothing happens
         chosen = uno_screen.picked_cards(game.hands[me], picks)
+        if not chosen and play and focus is not None:  # Enter with nothing picked: the card the frame is on
+            chosen = [hand[focus]]
         if chosen and not game.can_play(chosen[0]):
             S.online_flash = f"The {card_name(chosen[0])} does not match the pile"
             sound.play("lose")

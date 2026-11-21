@@ -7,14 +7,17 @@ picture to the browser once per session. TITLE_JS animates them 60 times a secon
 floor grid sliding towards you, the five regulars dancing) and draws the menu on top, in the game's pixel
 font, like in a real game:
 
-    PLAY OFFLINE / PLAY ONLINE / HOW TO PLAY  ->  NEW PLAYER / I HAVE AN ACCOUNT / BACK  ->  name and PIN boxes
+    CREATE A CHARACTER / I HAVE AN ACCOUNT / HOW TO PLAY  ->  name and PIN boxes  ->  (a new player makes their
+    character first: screens/create.py)  ->  PLAY OFFLINE / PLAY ONLINE / HOW TO PLAY / LOG OUT
 
 Arrow keys (or W S) choose, Enter confirms, Esc goes back; the mouse works too. The browser only tells
 Python two things (read them from the value mount() returns):
 
     howto    HOW TO PLAY was chosen: {n}
-    submit   the name and PIN were sent: {mode: "new" or "login", where: "offline" or "online", name, pin, pin2, n}
-    entered  the camera finished flying into the arcade after a sign-in Python accepted: {n}
+    submit   the name and PIN were sent: {mode: "new" or "login", name, pin, pin2, n}
+    play     a signed-in player chose PLAY OFFLINE or PLAY ONLINE: {where: "offline" or "online", n}
+    logout   a signed-in player chose LOG OUT: {n}
+    entered  the camera finished flying into the arcade after PLAY OFFLINE: {n}
     need     the browser is missing some pictures (it reloaded): their keys
 
 It starts like an arcade machine waiting for a player: the logo drops in and PRESS ENTER blinks. Clicking a
@@ -61,11 +64,12 @@ def _dancer(s: Scene, look: tuple, name: str, spec) -> dict:
 
 
 def scene(sent: set, *, error: dict | None = None, ack: int = 0, last_name: str = "", champion: dict | None = None,
-          enter: int = 0) -> dict:
+          enter: int = 0, signed_in: str = "") -> dict:
     """Everything the browser needs for the title screen (data for TITLE_JS).
 
     champion: {"name", "look", "tag", "titles"} of the arcade's best player (it changes as people play), or None.
-    enter: the number of a sign-in Python accepted: the browser flies into the arcade, then sends "entered".
+    enter: the number of a PLAY OFFLINE Python accepted: the browser flies into the arcade, then sends "entered".
+    signed_in: the name of the player who has signed in (the menu is then PLAY OFFLINE / PLAY ONLINE...), or "".
     """
     s = Scene(sent)
     atlas, glyphs, height = title_layers.font_atlas()
@@ -81,7 +85,7 @@ def scene(sent: set, *, error: dict | None = None, ack: int = 0, last_name: str 
         "feet": [room_layers.FEET[0] * SCALE, room_layers.FEET[1] * SCALE],
         "poses": room_layers.POSES, "dirs": list(room_layers.DIRECTIONS),
         "feetY": FEET_Y, "bots": [],
-        "error": error, "ack": ack, "lastName": last_name, "enter": enter, "lines": LINES,
+        "error": error, "ack": ack, "lastName": last_name, "enter": enter, "lines": LINES, "signedIn": signed_in,
         "nameMax": NAME_MAX, "pinMin": PIN_MIN, "pinMax": PIN_MAX,
     }
     for i, bot in enumerate(bots.BOTS):
@@ -137,16 +141,21 @@ export default function (component) {
         if (!G.attractDone) G.introT0 = performance.now() / 1000;
     }
     G.canvas = canvas;
+    if (data.signedIn && G.step !== "mode") {  // signed in (or a new character made): now offline or online
+        G.step = "mode"; G.sel = 0; G.error = ""; G.attractDone = true; G.pending = null;
+    } else if (!data.signedIn && G.step === "mode") {  // logged out
+        G.step = "menu"; G.sel = 0;
+    }
     if (data.enter && data.enter !== G.enterSeen) {  // Python accepted the sign-in: fly into the arcade
         G.enterSeen = data.enter; G.flyT0 = performance.now() / 1000; sfx("start");
     }
 
     // ---------------------------------------------------------------- what the menus do
-    const MENUS = {
-        menu: [["PLAY OFFLINE", () => { G.where = "offline"; go("account"); }],
-               ["PLAY ONLINE", () => { G.where = "online"; go("account"); }],
+    const MENUS = {  // first who you are, then where you play
+        menu: [["CREATE A CHARACTER", () => go("new")], ["I HAVE AN ACCOUNT", () => go("login")],
                ["HOW TO PLAY", () => act("howto", {})]],
-        account: [["NEW PLAYER", () => go("new")], ["I HAVE AN ACCOUNT", () => go("login")], ["BACK", () => go("menu")]],
+        mode: [["PLAY OFFLINE", () => act("play", { where: "offline" })], ["PLAY ONLINE", () => act("play", { where: "online" })],
+               ["HOW TO PLAY", () => act("howto", {})], ["LOG OUT", () => act("logout", {})]],
     };
     const formItems = () => G.step === "new" ? ["name", "pin", "pin2", "submit", "back"] : ["name", "pin", "submit", "back"];
     const inForm = () => G.step === "new" || G.step === "login";
@@ -178,12 +187,11 @@ export default function (component) {
         }
         if (G.step === "new" && f.pin2 !== f.pin) { G.error = "THE TWO PINS ARE NOT THE SAME"; G.fields.pin2 = ""; G.focus = 2; return; }
         G.error = "";
-        act("submit", { mode: G.step, where: G.where || "offline", name: f.name, pin: f.pin,
-                        pin2: G.step === "new" ? f.pin2 : "" });
+        act("submit", { mode: G.step, name: f.name, pin: f.pin, pin2: G.step === "new" ? f.pin2 : "" });
     }
     function activateFormItem(item) {
         if (item === "submit") submit();
-        else if (item === "back") go("account");
+        else if (item === "back") go("menu");
         else G.focus = Math.min(G.focus + 1, formItems().length - 1);
     }
 
@@ -200,7 +208,7 @@ export default function (component) {
         }
         if (inForm()) {
             const items = formItems(), item = items[G.focus];
-            if (k === "escape") { go("account"); return stop(e); }
+            if (k === "escape") { go("menu"); return stop(e); }
             if (k === "arrowdown" || (k === "tab" && !e.shiftKey)) { G.focus = (G.focus + 1) % items.length; sfx("blip"); return stop(e); }
             if (k === "arrowup" || (k === "tab" && e.shiftKey)) { G.focus = (G.focus + items.length - 1) % items.length; sfx("blip"); return stop(e); }
             if (k === "enter") {
@@ -223,8 +231,7 @@ export default function (component) {
         if (k === "arrowdown" || k === "s") { G.sel = (G.sel + 1) % items.length; sfx("blip"); return stop(e); }
         if (k === "arrowup" || k === "w") { G.sel = (G.sel + items.length - 1) % items.length; sfx("blip"); return stop(e); }
         if (k === "enter" || k === " ") { items[G.sel][1](); return stop(e); }
-        if (k === "escape" && G.step === "account") { go("menu"); return stop(e); }
-        if (k === "h" && G.step === "menu") { act("howto", {}); return stop(e); }
+        if (k === "h") { act("howto", {}); return stop(e); }
     };
     const where = (e) => {
         const box = canvas.getBoundingClientRect();
@@ -431,8 +438,9 @@ export default function (component) {
         const intro = G.introT0 ? Math.min(1, (t - G.introT0) / 0.9) : 1;  // the logo drops in and bounces
         const back = 1 + 2.7 * Math.pow(intro - 1, 3) + 1.7 * Math.pow(intro - 1, 2);  // ease out with an overshoot
         const drop = -Math.round((1 - back) * 330 / 3) * 3;
-        const logo = img(inForm() ? d.logoSmall : d.logo);  // smaller above the name and PIN boxes
-        if (logo) ctx.drawImage(logo, 0, Math.round(Math.sin(t * 1.6) * 2) * 3 - (inForm() ? 0 : 6) + drop);
+        const small = inForm() || G.step === "mode";  // smaller above the name and PIN boxes and the longer menu
+        const logo = img(small ? d.logoSmall : d.logo);
+        if (logo) ctx.drawImage(logo, 0, Math.round(Math.sin(t * 1.6) * 2) * 3 - (small ? 0 : 6) + drop);
 
         ctx.setTransform(1, 0, 0, 1, 0, 0);
         if (fly) {  // into the arcade: everything else gone, fade to black at the end
@@ -450,7 +458,8 @@ export default function (component) {
     }
 
     function drawMenu(ctx, t) {
-        const items = MENUS[G.step], y0 = items.length === 2 ? 262 : 240, gap = 48;
+        const mode = G.step === "mode", items = MENUS[G.step], y0 = mode ? 196 : 222, gap = mode ? 44 : 46;
+        if (mode) text(ctx, `HELLO, ${G.data.signedIn}!`, 480, y0 - 42, 2, "#3ad6ff");
         items.forEach(([label], i) => {
             const y = y0 + i * gap, chosen = i === G.sel, s = 2, w = textWidth(label, s);
             const bob = chosen ? Math.round(Math.sin(t * 6) * 1) * 2 : 0;
@@ -523,10 +532,10 @@ export default function (component) {
 """
 
 _title = st.components.v2.component("arcade_title", css=TITLE_CSS, js=TITLE_JS)
-EVENTS = ("howto", "submit", "entered", "need")
+EVENTS = ("howto", "submit", "play", "logout", "entered", "need")
 
 
 def mount(data: dict, key: str = "arcade_title"):
-    """Show the title screen. Returns the component result: result.howto, .submit, .entered, .need."""
+    """Show the title screen. Returns the component result: result.howto, .submit, .play, .logout, .entered, .need."""
     callbacks = {f"on_{name}_change": (lambda: None) for name in EVENTS}
     return _title(key=key, data=data, width="stretch", **callbacks)

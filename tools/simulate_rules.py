@@ -49,19 +49,16 @@ def uno_game(rng: random.Random) -> dict:
     names = ["ME"] + [f"BOT{i}" for i in range(1, count)]
     game = UnoGame(names, random.Random(rng.random()), start=rng.randrange(count))
     levels = {name: rng.choice(LEVELS) for name in names}
-    stats = {"refused": 0, "cuts": 0, "missed": 0}
+    stats = {"refused": 0, "cuts": 0}
     for turn in range(3000):
         assert cards_in(game) == 108, f"UNO cards: {cards_in(game)}"
         if game.winner:
             break
-        # someone is down to one card and has not said UNO: they say it, forget, or get cut
+        # someone is down to one card and has not said UNO: they say it, get cut, or wait a little (no time limit)
         if game.uno_due:
             holder = game.uno_due
             roll = rng.random()
-            if roll < 0.08:
-                game.miss_uno(holder)
-                stats["missed"] += 1
-            elif roll < 0.18:
+            if roll < 0.18:
                 duel = trivia.Duel(holder, "X", random.Random(rng.random()), 0.0)
                 now = 0.0
                 while duel.phase != "done":
