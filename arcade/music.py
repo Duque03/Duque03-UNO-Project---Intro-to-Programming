@@ -195,14 +195,16 @@ def _connect4() -> dict:
 
 TRACKS = {"title": _title(), "room": _room(), "uno": _uno(), "checkers": _checkers(), "connect4": _connect4()}
 
-# Which tune each screen plays. A screen that is not listed keeps the tune that was playing (the rules, the pause menu).
+# Which tune each screen plays. A screen that is not listed keeps the tune that was playing (the rules).
 SCREEN_TRACKS = {
     "title": "title",
     "hub": "room", "store": "room", "wardrobe": "room", "versus": "room",
     "champ_intro": "room", "champ_rules": "room", "champ_score": "room", "champ_final": "room",
     "uno": "uno", "checkers": "checkers", "connect4": "connect4",
     "online": "title", "lobby": "title",  # an online game plays its own game's tune (screens/online_table.py)
+    "pause": "silence",  # the pause menu is quiet; the tune goes on unheard and is back where it would be on resume
 }
+SILENCE = "silence"
 
 
 def track_for(screen: str, playing: str | None = None) -> str:

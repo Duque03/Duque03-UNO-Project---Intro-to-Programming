@@ -45,5 +45,14 @@ def test_each_screen_plays_its_own_tune_or_keeps_the_last_one():
     assert music.track_for("title") == "title"
     assert music.track_for("hub") == "room" and music.track_for("store") == "room"
     assert music.track_for("uno") == "uno" and music.track_for("connect4") == "connect4"
-    assert music.track_for("pause", playing="checkers") == "checkers"  # the pause menu keeps the game's tune
+    assert music.track_for("pause", playing="checkers") == music.SILENCE  # the pause menu is quiet
+    assert music.track_for("howto", playing=music.SILENCE) == music.SILENCE  # (its rules too)
     assert music.track_for("howto") == "title"
+
+
+def test_the_music_level_goes_round_high_medium_low():
+    from arcade import sound
+
+    assert [sound.next_level(level) for level in ("high", "medium", "low")] == ["medium", "low", "high"]
+    assert sound.next_level("nonsense") == "high"
+    assert sound.MUSIC_LEVELS["low"] > 0  # low is quiet, never silent (M switches the music off)

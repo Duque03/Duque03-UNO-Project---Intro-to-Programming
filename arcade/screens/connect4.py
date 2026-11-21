@@ -22,11 +22,15 @@ BOARD_Y = 234
 _DISC = {RED: ((226, 65, 60), (255, 150, 140)), YELLOW: ((242, 194, 48), (255, 236, 150))}
 
 
-def draw(game, opponent, flash="", falling=None, column=None, me=RED):
+CARD_BOTTOM = 322  # the score cards are (x, 250) to (x + 260, CARD_BOTTOM)
+
+
+def draw(game, opponent, flash="", falling=None, column=None, me=RED, quiet=False):
     """Returns (picture, regions). falling=(row, col) draws the last disc higher up while it drops.
 
     column: the column the arrow keys are on (a yellow frame and a bigger arrow), or None.
     me: the side of the player looking at the screen (online, the second player is yellow).
+    quiet: no message under the cards (while the roulette shows who starts there).
     """
     my_turn = game.winner is None and game.turn == me
     img = scenes.table_scene("connect4", [opponent], opponent["name"] if game.winner is None and not my_turn else None)
@@ -68,10 +72,12 @@ def draw(game, opponent, flash="", falling=None, column=None, me=RED):
     them = YELLOW if me == RED else RED
     for x0, side, label in ((30, me, "YOU"), (SCREEN_W - 290, them, opponent["name"])):
         edge, light = ("#e2413c", "#ff9a94") if side == RED else ("#f2c230", "#ffe9a0")
-        panel(img, (x0, 250, x0 + 260, 322), "#16122b", edge, shadow=False)
+        panel(img, (x0, 250, x0 + 260, CARD_BOTTOM), "#16122b", edge, shadow=False)
         draw_text(img, (x0 + 18, 268), label, 2, light, "lt")
         draw_text(img, (x0 + 18, 292), side.upper(), 3, "#ffffff", "lt")
-    if flash:  # (on as many lines as it needs, under the player's score card)
+    if quiet:
+        pass
+    elif flash:  # (on as many lines as it needs, under the player's score card)
         common.side_message(img, flash, "#ff8a8a")
     elif my_turn:  # how to play is in the rules (I), not on the table
         common.side_message(img, "Your turn", "#ffe94a")
@@ -90,7 +96,8 @@ def render() -> None:
     keys.update({str(col + 1): f"col{col + 1}" for col in range(COLS)})
     key = ui.keys("connect4", keys)
     if S.pop("starter_intro", False):  # a new game: the roulette shows who starts
-        common.play_starter(slot, draw(game, opponent)[0], game.turn == RED, opponent["name"], "connect4")
+        common.play_starter(slot, draw(game, opponent, quiet=True)[0], game.turn == RED, opponent["name"], "connect4",
+                            CARD_BOTTOM)
     if bot_was_playing:
         key = None
     if common.run_clock(game.winner is None and game.turn == RED):

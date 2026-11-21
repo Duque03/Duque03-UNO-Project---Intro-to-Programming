@@ -41,6 +41,7 @@ def new_player(name: str) -> dict:
         "pants": "#2b3a67",
         "base": dict(looks.DEFAULT),  # the look chosen when the account was made (logic/looks.py)
         "look_done": True,  # False only for a brand-new account, until the player has made their look
+        "music": "high",  # the music level chosen in the pause menu: high, medium or low (arcade/sound.py)
     }
 
 

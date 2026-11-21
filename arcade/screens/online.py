@@ -156,6 +156,7 @@ def render_lobby() -> None:
         st.rerun()
     if lobby.table is not None and lobby.round != S.get("online_round_done"):
         ui.fade_next()  # the host started a game: to the table
+        S["_track"] = lobby.game  # with that game's tune from the first picture (sound.render_music)
         S.screen = "online_table"
         st.rerun()
 

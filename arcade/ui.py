@@ -55,6 +55,7 @@ html, body, .stMain, [data-testid="stAppViewContainer"] {{ overflow: hidden !imp
 .stApp {{ background: #05030d !important; }}
 [data-testid="stMainBlockContainer"] > div {{ gap: 0 !important; }}
 .st-key-game_frame {{ position: relative; gap: 0 !important; }}
+.st-key-sound_player, .st-key-music_player {{ display: none; }}  /* the sound and music players (arcade/sound.py) */
 /* the countdown of a turn (or of a face-off answer) sits on the picture, at the top in the middle */
 .st-key-game_clock {{ position: absolute !important; top: 1.2%; left: 50%; transform: translateX(-50%); width: 34.375%;
     z-index: 4; pointer-events: none; }}
@@ -125,7 +126,7 @@ button[data-testid^="stBaseButton-primary"]:not(:disabled) * {{ color: #1a0f2e !
 .st-key-game_toasts {{ position: absolute !important; top: 13.5%; right: 1.2%; width: 40%; z-index: 6;
     pointer-events: none; gap: .4rem !important; align-items: flex-end; }}
 .st-key-game_toasts [data-testid="stMarkdownContainer"] {{ text-align: right; }}
-img.arcade-toast {{ image-rendering: pixelated; animation: arcade-toast {TOAST_SECONDS}s steps(24, end) forwards; }}
+img.arcade-toast {{ image-rendering: pixelated; animation: arcade-toast {TOAST_SECONDS}s steps(24, end) both; }}
 @keyframes arcade-toast {{ 0% {{ opacity: 0; transform: translateY(-14px); }} 8% {{ opacity: 1; transform: none; }}
     85% {{ opacity: 1; }} 100% {{ opacity: 0; }} }}
 .rarity-legendary {{ color: #ffb81a; }} .rarity-rare {{ color: #b07aff; }} .rarity-common {{ color: #9df0c4; }}
@@ -380,14 +381,16 @@ def hit(regions, point):
 TOAST_AREA = 384  # how wide the place for messages is, on the 960-wide picture (the right 40%)
 
 
-def toast(text: str) -> None:
+def toast(text: str, delay: float = 0.0) -> None:
     """A little message in the top-right corner of the game ("Welcome back, MIGUEL!", "Bought ...!"), painted in the
-    game's own pixel font (st.toast would use the browser's font). It stays for TOAST_SECONDS, even across reruns."""
+    game's own pixel font (st.toast would use the browser's font). It stays for TOAST_SECONDS, even across reruns.
+    delay: seconds before it pops up (the welcome waits for the arcade to fade in from black first)."""
     now = time.time()
     count = st.session_state.get("_toast_count", 0) + 1
     st.session_state["_toast_count"] = count
     kept = [t for t in st.session_state.get("_toasts", []) if t["until"] > now]
-    st.session_state["_toasts"] = (kept + [{"text": text, "until": now + TOAST_SECONDS, "id": count}])[-3:]
+    item = {"text": text, "until": now + delay + TOAST_SECONDS, "id": count, "delay": delay}
+    st.session_state["_toasts"] = (kept + [item])[-3:]
 
 
 def toast_picture(text: str):
@@ -407,7 +410,8 @@ def toast_picture(text: str):
 
 
 def render_toasts() -> None:
-    """Show the messages that are still up. Call it on every full run, inside game_frame."""
+    """Show the messages that are still up. Call it on every full run, inside game_frame, after the screen (so a
+    message never shows on the black before the new screen's picture)."""
     now = time.time()
     active = [t for t in st.session_state.get("_toasts", []) if t["until"] > now]
     st.session_state["_toasts"] = active
@@ -419,5 +423,6 @@ def render_toasts() -> None:
             src = "data:image/png;base64," + base64.b64encode(buffer.getvalue()).decode("ascii")
             share = min(100.0, img.width / TOAST_AREA * 100)
             with st.container(key=f"toast_{item['id']}"):  # (its own key: it is not redrawn when another arrives)
-                st.markdown(f'<img class="arcade-toast" src="{src}" style="width:{share:.2f}%" alt="">',
-                            unsafe_allow_html=True)
+                wait = item.get("delay", 0.0)
+                st.markdown(f'<img class="arcade-toast" src="{src}" style="width:{share:.2f}%; '
+                            f'animation-delay:{wait:.2f}s" alt="">', unsafe_allow_html=True)

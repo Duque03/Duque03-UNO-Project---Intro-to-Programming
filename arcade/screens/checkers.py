@@ -32,12 +32,13 @@ def _piece(d, img, x, y, piece):
         draw_text(img, (x + CELL // 2, y + CELL // 2 - 1), "K", 2, "#ffe94a", "mm", shadow="#16122b")
 
 
-def draw(game, opponent, selected=None, flash="", cursor_cell=None, me=BOTTOM):
+def draw(game, opponent, selected=None, flash="", cursor_cell=None, me=BOTTOM, quiet=False):
     """Returns (picture, clickable regions).
 
     cursor_cell: the square the arrow keys are on (a blue frame: yellow already marks the pieces), or None.
     me: the side of the player looking at the screen. Online, the second player plays the black (top) pieces and
     sees the board turned round, so their pieces are at the bottom too. Squares and regions stay board squares.
+    quiet: no message under the cards (while the roulette shows who starts there).
     """
     my_turn = game.winner is None and game.turn == me
     turned = me == TOP
@@ -101,7 +102,7 @@ def draw(game, opponent, selected=None, flash="", cursor_cell=None, me=BOTTOM):
         else:
             hint = "You must capture" if capture else "Your turn"
         colour = "#ffe94a"
-    if hint:
+    if hint and not quiet:
         common.side_message(img, hint, colour)
     return img, regions
 
@@ -116,7 +117,7 @@ def render() -> None:
     # square; Space or Enter is a click on that square. They only count on the player's turn, like a click.
     key = ui.keys("checkers", {**ui.ARROWS, "Space": "space", "Enter": "enter"})
     if S.pop("starter_intro", False):  # a new game: the roulette shows who starts
-        common.play_starter(slot, draw(game, opponent)[0], game.turn == BOTTOM, opponent["name"], "checkers")
+        common.play_starter(slot, draw(game, opponent, quiet=True)[0], game.turn == BOTTOM, opponent["name"], "checkers")
     if bot_was_playing:
         key = None
     if common.run_clock(game.winner is None and game.turn == BOTTOM):

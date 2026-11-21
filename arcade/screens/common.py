@@ -59,19 +59,25 @@ def side_message(img, text: str, colour) -> None:
         draw_text(img, (160, 352 + i * 22), line, 2, colour, "mt", shadow="#16122b")
 
 
-def starter_plan(table, me_starts: bool, name: str) -> dict:
-    """Checkers and Connect Four: a roulette goes between the two score cards and stops on whoever starts."""
+CARD_TOP = 250  # the two score cards at checkers and Connect Four start here (their bottom depends on the game)
+
+
+def starter_plan(table, me_starts: bool, name: str, card_bottom: int = 344) -> dict:
+    """Checkers and Connect Four: a roulette goes between the two score cards and stops on whoever starts.
+    card_bottom: where the score cards end (Connect Four's are shorter), so the yellow frame hugs them."""
     sprites = {"label": scenes.big_word("YOU START!" if me_starts else f"{name} STARTS!")}
-    boxes = [[22, 242, 276, 110], [SCREEN_W - 298, 242, 276, 110]]  # the two score cards (left: the player)
+    tall = card_bottom - CARD_TOP + 16  # 8 pixels round the card
+    boxes = [[22, CARD_TOP - 8, 276, tall], [SCREEN_W - 298, CARD_TOP - 8, 276, tall]]  # (left: the player)
     return {"id": table_anim.new_id("starter"), "total": 300 + SPIN_MS + LABEL_MS, "moves": [], "under": table,
             "sprites": sprites, "spin": {"seats": boxes, "winner": 0 if me_starts else 1, "at": 300, "dur": SPIN_MS,
                                          "label": "label"}}
 
 
-def play_starter(slot, table, me_starts: bool, name: str, screen: str | None) -> None:
+def play_starter(slot, table, me_starts: bool, name: str, screen: str | None, card_bottom: int = 344) -> None:
     """Show who starts (the roulette), then the table, and start the player's clock after the show.
+    table: the table drawn quiet (no "Your turn" under the cards: the roulette's frame goes there).
     screen: the table's screen (its countdown goes under the picture), or None online (it has its own)."""
-    plan = starter_plan(table, me_starts, name)
+    plan = starter_plan(table, me_starts, name, card_bottom)
     table_anim.play(slot, plan)
     time.sleep(0.12)
     if screen is None:

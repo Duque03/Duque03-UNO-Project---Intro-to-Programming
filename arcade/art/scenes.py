@@ -997,18 +997,19 @@ def menu_panel(img, title, options, focus=None):
     """
     _check_focus(focus, len(options))
     out = darken(img, 0.6)
-    h = 110 + len(options) * 74
+    step, tall, top = (74, 54, 96) if len(options) <= 5 else (62, 48, 86)  # a long menu packs a little closer
+    h = top + (len(options) - 1) * step + tall + 34
     x0, x1 = 250, SCREEN_W - 250
     y0 = (SCREEN_H - h) // 2
     panel(out, (x0, y0, x1, y0 + h), LIGHT_BLUE, "#1b3a6b", bw=6)
     draw_text(out, (SCREEN_W // 2, y0 + 28), title, 5, "#1b3a6b", "mt")
     regions = []
-    y = y0 + 96
+    y = y0 + top
     for index, option in enumerate(options):
-        box = draw_button(out, (x0 + 40, y, x1 - 40, y + 54), option["label"], 3 if len(option["label"]) < 16 else 2,
+        box = draw_button(out, (x0 + 40, y, x1 - 40, y + tall), option["label"], 3 if len(option["label"]) < 16 else 2,
                           fill=FOCUS if index == focus else "#ffffff", key=option.get("key"))
         regions.append((box, ("menu", option["action"])))
-        y += 74
+        y += step
     return out, regions
 
 

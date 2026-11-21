@@ -13,8 +13,12 @@ Numbers live in `arcade/config.py`.
   like a normal game (F, full screen).
 - Music: five original chiptune tunes, all our own (`arcade/music.py`): a driving anthem on the title screen, a light,
   bouncy tune in the arcade room (also the store, wardrobe and championship), and one for each game (a funky party
-  tune for UNO, a calm one for checkers, a hopping one for Connect Four). Changing screen fades from one to the
-  next; the rules and the pause menu keep the tune that was playing. The music starts with the first key or click.
+  tune for UNO, a calm one for checkers, a hopping one for Connect Four). Changing screen fades quickly from one to
+  the next, as soon as the new screen starts (a table's tune comes in with the table, not after the deal). The rules
+  keep the tune that was playing; the **pause menu is quiet**. Each tune keeps its own time: after the pause menu,
+  another screen, or the music switched off and on (M), it comes back where it would be had it kept playing unheard,
+  not from the start. The pause menu also sets the **music level** (MUSIC: HIGH / MEDIUM / LOW, never off: that is
+  M), kept with the player's progress. The music starts with the first key or click.
 - Everything can be done with the mouse or with the keyboard. Where there is something to choose on the picture,
   the arrow keys move a **yellow highlight** and Space or Enter chooses it, like a click:
 
@@ -124,7 +128,8 @@ Numbers live in `arcade/config.py`.
   bubble pops up next to its head (in checkers, the extra jumps of a chain follow quickly).
 - **Who starts is random in every game.** UNO shows it with the roulette after the deal (below); checkers and Connect
   Four start with a roulette that goes between the two score cards and stops on whoever starts ("YOU START!" /
-  "DEAN STARTS!"). The player's 15 seconds only start after it. Messages beside the board (a random move after the
+  "DEAN STARTS!"); its yellow frame hugs the score cards, and "Your turn" only shows once it has stopped. The player's
+  15 seconds only start after it. Messages beside the board (a random move after the
   time ran out, a refused move) wrap onto several lines under the player's score card, so they always fit.
 - The player has **15 seconds** for each turn, shown by a pixel countdown strip at the top (red for the last 5 seconds).
   When time runs out the game plays for the player: in UNO they draw (or take the +2 / +4 cards) and their turn
@@ -238,8 +243,9 @@ Numbers live in `arcade/config.py`.
 
 ## 5. Pause menu and wardrobe
 
-- Esc opens a light-blue menu: **Resume**, **Wardrobe**, **How to play**, **Leave arcade**, and **Play online** in the
-  room (O) or **Leave table** at a table.
+- Esc opens a light-blue menu: **Resume**, **Wardrobe**, **How to play**, **Music: High** (each click or Enter goes
+  to Medium, Low, High again), **Leave arcade**, and **Play online** in the room (O) or **Leave table** at a table.
+  The music stops while the menu is open.
 - The wardrobe is a picture like the store, with only owned items, and the character in the fitting room on the right.
 - Clicking an item previews it. **EQUIP** (E or Enter) wears it (its tile says WEARING). **UNEQUIP** (U) takes it off
   and the player's own look (made when they created their player) returns.

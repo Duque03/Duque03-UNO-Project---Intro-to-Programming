@@ -54,7 +54,9 @@ export default function (component) {
             A.master.gain.value = 0.18;
             A.master.connect(A.ctx.destination);
             A.musicGain = A.ctx.createGain();  // the music has its own volume, so it can fade between tunes
-            A.musicGain.connect(A.master);
+            A.musicVolume = A.ctx.createGain();  // and the level chosen in the pause menu (high, medium, low)
+            A.musicVolume.gain.value = A.level === undefined ? 1 : A.level;
+            A.musicGain.connect(A.musicVolume).connect(A.master);
             A.noise = A.ctx.createBuffer(1, A.ctx.sampleRate * 0.3, A.ctx.sampleRate);  // for the drums
             const samples = A.noise.getChannelData(0);
             for (let i = 0; i < samples.length; i++) samples[i] = Math.random() * 2 - 1;
@@ -144,16 +146,27 @@ export default function (component) {
         for (const [step, kind] of (tune.drums || [])) rows[step % rows.length].push(["drum", kind]);
         return (tune.rows = rows);
     };
+    // Each tune keeps its own time from the moment it first played: coming back to it (after the pause menu, after
+    // the music was switched off, after a game) it goes on from where it would be had it played all along unheard.
+    const goTo = (name) => {
+        const ctx = A.ctx, tune = SCORE[name];
+        A.playing = name;
+        if (!tune) return;  // "silence" (the pause menu): nothing plays
+        A.origin = A.origin || {};
+        if (A.origin[name] === undefined) A.origin[name] = ctx.currentTime + 0.05;
+        const step = 60 / tune.bpm / 4, n = Math.max(0, Math.ceil((ctx.currentTime + 0.05 - A.origin[name]) / step));
+        A.step = n; A.next = A.origin[name] + n * step;
+    };
     const tick = () => {  // schedule a little ahead so the beat stays steady
         const ctx = A.ctx;
         if (A.want && A.want !== A.playing && !A.fading) {  // the screen wants another tune: fade over to it
             A.fading = true;
-            A.musicGain.gain.setTargetAtTime(0, ctx.currentTime, 0.08);
+            A.musicGain.gain.setTargetAtTime(0, ctx.currentTime, 0.06);
             setTimeout(() => {
-                A.playing = A.want; A.step = 0; A.next = ctx.currentTime + 0.05;
-                A.musicGain.gain.setTargetAtTime(1, ctx.currentTime, 0.05);
+                goTo(A.want);
+                if (SCORE[A.playing]) A.musicGain.gain.setTargetAtTime(1, ctx.currentTime, 0.05);  // (silence stays down)
                 A.fading = false;
-            }, 300);
+            }, 180);
         }
         const tune = SCORE[A.playing];
         if (!tune) return;
@@ -174,9 +187,7 @@ export default function (component) {
     const startMusic = () => {
         const ctx = context();
         if (!ctx || A.musicTimer) return;
-        A.playing = A.want || "title";
-        A.step = 0;
-        A.next = ctx.currentTime + 0.1;
+        goTo(A.want || "title");
         A.musicGain.gain.cancelScheduledValues(ctx.currentTime);
         A.musicGain.gain.setValueAtTime(1, ctx.currentTime);
         A.musicTimer = setInterval(tick, 50);
@@ -232,6 +243,10 @@ export default function (component) {
     A.effect = (name) => { const effect = EFFECTS[name]; if (effect && context()) effect(); };  // for the title screen
 
     if (component.data && component.data.track) A.want = component.data.track;  // the tune this screen wants
+    if (component.data && typeof component.data.volume === "number") {  // the music level (pause menu)
+        A.level = component.data.volume;
+        if (A.musicVolume) A.musicVolume.gain.setTargetAtTime(A.level, A.ctx.currentTime, 0.05);
+    }
     const cues = (component.data && component.data.cues) || [];
     for (const cue of cues) {
         if (typeof cue.id !== "number" || cue.id <= A.lastCue) continue;
@@ -245,9 +260,26 @@ SOUND_JS = SOUND_JS.replace("__SCORE__", json.dumps(music.TRACKS, separators=(",
 _player = st.components.v2.component("arcade_sound", js=SOUND_JS)
 
 
+MUSIC_LEVELS = {"high": 1.0, "medium": 0.5, "low": 0.22}  # the music level the player chose in the pause menu
+MUSIC_ORDER = ["high", "medium", "low"]
+
+
+def next_level(level: str) -> str:
+    """The music level after this one (the pause menu goes round them: high, medium, low, high...)."""
+    return MUSIC_ORDER[(MUSIC_ORDER.index(level) + 1) % len(MUSIC_ORDER)] if level in MUSIC_ORDER else "high"
+
+
+def render_music(track: str | None = None) -> None:
+    """Tell the browser which tune this screen wants, and how loud. Call at the START of every run, so a new screen
+    changes the music at once (a table's first run can take seconds: the deal, the roulette).
+    track: the tune, when the screen knows better than its name (an online table plays its game's tune)."""
+    track = track or music.track_for(st.session_state.get("screen", "title"), st.session_state.get("_track"))
+    st.session_state["_track"] = track
+    player = st.session_state.get("player") or {}
+    volume = MUSIC_LEVELS.get(player.get("music", "high"), 1.0)
+    _player(key="music_player", data={"track": track, "volume": volume})
+
+
 def render() -> None:
     """Hand the latest sound names to the browser. Call once, at the end of every run."""
-    st.markdown("<style>.st-key-sound_player { display: none; }</style>", unsafe_allow_html=True)
-    track = music.track_for(st.session_state.get("screen", "title"), st.session_state.get("_track"))
-    st.session_state["_track"] = track
-    _player(key="sound_player", data={"cues": st.session_state.get("_sounds", []), "track": track})
+    _player(key="sound_player", data={"cues": st.session_state.get("_sounds", [])})
