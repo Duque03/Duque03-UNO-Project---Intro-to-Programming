@@ -232,7 +232,7 @@ def _prompts(lobby, me: str) -> dict:
             bubbles[game] = [{"text": "FULL", "lock": True}]
         else:
             bubbles[game] = [{"text": "PLAY", "key": "E", "action": "interact"}]
-    bubbles["champ"] = [{"text": "OFFLINE ONLY", "lock": True, "small": "THE CHAMPIONSHIP IS PLAYED WITH THE BOTS"}]
+    bubbles["champ"] = [{"text": "COMING SOON...", "lock": True}]  # the online championship is not there yet
     return bubbles
 
 
