@@ -94,7 +94,8 @@ changing these files, and change them in a small pull request of their own.
   rule: `hubmap.floor_map()` turns the rules of `hubmap.py` (floor, tables, counter, zones) into a table for the
   browser, so change the rules in `hubmap.py` and the browser follows. The room's pictures come from
   `arcade/art/room_layers.py` and are sent once per session. The browser reports events (`pos`, `interact`,
-  `rules`, `pause`, `cut_done`, `need`, `talk`), handled in `screens/hub.py`; Python checks every position with
+  `rules`, `pause`, `cut_done`, `need`, `talk`, and online `chat`), handled in `screens/hub.py` (online:
+  `screens/online_room.py`); Python checks every position with
   `room.read_pos`. To move the player from Python, change `S.hub["pos"]`: the browser jumps there on the next run.
 - **The bots' walks are planned in Python** (`arcade/wander.py`, no Streamlit, tested in `tests/test_wander.py`): every
   `IDLE_EVERY` seconds `wander.tick` decides who goes where and finds a path round the furniture; the browser walks it
@@ -136,7 +137,7 @@ changing these files, and change them in a small pull request of their own.
   never painted over. A new prop on the wall needs its patch next to it in `LAYOUT` / `alive_patches`.
 - **Corta UNO** (`logic/trivia.py`): the face-off is plain logic that is given the time (`now`), so the same `Duel`
   runs offline (`screens/corta.py`, with fragments that let the bot answer and close questions four times a second)
-  and online (`Lobby.duel`, moved on by `Lobbies._tick`). While a face-off runs, nothing else in the game moves.
+  and online (`Table.duel`, moved on by `Lobbies._tick`). While a face-off runs, nothing else in the game moves.
 - **The only JavaScript is `INPUT_JS` and `FULLSCREEN_JS` in `arcade/ui.py`, `SOUND_JS` in `arcade/sound.py`,
   `ROOM_JS` in `arcade/room.py`, `TITLE_JS` in `arcade/title_view.py` and `ANIM_JS` and `ALIVE_JS` in `arcade/table_anim.py`.** `ANIM_JS` only draws (and plays the card sounds through `SOUND_JS`) and never sends anything back. `ALIVE_JS` only loops the moving parts of the wall behind a table (see below). `INPUT_JS` reports clicks on the game picture.
   `FULLSCREEN_JS` is the small full-screen icon (and the F key) and sends nothing back. `SOUND_JS` only plays sounds
@@ -152,9 +153,22 @@ changing these files, and change them in a small pull request of their own.
 - **Online lobbies live on the server, not in a session** (`arcade/logic/lobby.py`, shared through
   `st.cache_resource` in `arcade/online.py`). Every player's session reads and changes the same `Lobbies` object, which
   has a lock, so never keep a lobby or its game in `st.session_state`: keep only the code (`S.lobby_code`) and ask
-  `online.lobbies().get(code)` for a fresh copy on every run. Moves go through `lobbies.act()`, which checks whose
-  turn it is and the game's rules. The screens (`screens/online.py`, `screens/online_table.py`) look at the lobby's
-  version once a second (a fragment) and draw again only when it changed.
+  `online.lobbies().get(code)` for a fresh copy on every run. A lobby is a room: `Lobby.room` (where each player
+  stands), `Lobby.chat` (the last messages, cleaned by `logic/chat.py`) and `Lobby.tables`, one `Table` per game, each
+  with its chairs, its own game, clock, face-off, result and version. `sit` / `stand` / `say` / `move` change the room;
+  a table starts by itself when its chairs are full (UNO also after `UNO_COUNTDOWN`); moves go through
+  `lobbies.act()`, which finds the player's table and checks whose turn it is and the game's rules; `done` /
+  `quit_table` take a player back to the room, and the table is cleared once everyone who played is back.
+- **The online room is the offline room's browser code with extras** (`screens/online_room.py`, `room.scene(...,
+  online=...)`): the other players are actors that glide (at `GLIDE`) to where they were last seen, the browser
+  reports the player's position every `room.POS_EVERY` seconds while walking, and `ROOM_JS` also draws the table signs,
+  the chair mats, the speech bubbles and the chat bar with its emoji panel (`art/chat.py`). The chat's text box is a
+  real, see-through `<input>` laid over the bar, so a phone shows its keyboard and no game key fires while typing;
+  messages arrive as the `chat` event, numbered like E and Esc. The room looks at the lobby every `LOOK_EVERY` seconds
+  (a fragment); a table screen (`screens/online_table.py`) only watches its own table's version
+  (`lobbies.version(code, game)`), so walking and chatting in the room do not redraw a game.
+- **`ROOM_JS` listens to the page only once** (`G.handlers`): Streamlit calls the component's function again on every
+  run, and a listener added each time would make every key fire several times (a key that toggles would undo itself).
 - **Every screen is drawn inside one container, `game_frame`** (app.py), which `ui.py` makes fill the window: the
   16:9 picture as big as the window allows, nothing around it. The countdown (`common.clock_bar`, and the online
   `_watch`) goes in a container keyed `game_clock`, which the CSS lays on the picture at the top.
@@ -197,3 +211,7 @@ changing these files, and change them in a small pull request of their own.
 - Online lobbies are kept in the server's memory: if the server restarts (or the free host puts the app to sleep after
   hours with no visitors), open lobbies are gone. Saved players are not: they are in the database.
 - Online moves reach the other players within about a second, because each browser asks the server once a second.
+  In the online room the others are seen where they were up to about a second ago, gliding there.
+- The chat filter is a list of words (English and Portuguese, `logic/chat.py`): it catches the usual rude words, not
+  every way of spelling them. Messages are not saved anywhere: they live in the lobby (server memory) and are gone with
+  it.

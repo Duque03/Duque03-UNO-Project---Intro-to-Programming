@@ -168,3 +168,40 @@ def test_signing_in_again_keeps_the_count_of_room_key_presses(app):
         patch.setattr(state, "reset_bots", lambda: None)
         state.start_session(player)
     assert app.session_state["hub"]["pressed"] == 7
+
+
+def test_the_online_room_takes_players_to_their_table_and_back(app, monkeypatch):
+    """The lobby is a room: the player comes in by the door, sits down, the game starts when the table is full, and
+    LEAVE (or the end of the game) brings them back to the room. Esc in the room opens a menu that leaves the lobby."""
+    from arcade import online
+    from arcade.logic.lobby import Lobbies
+
+    lobbies = Lobbies(random.Random(3))
+    monkeypatch.setattr(online, "lobbies", lambda: lobbies)
+    me = app.session_state["player"]
+    code = lobbies.create(online.card(me))
+    lobbies.join(code, {"name": "BRUNO", "look": bots.look(bots.get("JOHN")), "tag": None})
+    app.session_state["lobby_code"] = code
+    app.session_state["screen"] = "lobby"
+    app.run()
+    assert not app.exception, app.exception
+    assert app.session_state["screen"] == "lobby" and lobbies.get(code).room["TESTER"]["pos"] is not None
+
+    lobbies.sit(code, "TESTER", "connect4")
+    lobbies.sit(code, "BRUNO", "connect4")  # 2/2: the game starts
+    app.run()
+    assert not app.exception, app.exception
+    assert app.session_state["screen"] == "online_table" and app.session_state["online_game"] == "connect4"
+    app.run()  # (the table itself, with the roulette)
+    assert not app.exception, app.exception
+    _press(app, "otable_leave")
+    assert app.session_state["screen"] == "lobby"
+    assert lobbies.get(code).tables["connect4"].result == {"winner": None, "left": "TESTER"}
+
+    app.session_state["paused_from"] = "lobby"
+    app.session_state["pause_behind"] = None
+    app.session_state["screen"] = "pause"
+    app.run()
+    assert not app.exception, app.exception
+    _press(app, "pause_leave_lobby")
+    assert app.session_state["screen"] == "online" and "TESTER" not in lobbies.get(code).names()

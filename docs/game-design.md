@@ -281,15 +281,30 @@ Saved per player name: coins, owned cosmetics, equipped cosmetics, wins per game
   Backspace or DEL deletes, Enter or JOIN joins (the highlight jumps to JOIN after the 4th letter), Esc or BACK goes
   back. Codes never use I or O (they look like 1 and 0), C or R (Streamlit keeps those keys) or M and F (music and
   full screen), so every letter of a code can be typed.
-- **Lobby**: up to **4 players**, shown with their own skins and name tags. The code is shown big, and as text with a
-  copy button to paste into a message. Whoever created the lobby is the **host** (a crown): they pick the game on the
-  picture (Left / Right, a click, or 1 / 2 / 3): **UNO** (2 to 4 players), **Checkers** or **Connect Four** (exactly 2),
-  and press **Start** (Enter) when the number of players fits.
-  The others see the host's choice and wait. Nobody can join while a game is being played.
+- **The lobby is a room like the arcade** (like Club Penguin): up to **4 players**, each with their own look and name
+  tag, walking about with the same keys and clicks as offline. No bots: the people in the lobby are the ones walking
+  about (they come in by the door). The lobby's code and how many are in is on a plate at the bottom right, to give to
+  friends. Someone can join while others are playing at a table. The championship stays offline (its cabinet says so).
+- **Chat**: a bar at the bottom of the picture. **Enter** (or a click / tap on the box) to type, **Enter** to send,
+  **Esc** to give up. What is said shows in a speech bubble above the player's head for 6 seconds (your own light
+  blue, the others' cream). Messages are short (40 letters), in the game's own capital letters (accents are dropped),
+  and rude words, in English and Portuguese, turn into stars. Not too fast: a message every 1.2 seconds and at most 5
+  in 10 seconds ("Slow down a little!").
+- **Emojis**: the face on the left of the bar (or **Tab**) opens a panel of 12 pixel emojis of our own (smile, laugh,
+  wink, cool, love, wow, sad, angry, heart, thumbs up, trophy, GG). Click one, or move the yellow frame with the arrows
+  and press Enter; Esc or Tab closes it. The emoji pops up above the player's head like a message.
+- **Tables**: each table has a sign over it with a square per chair and the count (**1/4**, **2/4**...), and a mat on
+  the floor at every chair, lit where someone sits. Walk to a table and press **E** (or click PLAY): your character
+  sits on a free chair. **E** again (STAND UP) or walking away gets up. **Checkers** and **Connect Four** start as
+  soon as both chairs are taken. **UNO** starts at **4/4**, or **10 seconds** after the second player sat down (the
+  sign counts down: STARTS IN 7); with 2 or 3 it starts with those seated. A table that is playing shows PLAYING and
+  takes nobody else; the other tables are free, so two games can be played at the same time. Esc in the room opens the
+  pause menu (RESUME, WARDROBE, HOW TO PLAY, MUSIC, LEAVE LOBBY) and gets up from any chair first, so a game never
+  starts with someone reading a menu. Clothes changed in the wardrobe are seen by the others.
 - **At the table** each player sees the game from their own seat, with the same pictures as in the arcade: in UNO the
-  others sit round the table in turn order; in checkers and Connect Four the host is red and moves first, and the
-  second player's checkers board is turned round so their pieces are at the bottom. The same rules as offline (UNO
-  places included). Moves out of turn are refused; a yellow frame shows whose turn it is.
+  others sit round the table in turn order; in checkers and Connect Four the second player's checkers board is turned round so their pieces are at the bottom. The same rules as offline (UNO
+  places included). Moves out of turn are refused; a yellow frame shows whose turn it is. In checkers and Connect Four
+  the first chair is red and moves first (a roulette shows who starts).
 - Each player has **15 seconds** a turn (shown at the top for everyone). When time runs out the game plays for them,
   as offline. In UNO, a player down to one card has 3 seconds to say UNO (U) or draws 2. Online games also start with
   the roulette (the server picks who starts; UNO after the deal), so the first turn gets 9 more seconds in UNO and 4
@@ -297,6 +312,7 @@ Saved per player name: coins, owned cosmetics, equipped cosmetics, wins per game
 - Each browser looks for changes about once a second, so a friend's move shows up within about a second.
 - Prizes: winning pays **15 coins** (like a medium bot); in UNO 1st / 2nd / 3rd get 15 / 8 / 4. Online wins do not count
   towards opening the championship cabinet (that is about beating the arcade's bots).
-- **Lobby** (Enter) after a game goes back to the lobby, where the host can start another game. **Leave** (Esc) leaves:
-  a game in progress then ends for everyone with no winner, and the next player becomes the host. The last player to
-  leave closes the lobby.
+- **Lobby** (Enter) after a game goes back to the room, standing by the table; the table is free again once everyone
+  who played has gone back. **Leave** (Esc, or X in the corner) in the middle of a game goes back to the room too: the
+  game then ends for the others with no winner. **LEAVE LOBBY** in the pause menu leaves the lobby (a game the player
+  is in ends the same way). The last player to leave closes the lobby.
