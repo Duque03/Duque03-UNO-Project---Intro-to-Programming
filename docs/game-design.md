@@ -284,7 +284,7 @@ Saved per player name: coins, owned cosmetics, equipped cosmetics, wins per game
 - **The lobby is a room like the arcade** (like Club Penguin): up to **4 players**, each with their own look and name
   tag, walking about with the same keys and clicks as offline. No bots: the people in the lobby are the ones walking
   about (they come in by the door). The lobby's code and how many are in is on a plate at the bottom right, to give to
-  friends. Someone can join while others are playing at a table. The championship stays offline (its cabinet says so).
+  friends. Someone can join while others are playing at a table. The championship is offline only for now (its cabinet says COMING SOON...).
 - **Chat**: a bar at the bottom of the picture. **Enter** (or a click / tap on the box) to type, **Enter** to send,
   **Esc** to give up. What is said shows in a speech bubble above the player's head for 6 seconds (your own light
   blue, the others' cream). Messages are short (40 letters), in the game's own capital letters (accents are dropped),
