@@ -103,6 +103,9 @@ def _finish(game, me: str) -> None:
     S.pop("clock_label", None)
     common.restart_clock()
     S.uno_before, S.uno_before_picks = copy.deepcopy(game), []  # the next run animates the cards
+    if game.uno_due != duel.holder:  # (the UNO was settled some other way meanwhile: nothing more to do)
+        S.uno_deadline = None
+        return
     if duel.result == "holder":
         game.lose_cut(duel.holder, CUT_PENALTY)
         S.flash = ("Your UNO was cut! +7 cards" if duel.holder == me else f"You cut {duel.holder}'s UNO! +7 for them")

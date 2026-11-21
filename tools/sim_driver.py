@@ -6,9 +6,12 @@
   thinking and every countdown take their full time in the game but none for real; the soft glow is off (slow).
 """
 
+import os
 import pathlib
 import sys
 import time
+
+os.environ["ARCADE_STRICT"] = "1"  # a problem must stop the run here (the game itself recovers: state.recover)
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))

@@ -111,3 +111,22 @@ def test_the_end_of_uno_with_four_players_ends_on_the_podium(app):
     assert result["podium"][0]["name"] == me and len(result["podium"]) == 4
     _press(app, "uno_continue")
     assert app.session_state["screen"] == "hub"
+
+
+def test_a_screen_that_breaks_goes_back_to_the_arcade_instead_of_a_black_screen(tmp_path, monkeypatch):
+    monkeypatch.setenv("ARCADE_DB", str(tmp_path / "arcade.db"))
+    monkeypatch.delenv("ARCADE_STRICT", raising=False)
+    at = AppTest.from_file(str(DRIVER.parent.parent / "app.py"), default_timeout=120)
+    at.run()
+    me = player_model.new_player("TESTER")
+    me["look_done"] = True
+    at.session_state["player"] = me
+    at.session_state["hub"] = {"pos": hubmap.SPAWN, "dir": "up", "walk": None,
+                               "bots": {b["name"]: {"pos": b["home"], "dir": b["dir"]} for b in bots.BOTS}}
+    at.session_state["match"] = {"game": "uno", "mode": "free", "bots": ["DEAN", "BARK", "JOHN"], "others": []}
+    at.session_state["game"] = None  # a broken table: drawing it raises
+    at.session_state["screen"] = "uno"
+    at.run()
+    assert not at.exception
+    assert at.session_state["screen"] == "hub" and at.session_state["match"] is None
+    assert any("Something went wrong" in t["text"] for t in at.session_state["_toasts"])

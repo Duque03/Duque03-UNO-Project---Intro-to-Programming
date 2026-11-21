@@ -6,7 +6,7 @@ import pytest
 
 from arcade.logic.connect4 import RED
 from arcade.logic.lobby import (
-    MAX_PLAYERS, TURN_SECONDS, UNO_INTRO_SECONDS, UNO_SECONDS, LobbyError, Lobbies, online_coins,
+    MAX_PLAYERS, STARTER_SECONDS, TURN_SECONDS, UNO_INTRO_SECONDS, UNO_SECONDS, LobbyError, Lobbies, online_coins,
 )
 from arcade.logic.uno import IllegalMove as UnoIllegal
 
@@ -106,21 +106,33 @@ def test_nobody_joins_in_the_middle_of_a_game(setup):
         lobbies.join(code, _player("CARLA"))
 
 
-def _connect4(setup):
+def _connect4(setup, ana_starts=True):
+    """A Connect Four game between ANA (the host, red) and BRUNO. Either may start (a roulette shows who); with
+    ana_starts the game is started again until ANA does, so the tests below can say who moves."""
     lobbies, clock = setup
     code = lobbies.create(_player("ANA"))
     lobbies.join(code, _player("BRUNO"))
     lobbies.choose(code, "ANA", "connect4")
     lobbies.start(code, "ANA")
+    while ana_starts and lobbies.get(code).current() != "ANA":
+        lobbies.leave(code, "BRUNO")
+        lobbies.join(code, _player("BRUNO"))
+        lobbies.start(code, "ANA")
     return lobbies, clock, code
 
 
-def test_the_host_plays_first_and_moves_alternate(setup):
-    lobbies, _, code = _connect4(setup)
-    lobby = lobbies.get(code)
-    assert lobby.current() == "ANA" and lobby.side_of("ANA") == RED
-    lobbies.act(code, "ANA", "drop", col=3)
-    assert lobbies.get(code).current() == "BRUNO"
+def test_either_player_may_start_and_moves_alternate(setup):
+    starters = set()
+    for _ in range(12):
+        lobbies, _, code = _connect4((Lobbies(random.Random(len(starters) * 7 + _), clock=setup[1]), setup[1]),
+                                     ana_starts=False)
+        lobby = lobbies.get(code)
+        first = lobby.current()
+        starters.add(first)
+        assert lobby.side_of(first) == lobby.table.turn and lobby.side_of("ANA") == RED
+        lobbies.act(code, first, "drop", col=3)
+        assert lobbies.get(code).current() == ("BRUNO" if first == "ANA" else "ANA")
+    assert starters == {"ANA", "BRUNO"}
 
 
 def test_playing_out_of_turn_is_refused_and_changes_nothing(setup):
@@ -152,7 +164,7 @@ def test_four_in_a_row_ends_the_game_with_a_winner(setup):
 
 def test_when_time_is_up_the_game_plays_for_the_player(setup):
     lobbies, clock, code = _connect4(setup)
-    clock.now += TURN_SECONDS + 1
+    clock.now += STARTER_SECONDS + TURN_SECONDS + 1  # (the first turn starts after the roulette)
     lobby = lobbies.get(code)
     assert lobby.current() == "BRUNO"  # a disc was dropped for ANA
     assert sum(cell is not None for row in lobby.table.board for cell in row) == 1

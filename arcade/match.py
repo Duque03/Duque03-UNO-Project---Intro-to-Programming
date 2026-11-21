@@ -15,8 +15,8 @@ from arcade.config import (
     CHAMPIONSHIP_BOTS, SIMULATED_TIE_CHANCE,
 )
 from arcade.logic import championship, levels
-from arcade.logic.checkers import CheckersGame
-from arcade.logic.connect4 import Connect4Game
+from arcade.logic.checkers import BOTTOM, TOP, CheckersGame
+from arcade.logic.connect4 import RED, YELLOW, Connect4Game
 from arcade.logic.uno import UnoGame
 from arcade.state import S
 
@@ -87,10 +87,12 @@ def start_game() -> None:
         players = [me] + match["bots"]
         S.game = UnoGame(players, state.rng(), start=state.rng().randrange(len(players)))  # anyone may start
         S.uno_intro = True  # the cards are dealt one by one, then a roulette shows who starts (screens/uno.py)
-    elif match["game"] == "checkers":
-        S.game = CheckersGame()
+    elif match["game"] == "checkers":  # either side may start: a roulette shows who (screens/common.play_starter)
+        S.game = CheckersGame(first=state.rng().choice((BOTTOM, TOP)))
+        S.starter_intro = True
     else:
-        S.game = Connect4Game()
+        S.game = Connect4Game(first=state.rng().choice((RED, YELLOW)))
+        S.starter_intro = True
     S.result = None
     S.flash = ""
     S.selected = None

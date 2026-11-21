@@ -20,8 +20,8 @@ import random
 import threading
 import time
 
-from arcade.logic.checkers import BOTTOM, CheckersGame
-from arcade.logic.connect4 import RED, Connect4Game
+from arcade.logic.checkers import BOTTOM, TOP, CheckersGame
+from arcade.logic.connect4 import RED, YELLOW, Connect4Game
 from arcade.logic.trivia import CUT_PENALTY, Duel, TriviaError
 from arcade.logic.uno import UnoGame
 
@@ -34,6 +34,7 @@ GAME_SIZES = {"uno": (2, 4), "checkers": (2, 2), "connect4": (2, 2)}
 GAME_NAMES = {"uno": "UNO", "checkers": "Checkers", "connect4": "Connect Four"}
 TURN_SECONDS = 15
 UNO_INTRO_SECONDS = 9  # an online UNO game starts with the deal and the roulette (screens/online_table.py)
+STARTER_SECONDS = 4  # checkers and Connect Four start with a roulette that shows who starts
 UNO_SECONDS = 3  # online, a little longer than in the arcade: the other players' screens are a second behind
 FORGET_AFTER = 2 * 60 * 60  # a lobby nobody has touched for 2 hours is removed
 ONLINE_PRIZE = 15  # coins for winning online (like beating a medium bot); UNO pays 1st / 2nd / 3rd shares of it
@@ -180,13 +181,14 @@ class Lobbies:
             if lobby.game == "uno":
                 start = self._rng.randrange(len(lobby.seats))  # the roulette on everyone's screen shows who it is
                 lobby.table = UnoGame(lobby.seats, random.Random(self._rng.random()), start=start)
-            elif lobby.game == "checkers":
-                lobby.table = CheckersGame()
+            elif lobby.game == "checkers":  # either player may start (the roulette shows who)
+                lobby.table = CheckersGame(first=self._rng.choice((BOTTOM, TOP)))
             else:
-                lobby.table = Connect4Game()
+                lobby.table = Connect4Game(first=self._rng.choice((RED, YELLOW)))
             lobby.result, lobby.uno_deadline, lobby.duel = None, None, None
             lobby.round += 1
-            lobby.deadline = self._clock() + TURN_SECONDS + (UNO_INTRO_SECONDS if lobby.game == "uno" else 0)
+            intro = UNO_INTRO_SECONDS if lobby.game == "uno" else STARTER_SECONDS
+            lobby.deadline = self._clock() + TURN_SECONDS + intro
             self._changed(lobby)
 
     def back_to_lobby(self, code: str, name: str) -> None:

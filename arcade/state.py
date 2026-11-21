@@ -7,7 +7,11 @@ browser (coins, cosmetics, wins) is written to the database by save().
 
 from __future__ import annotations
 
+import os
 import random
+import sys
+import time
+import traceback
 
 import streamlit as st
 
@@ -104,3 +108,37 @@ def hub_actors(overrides: dict | None = None) -> list[dict]:
         actors.append(bot_actor(name, *overrides.get(name, (None, None, 0))))
     actors.append(player_actor(*overrides.get(me, (None, None, 0))))
     return actors
+
+
+GAME_KEYS = ("game", "result", "duel", "duel_bot", "bot_uno", "uno_cutter", "uno_before", "uno_before_picks",
+             "uno_intro", "starter_intro", "pending_wild", "uno_pick", "uno_deadline", "turn_deadline", "selected")
+RECOVER_LIMIT = 3  # more than this many problems within a minute: show the error instead of going round in circles
+
+
+def recover(problem: BaseException) -> bool:
+    """Something went wrong while a screen was drawn. Instead of a black screen, write what happened in the log
+    (Streamlit Cloud: Manage app > Logs), show a short message and go back to the arcade with the progress saved.
+    Returns False when it keeps happening (or in the tests and the simulators: ARCADE_STRICT), so the caller raises."""
+    traceback.print_exception(problem, file=sys.stderr)
+    now = time.time()
+    recent = [t for t in st.session_state.get("_recoveries", []) if now - t < 60] + [now]
+    st.session_state["_recoveries"] = recent
+    if os.environ.get("ARCADE_STRICT") or len(recent) > RECOVER_LIMIT:
+        return False
+    from arcade import ui  # (ui is not needed anywhere else in this file)
+
+    for key in GAME_KEYS:
+        st.session_state.pop(key, None)
+    st.session_state["match"] = None
+    if st.session_state.get("player") is None:
+        st.session_state["screen"] = "title"
+    else:
+        st.session_state["screen"] = "lobby" if st.session_state.get("lobby_code") else "hub"
+        try:  # (going back must not fail in its turn)
+            if st.session_state.get("hub"):
+                reset_bots()
+            save()
+        except Exception as second:  # noqa: BLE001
+            traceback.print_exception(second, file=sys.stderr)
+    ui.toast("Oops! Something went wrong. Back to the arcade.")
+    return True
