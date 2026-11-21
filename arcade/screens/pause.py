@@ -20,6 +20,7 @@ OPTIONS = [
 ]
 LEAVE_TABLE = {"label": "LEAVE TABLE", "action": "leave_table"}
 PLAY_ONLINE = {"label": "PLAY ONLINE", "action": "online"}
+LEAVE_LOBBY = {"label": "LEAVE LOBBY", "action": "leave_lobby"}
 
 
 def music_option(level: str) -> dict:
@@ -28,7 +29,10 @@ def music_option(level: str) -> dict:
 
 
 def options(paused_from: str | None, level: str = "high") -> list[dict]:
-    """The menu. At a game table there is one more choice: leave the table (task B4). In the room: play online."""
+    """The menu. At a game table there is one more choice: leave the table (task B4). In the room: play online. In
+    the online room: leave the lobby, which takes the place of leaving the arcade."""
+    if paused_from == "lobby":
+        return OPTIONS[:3] + [music_option(level), LEAVE_LOBBY]
     extra = LEAVE_TABLE if paused_from in GAMES else PLAY_ONLINE
     return OPTIONS[:3] + [music_option(level), extra] + OPTIONS[3:]
 
@@ -50,7 +54,8 @@ def leave_table() -> None:
 
 def render() -> None:
     at_table = S.paused_from in GAMES
-    behind = S.get("pause_behind") if at_table and S.get("pause_behind") is not None else hub.still()
+    online_room = S.paused_from == "lobby"
+    behind = S.get("pause_behind") if (at_table or online_room) and S.get("pause_behind") is not None else hub.still()
     menu = options(S.paused_from, S.player.get("music", "high"))
     # The keys are read before drawing, so this one picture already shows where the highlight went (no second run)
     key = ui.keys("pause", {"Up": "up", "Down": "down", "Enter": "choose"})  # Up / Down move, Enter chooses
@@ -77,10 +82,12 @@ def render() -> None:
     with bar[4]:
         if at_table:
             quit_table = ui.button("Leave table", "pause_leave_table")
+        elif online_room:
+            quit_table = ui.button("Leave lobby", "pause_leave_lobby")
         else:
             go_online = ui.button("Play online", "pause_online", "O")
     with bar[-1]:
-        leave = ui.button("Leave arcade", "pause_leave")
+        leave = ui.button("Leave arcade", "pause_leave", disabled=online_room)
     if louder or action == ("menu", "music"):  # stays in the menu, with the highlight on this row
         change_music()
         sound.play("blip")
@@ -99,15 +106,21 @@ def render() -> None:
     if how or action == ("menu", "howto"):
         howto.open_from("pause")
         st.rerun()
+    if online_room and (quit_table or action == ("menu", "leave_lobby")):  # back to the online menu
+        from arcade.screens import online as online_screens
+
+        sound.play("blip")
+        online_screens.leave()
+        st.rerun()
     if at_table and (quit_table or action == ("menu", "leave_table")):
         leave_table()
         st.rerun()
-    if not at_table and (go_online or action == ("menu", "online")):  # create or join a lobby with friends
+    if not at_table and not online_room and (go_online or action == ("menu", "online")):  # create or join a lobby with friends
         state.save()
         ui.fade_next()
         state.go("online")
         st.rerun()
-    if leave or action == ("menu", "leave"):
+    if not online_room and (leave or action == ("menu", "leave")):
         state.save()  # progress is kept for next time
         S.match = S.game = S.result = S.champ = None
         S.naming = False

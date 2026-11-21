@@ -4,8 +4,9 @@ breaks: no crash, every game ends, no card appears or disappears, every refused 
     uv run python tools/simulate_rules.py --games 1000
 
 Covers UNO (2 to 4 players, with the house rules: stacking, twins, saying or forgetting UNO, Corta UNO), checkers,
-Connect Four, the trivia face-off, and online lobbies (several players acting at random, out of turn too, with the
-15-second clock running out). Fast: a few seconds per thousand games.
+Connect Four, the trivia face-off, and online rooms (four players walking, chatting, sitting down and getting up at
+random, two tables playing at once, moves out of turn too, with the 15-second clock running out). Fast: a few seconds
+per thousand games.
 """
 
 from __future__ import annotations
@@ -26,7 +27,8 @@ from arcade.logic.checkers import CheckersGame  # noqa: E402
 from arcade.logic.checkers import IllegalMove as CheckersIllegal  # noqa: E402
 from arcade.logic.connect4 import Connect4Game  # noqa: E402
 from arcade.logic.connect4 import IllegalMove as Connect4Illegal  # noqa: E402
-from arcade.logic.lobby import TURN_SECONDS, LobbyError, Lobbies  # noqa: E402
+from arcade.logic.chat import EMOJIS  # noqa: E402
+from arcade.logic.lobby import GAMES, TURN_SECONDS, LobbyError, Lobbies  # noqa: E402
 from arcade.logic.uno import COLOURS, WILD, IllegalMove, UnoGame  # noqa: E402
 
 LEVELS = list(UNO_LEVELS)
@@ -171,54 +173,75 @@ class Clock:
 
 
 def lobby_game(rng: random.Random) -> dict:
-    """Several players in an online lobby, acting at random (often out of turn), with the clock running."""
+    """Four players in an online room: they sit down and get up at random (two tables can play at once), chat, walk,
+    and play at random (often out of turn), with the clock running. Every table must end, and leave a free table."""
     clock = Clock()
     lobbies = Lobbies(random.Random(rng.random()), clock=clock)
-    game = rng.choice(("uno", "checkers", "connect4"))
-    count = rng.choice((2, 3, 4)) if game == "uno" else 2
-    names = [f"P{i}" for i in range(count)]
+    names = [f"P{i}" for i in range(4)]
     code = lobbies.create({"name": names[0], "look": None, "tag": None})
     for name in names[1:]:
         lobbies.join(code, {"name": name, "look": None, "tag": None})
-    lobbies.choose(code, names[0], game)
-    lobbies.start(code, names[0])
-    refused = 0
-    for _ in range(4000):
+    refused, finished = 0, 0
+    for _ in range(6000):
         lobby = lobbies.get(code)
-        if lobby.result is not None:
-            if game == "uno":
-                assert sorted(lobby.result["places"]) == sorted(names)
-            return {"refused": refused}
-        table = lobby.table
-        if game == "uno":
-            assert cards_in(table) == 108, f"online UNO cards: {cards_in(table)}"
         clock.now += rng.choice((0.2, 0.5, 1.0, 3.0, TURN_SECONDS + 1 if rng.random() < 0.05 else 0.3))
-        name = rng.choice(names) if rng.random() < 0.3 else (lobby.current() or rng.choice(names))
+        name = rng.choice(names)
+        table = lobby.table_of(name)
         try:
-            if lobby.duel is not None:
-                lobbies.act(code, name, "answer", yes=rng.random() < 0.5)
-            elif game == "uno":
+            if table is None:  # in the room: walk, chat, sit down or get up
                 roll = rng.random()
-                if table.uno_due and roll < 0.15:
-                    lobbies.act(code, name, "cut")
-                elif table.uno_due and roll < 0.7:
-                    lobbies.act(code, table.uno_due, "uno")
-                elif name == table.current and table.playable_cards(name) and roll < 0.85:
-                    card = rng.choice(table.playable_cards(name))
-                    lobbies.act(code, name, "play", cards=[card], colour=rng.choice(COLOURS))
-                elif name == table.current and table.draws and rng.random() < 0.5:
-                    lobbies.act(code, name, "pass")
+                if roll < 0.4:
+                    lobbies.sit(code, name, rng.choice(GAMES))
+                elif roll < 0.5:
+                    lobbies.stand(code, name)
+                elif roll < 0.6:
+                    lobbies.say(code, name, rng.choice(["hi", "gg", "fuck", "", "olá!"]))
+                elif roll < 0.65:
+                    lobbies.say(code, name, emoji=rng.choice(EMOJIS + ["nope"]))
                 else:
-                    lobbies.act(code, name, "draw")
-            elif game == "checkers":
-                move = rng.choice(table.legal_moves())
-                lobbies.act(code, name, "move", start=move[0], end=move[1])
+                    lobbies.move(code, name, (rng.randrange(14, 306), rng.randrange(74, 172)), "up")
+            elif table.result is not None:  # the game is over: back to the room
+                if table.result.get("places"):
+                    assert sorted(table.result["places"]) == sorted(table.seats)
+                finished += 1
+                lobbies.done(code, name)
             else:
-                lobbies.act(code, name, "drop", col=rng.choice(table.legal_columns()))
+                lobbies_turn(lobbies, code, table, name if rng.random() < 0.3 else (table.current() or name), rng)
         except (LobbyError, IllegalMove, CheckersIllegal, Connect4Illegal):
             refused += 1
+        for t in lobby.tables.values():
+            if t.game == "uno" and t.table is not None:
+                assert cards_in(t.table) == 108, f"online UNO cards: {cards_in(t.table)}"
+            assert len(t.seated()) <= len(t.chairs)
         lobbies.version(code)  # (asking for the version also lets the server's clock act)
-    raise AssertionError(f"online {game} game did not end")
+        if finished >= 6:
+            return {"refused": refused, "finished": finished}
+    raise AssertionError(f"online room: only {finished} games ended")
+
+
+def lobbies_turn(lobbies, code, table, name, rng) -> None:
+    """One random move at an online table (it may well be refused: not this player's turn, a wrong card...)."""
+    game = table.table
+    if table.duel is not None:
+        lobbies.act(code, name, "answer", yes=rng.random() < 0.5)
+    elif table.game == "uno":
+        roll = rng.random()
+        if game.uno_due and roll < 0.15:
+            lobbies.act(code, name, "cut")
+        elif game.uno_due and roll < 0.7:
+            lobbies.act(code, game.uno_due, "uno")
+        elif name == game.current and game.playable_cards(name) and roll < 0.85:
+            card = rng.choice(game.playable_cards(name))
+            lobbies.act(code, name, "play", cards=[card], colour=rng.choice(COLOURS))
+        elif name == game.current and game.draws and rng.random() < 0.5:
+            lobbies.act(code, name, "pass")
+        else:
+            lobbies.act(code, name, "draw")
+    elif table.game == "checkers":
+        move = rng.choice(game.legal_moves())
+        lobbies.act(code, name, "move", start=move[0], end=move[1])
+    else:
+        lobbies.act(code, name, "drop", col=rng.choice(game.legal_columns()))
 
 
 SIMULATIONS = {"uno": uno_game, "checkers": checkers_game, "connect4": connect4_game, "online": lobby_game}

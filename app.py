@@ -7,8 +7,8 @@ arcade/screens/ and has a render() function.
 import streamlit as st
 
 from arcade import sound, state, ui
-from arcade.screens import (champ, checkers, connect4, create, howto, hub, online, online_table, pause, store, title, uno,
-                            versus, wardrobe)
+from arcade.screens import (champ, checkers, connect4, create, howto, hub, online, online_room, online_table, pause, store,
+                            title, uno, versus, wardrobe)
 
 SCREENS = {
     "title": title.render,
@@ -27,7 +27,7 @@ SCREENS = {
     "champ_score": champ.render_score,
     "champ_final": champ.render_final,
     "online": online.render_menu,
-    "lobby": online.render_lobby,
+    "lobby": online_room.render,  # the online room: friends walk about, chat and sit down at the tables
     "online_table": online_table.render,
 }
 

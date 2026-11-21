@@ -1,7 +1,5 @@
-"""The online screens: the online menu (create or join a lobby) and the lobby, where friends wait for the host.
-
-Every player's browser looks at the lobby about once a second (watch()), and the screen is drawn again only when
-something changed (the lobby's version). When the host starts a game, everyone in the lobby goes to the table.
+"""The online screens: the online menu (create or join a lobby with its 4-letter code). The lobby itself is a room
+like the arcade, where friends walk about, chat and sit down at the tables (screens/online_room.py).
 """
 
 from __future__ import annotations
@@ -11,7 +9,7 @@ import streamlit as st
 from arcade import online, sound, state, ui
 from arcade.art import online as art
 from arcade.logic import cursor
-from arcade.logic.lobby import CODE_LETTERS, GAME_NAMES, GAME_SIZES, LobbyError
+from arcade.logic.lobby import CODE_LETTERS, LobbyError
 from arcade.state import S
 
 
@@ -23,13 +21,6 @@ def leave() -> None:
     S.online_message = ""
     ui.fade_next()
     S.screen = "online"
-
-
-@st.fragment(run_every=1.0)
-def watch(code: str, seen: int) -> None:
-    """Once a second: has the lobby changed since this picture was drawn? Then draw everything again."""
-    if online.lobbies().version(code) != seen:
-        st.rerun(scope="app")
 
 
 # ---------------------------------------------------------------- the online menu
@@ -138,79 +129,3 @@ def _join(code: str) -> None:
     sound.play("coin")
     ui.fade_next()
     S.screen = "lobby"
-
-
-# ---------------------------------------------------------------- the lobby
-
-def render_lobby() -> None:
-    code, me = S.get("lobby_code"), S.player["name"]
-    try:
-        lobby = online.lobbies().get(code)
-    except LobbyError:
-        S.online_message = "That lobby has closed."
-        leave()
-        st.rerun()
-    if me not in lobby.names():  # someone's leaving closed it, or this player was not in it any more
-        S.online_message = "You are not in that lobby any more."
-        leave()
-        st.rerun()
-    if lobby.table is not None and lobby.round != S.get("online_round_done"):
-        ui.fade_next()  # the host started a game: to the table
-        S["_track"] = lobby.game  # with that game's tune from the first picture (sound.render_music)
-        S.screen = "online_table"
-        st.rerun()
-
-    host = lobby.host == me
-    message, good = "", False
-    if lobby.game:
-        low, high = GAME_SIZES[lobby.game]
-        if low <= len(lobby.players) <= high:
-            message, good = ("Ready! Press START" if host else "Ready! Waiting for the host to start"), True
-        else:
-            message = f"{GAME_NAMES[lobby.game]} needs {low if low == high else f'{low} to {high}'} players"
-    if S.get("online_message"):
-        message, good = S.online_message, False
-    key = ui.keys("olobby", {"Left": "left", "Right": "right"})  # the host moves along the games
-    if key and host:
-        index = art.GAMES.index(lobby.game) if lobby.game else None
-        index = cursor.step(index, key, len(art.GAMES))
-        online.lobbies().choose(code, me, art.GAMES[index])
-        sound.play("blip")
-        st.rerun()
-    img, regions = art.lobby_picture(lobby, me, message, good)
-    ui.show(ui.screen(), img)
-    clicked = ui.hit(regions, ui.click())
-    watch(code, lobby.version)
-
-    bar = ui.bar("lobby", [0.8, 1, 1.3, 1, 1, 0.9])  # invisible: the games, START and LEAVE are on the picture
-    picks = {}
-    for column, (game, label, key) in zip(bar[1:], (("uno", "UNO", "1"), ("checkers", "Checkers", "2"),
-                                                   ("connect4", "Connect Four", "3"))):
-        with column:
-            picks[game] = ui.button(label, f"lobby_{game}", key, disabled=not host,
-                                    type="primary" if lobby.game == game else "secondary")
-    with bar[4]:
-        start = ui.button("Start", "lobby_start", "Enter", type="primary", disabled=not host)
-    with bar[5]:
-        out = ui.button("Leave", "lobby_leave", "Esc")
-    chosen = next((game for game, pressed in picks.items() if pressed), None)
-    if clicked and clicked[0] == "game":
-        chosen = clicked[1]
-    try:
-        if chosen:
-            online.lobbies().choose(code, me, chosen)
-            S.online_message = ""
-            sound.play("blip")
-            st.rerun()
-        if start or clicked == ("start",):
-            online.lobbies().start(code, me)
-            S.online_message = ""
-            sound.play("table")
-            st.rerun()
-    except LobbyError as problem:
-        S.online_message = str(problem)
-        sound.play("lose")
-        st.rerun()
-    if out or clicked == ("leave",):
-        leave()
-        st.rerun()

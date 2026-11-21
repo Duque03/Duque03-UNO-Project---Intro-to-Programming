@@ -30,6 +30,7 @@ from __future__ import annotations
 import base64
 import io
 import json
+from functools import lru_cache
 
 import streamlit as st
 
@@ -77,15 +78,22 @@ def _tag_key(spec) -> str | None:
 
 
 TALK_REACH = 18  # how close (small canvas) the player must be to a bot to talk to it (E)
+POS_EVERY = 0.35  # online, while walking the browser says where the player is this often (the others see the walk)
 
 
-def scene(sent: set, *, actors, coins, champ_locked, bubbles, player, cutscene=None, fade=0, ack=0, talk=None) -> dict:
+def scene(sent: set, *, actors, coins, champ_locked, bubbles, player, cutscene=None, fade=0, ack=0, talk=None,
+          online=None) -> dict:
     """Everything the browser needs for the room (data for ROOM_JS).
 
     actors   the six characters (state.hub_actors()); the player has player=True
     bubbles  spot -> list of prompts (see screens/hub._prompts)
     player   {"seq", "x", "y", "dir"}: where Python wants the player; the browser only jumps there when seq changes
     talk     what the player and a bot are saying: {"id", "me", "bot", "line", "reply"} (screens/hub.py), or None
+    online   the online room's extras (screens/online_room.py), or None offline: what each player said
+             ("says": {"id", "who", "key", "picture", "left"}), the signs over the tables ("signs": {"key", "picture",
+             "x", "y"}, centred there), the mats on the floor where the chairs are ("mats": {"x", "y", "taken"},
+             small canvas) and the lobby's plate ("plate": {"key", "picture", "x", "y"}). With it the
+             browser also draws the chat bar and the emoji panel, and nobody offers TALK (people chat instead).
     """
     s = Scene(sent)
     data = {
@@ -162,8 +170,41 @@ def scene(sent: set, *, actors, coins, champ_locked, bubbles, player, cutscene=N
                      for spot, box in hubmap.CLICK_BOXES.items()]
     data["cutscene"] = cutscene
     data["ack"] = ack  # the number of the last key press (E, I, Esc) Python has handled
+    if online is not None:
+        data["talkReach"] = 0
+        data["online"] = _online(s, online)
     data["assets"] = s.assets
     return data
+
+
+@lru_cache(maxsize=1)
+def _font():
+    from arcade.art import title_layers
+
+    return title_layers.font_atlas()
+
+
+def _online(s: Scene, online: dict) -> dict:
+    from arcade.art import chat as chat_art
+    from arcade.logic.chat import EMOJIS
+
+    atlas, glyphs, height = _font()
+    plate = online.get("plate")
+    return {
+        "mats": [{"x": mat["x"], "y": mat["y"], "taken": bool(mat["taken"])} for mat in online.get("mats", [])],
+        "matImg": {"free": s.use("mat:free", lambda: chat_art.chair_mat(False)),
+                   "taken": s.use("mat:taken", lambda: chat_art.chair_mat(True))},
+        "posEvery": POS_EVERY,
+        "font": {"img": s.use("title:font", lambda: atlas), "glyphs": glyphs, "h": height},
+        "emojis": [{"name": name, "img": s.use(f"emoji:{name}", lambda n=name: chat_art.emoji(n, 3))} for name in EMOJIS],
+        "send": s.use("chat:send", chat_art.send_icon),
+        "says": [{"id": say["id"], "who": say["who"], "left": say["left"],
+                  "img": s.use(say["key"], lambda p=say["picture"]: p)} for say in online.get("says", [])],
+        "signs": [{"x": sign["x"], "y": sign["y"], "img": s.use(sign["key"], lambda p=sign["picture"]: p)}
+                  for sign in online.get("signs", [])],
+        "plate": None if plate is None else {"x": plate["x"], "y": plate["y"],
+                                             "img": s.use(plate["key"], lambda p=plate["picture"]: p)},
+    }
 
 
 def new_press(value, last: int) -> int | None:
@@ -192,6 +233,7 @@ def read_pos(value) -> tuple[tuple[int, int], str] | None:
 
 
 ROOM_CSS = """
+.arcade-room-wrap { position: relative; width: 100%; }
 canvas.arcade-room {
     display: block; width: 100%; height: auto; aspect-ratio: 16 / 9;
     image-rendering: pixelated; cursor: pointer; border-radius: 10px;  /* the frame around it glows (ui.py) */
@@ -212,12 +254,15 @@ export default function (component) {
 
     // ---- the canvas (created once, kept between runs)
     let canvas = parentElement.querySelector("canvas.arcade-room");
-    if (!canvas) {
+    if (!canvas) {  // inside a box of its own, so the online chat's text box can be laid over it
+        const wrap = document.createElement("div");
+        wrap.className = "arcade-room-wrap";
         canvas = document.createElement("canvas");
         canvas.className = "arcade-room";
         canvas.width = 960;
         canvas.height = 540;
-        parentElement.appendChild(canvas);
+        wrap.appendChild(canvas);
+        parentElement.appendChild(wrap);
     }
     G.canvas = canvas;
 
@@ -263,20 +308,25 @@ export default function (component) {
                 b.path = [[b.x, b.y]].concat(actor.path.slice(1)); b.pathT0 = now;
             } else {
                 b.path = null; b.fx = b.x; b.fy = b.y; b.t0 = now;
-                b.dur = Math.max(0.15, Math.hypot(b.tx - b.fx, b.ty - b.fy) / 40);
+                b.dur = Math.max(0.15, Math.hypot(b.tx - b.fx, b.ty - b.fy) / (actor.speed || 40));
                 b.dir = actor.dir;
             }
         } else if (b.path) {
             b.goalDir = actor.dir;
         } else if (b.tx !== actor.x || b.ty !== actor.y) {
             b.fx = b.x; b.fy = b.y; b.tx = actor.x; b.ty = actor.y; b.t0 = now;
-            b.dur = Math.max(0.15, Math.hypot(b.tx - b.fx, b.ty - b.fy) / 40);
+            b.dur = Math.max(0.15, Math.hypot(b.tx - b.fx, b.ty - b.fy) / (actor.speed || 40));
             b.dir = actor.dir;
         } else {
             b.dir = actor.dir;
         }
     }
+    for (const name of Object.keys(G.bots)) {  // someone who is not in this room any more (the offline bots, online)
+        if (!data.actors.some((a) => !a.player && a.name === name)) delete G.bots[name];
+    }
     if (data.talk && data.talk.id !== G.talkId) { G.talkId = data.talk.id; G.talkT0 = now; }
+    G.says = G.says || {};  // online: chat message id -> until when its bubble shows
+    for (const say of (data.online && data.online.says) || []) if (!(say.id in G.says)) G.says[say.id] = now + say.left;
 
     // ---- a scripted walk to a table, then a zoom
     if (data.cutscene && (!G.cut || G.cut.id !== data.cutscene.id) && !G.cutDone[data.cutscene.id]) {
@@ -306,10 +356,58 @@ export default function (component) {
         G.press = { kind, value: { ...here(), ...(extra || {}), n: G.pressN }, t: performance.now(), tries: 1 };
         G.send(kind, G.press.value);
     };
+    // ---- online: the chat bar. Its text box is a real one (see-through, over the bar), so a phone shows its
+    // keyboard and no other key of the game reacts while typing; the canvas draws what is typed in the pixel font.
+    const ON = data.online;
+    let chatBox = canvas.parentNode.querySelector("input.arcade-chat");
+    if (ON && !chatBox) {
+        chatBox = document.createElement("input");
+        chatBox.className = "arcade-chat";
+        chatBox.maxLength = 40; chatBox.autocomplete = "off"; chatBox.spellcheck = false;
+        chatBox.setAttribute("aria-label", "Chat");
+        const [fx, fy, fw, fh] = CHAT.field;
+        chatBox.style.cssText = `position:absolute;left:${fx / 9.6}%;top:${fy / 5.4}%;width:${fw / 9.6}%;`
+            + `height:${fh / 5.4}%;opacity:0;border:0;padding:0;margin:0;font-size:16px;cursor:text;z-index:2;`;
+        canvas.parentNode.appendChild(chatBox);
+        chatBox.addEventListener("focus", () => { G.keys.length = 0; G.target = null; G.emojiOpen = false; });
+        chatBox.addEventListener("keydown", (event) => {
+            event.stopPropagation();
+            if (event.key === "Enter") {
+                event.preventDefault();
+                const text = chatBox.value.trim();
+                chatBox.value = ""; chatBox.blur();
+                if (text) act("chat", { text });
+            } else if (event.key === "Escape") {
+                event.preventDefault(); chatBox.value = ""; chatBox.blur();
+            } else if (event.key === "Tab") {
+                event.preventDefault(); chatBox.blur(); G.emojiOpen = true; G.emojiFocus = G.emojiFocus || 0;
+            }
+        });
+    }
+    if (chatBox) {
+        chatBox.style.display = ON ? "block" : "none";
+        if (!ON && document.activeElement === chatBox) chatBox.blur();
+    }
+    G.chatBox = ON ? chatBox : null;
+    const sendEmoji = (i) => {
+        const pick = ON && ON.emojis[i];
+        G.emojiOpen = false;
+        if (pick) act("chat", { emoji: pick.name });
+    };
     const onKeyDown = (event) => {
         if (!canvas.isConnected || typing(event) || event.ctrlKey || event.metaKey || event.altKey) return;
         const key = (event.key || "").toLowerCase();
         if (G.cut) return;
+        if (ON && G.emojiOpen) {  // the emoji panel: arrows move the yellow frame, Enter sends, Esc or Tab closes
+            const n = ON.emojis.length, cols = EMOJI_COLS, f = G.emojiFocus || 0;
+            const moves = { arrowleft: -1, a: -1, arrowright: 1, d: 1, arrowup: -cols, w: -cols, arrowdown: cols, s: cols };
+            if (key in moves) { event.preventDefault(); G.emojiFocus = (f + moves[key] + n) % n; return; }
+            if (key === "enter" || key === " " || key === "e") { event.preventDefault(); if (!event.repeat) sendEmoji(f); return; }
+            if (key === "escape" || key === "tab") { event.preventDefault(); G.emojiOpen = false; return; }
+            G.emojiOpen = false;
+        }
+        if (ON && key === "enter" && !event.repeat) { event.preventDefault(); G.keys.length = 0; chatBox.focus(); return; }
+        if (ON && key === "tab") { event.preventDefault(); G.emojiOpen = true; G.emojiFocus = G.emojiFocus || 0; return; }
         if (key in KEYS) {
             event.preventDefault();
             if (!G.keys.includes(key)) G.keys.push(key);
@@ -334,6 +432,18 @@ export default function (component) {
         const sx = (event.clientX - box.left) * 960 / box.width, sy = (event.clientY - box.top) * 540 / box.height;
         const [px, py, pw, ph] = PAUSE_BOX;
         if (sx >= px && sx <= px + pw && sy >= py && sy <= py + ph) { act("pause"); return; }
+        if (ON) {
+            const cell = G.emojiOpen ? emojiAt(sx, sy) : -1;
+            if (cell >= 0) { sendEmoji(cell); return; }
+            if (inside(CHAT.emoji, sx, sy)) { G.emojiOpen = !G.emojiOpen; return; }
+            if (inside(CHAT.send, sx, sy)) {
+                const text = G.chatBox ? G.chatBox.value.trim() : "";
+                if (text) { G.chatBox.value = ""; act("chat", { text }); } else if (G.chatBox) G.chatBox.focus();
+                return;
+            }
+            if (inside(CHAT.bar, sx, sy) || (G.emojiOpen && inside(EMOJI_PANEL, sx, sy))) return;
+            G.emojiOpen = false;
+        }
         for (const hit of G.hits || []) {
             if (sx >= hit[0] && sx <= hit[2] && sy >= hit[1] && sy <= hit[3]) {
                 if (hit[4] === "talk") act("talk", { name: G.nearBot });
@@ -350,27 +460,30 @@ export default function (component) {
         const [wl, wt, wr, wb] = G.objects[data.map].walk_area;
         G.target = { x: Math.max(wl, Math.min(wr, bx)), y: Math.max(wt, Math.min(wb, by)), face: null };
     };
-    document.addEventListener("keydown", onKeyDown);
-    document.addEventListener("keyup", onKeyUp);
-    window.addEventListener("blur", onBlur);
     const onMove = (event) => {
         const box = canvas.getBoundingClientRect();
         const sx = (event.clientX - box.left) * 960 / box.width, sy = (event.clientY - box.top) * 540 / box.height;
         const [px, py, pw, ph] = PAUSE_BOX;
         G.hoverPause = sx >= px && sx <= px + pw && sy >= py && sy <= py + ph;
+        G.hoverChat = !ON ? null : inside(CHAT.emoji, sx, sy) ? "emoji" : inside(CHAT.send, sx, sy) ? "send"
+            : G.emojiOpen && emojiAt(sx, sy) >= 0 ? emojiAt(sx, sy) : null;
     };
-    canvas.addEventListener("click", onClick);
-    canvas.addEventListener("mousemove", onMove);
+    // Streamlit calls this function again on every run (new data), so the page listens only once and always
+    // hands the event to the newest handlers (several listeners would each react: a key that toggles would undo).
+    G.handlers = { keydown: onKeyDown, keyup: onKeyUp, blur: onBlur, click: onClick, move: onMove };
+    if (!G.listening) {
+        G.listening = true;
+        document.addEventListener("keydown", (event) => G.handlers.keydown(event));
+        document.addEventListener("keyup", (event) => G.handlers.keyup(event));
+        window.addEventListener("blur", (event) => G.handlers.blur(event));
+    }
+    if (!canvas.dataset.listening) {
+        canvas.dataset.listening = "1";
+        canvas.addEventListener("click", (event) => G.handlers.click(event));
+        canvas.addEventListener("mousemove", (event) => G.handlers.move(event));
+    }
 
     if (!G.running) { G.running = true; G.last = now; requestAnimationFrame(frame); }
-
-    return () => {
-        document.removeEventListener("keydown", onKeyDown);
-        document.removeEventListener("keyup", onKeyUp);
-        window.removeEventListener("blur", onBlur);
-        canvas.removeEventListener("click", onClick);
-        canvas.removeEventListener("mousemove", onMove);
-    };
 
     // ================================================================ the loop
     function frame() {
@@ -428,6 +541,83 @@ export default function (component) {
         }
         x.fillStyle = v; x.fillRect(-1, -1, 2, 2);
         return (G.vignette = c);
+    }
+
+    function inside(box, x, y) { return x >= box[0] && x <= box[0] + box[2] && y >= box[1] && y <= box[1] + box[3]; }
+
+    function emojiAt(x, y) {  // which emoji of the open panel is under this point (-1: none)
+        const O = G.data.online;
+        if (!O) return -1;
+        for (let i = 0; i < O.emojis.length; i++) if (inside(emojiCell(i), x, y)) return i;
+        return -1;
+    }
+
+    function emojiCell(i) {
+        const [x, y] = EMOJI_PANEL;
+        return [x + 8 + (i % EMOJI_COLS) * 48, y + 8 + Math.floor(i / EMOJI_COLS) * 48, 46, 46];
+    }
+
+    function pixelBox(ctx, box, lit) {  // a dark box with a cyan edge, like the music and pause buttons
+        const [x, y, w, h] = box;
+        ctx.fillStyle = "rgba(13, 10, 31, 0.9)"; ctx.fillRect(x, y, w, h);
+        ctx.strokeStyle = lit ? "#ffe94a" : "#3ad6ff"; ctx.lineWidth = 3;
+        ctx.strokeRect(x + 1.5, y + 1.5, w - 3, h - 3);
+    }
+
+    function letters(colour) {  // the pixel font's letters in one colour, made once
+        G.tinted = G.tinted || {};
+        const font = G.data.online.font, atlas = img(font.img);
+        if (!atlas) return null;
+        if (G.tinted[colour] && G.tinted[colour].src === atlas) return G.tinted[colour].c;
+        const c = document.createElement("canvas");
+        c.width = atlas.width; c.height = atlas.height;
+        const x = c.getContext("2d");
+        x.drawImage(atlas, 0, 0);
+        x.globalCompositeOperation = "source-in"; x.fillStyle = colour; x.fillRect(0, 0, c.width, c.height);
+        G.tinted[colour] = { src: atlas, c };
+        return c;
+    }
+
+    function typed(raw) {  // what was typed, as the game writes it: capitals, no accents, only letters the font has
+        const glyphs = G.data.online.font.glyphs;
+        return Array.from(raw.toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, ""))
+            .filter((ch) => ch in glyphs).join("");
+    }
+
+    function chatBar(ctx, t) {
+        const O = G.data.online, font = O.font, focused = document.activeElement === G.chatBox;
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        pixelBox(ctx, CHAT.emoji, G.emojiOpen || G.hoverChat === "emoji");
+        const face = O.emojis.length && img(O.emojis[0].img);
+        if (face) ctx.drawImage(face, CHAT.emoji[0] + (CHAT.emoji[2] - 30) / 2, CHAT.emoji[1] + (CHAT.emoji[3] - 30) / 2, 30, 30);
+        pixelBox(ctx, CHAT.field, focused);
+        pixelBox(ctx, CHAT.send, G.hoverChat === "send");
+        const arrow = img(O.send);
+        if (arrow) ctx.drawImage(arrow, CHAT.send[0] + (CHAT.send[2] - arrow.width) / 2 + 2, CHAT.send[1] + (CHAT.send[3] - arrow.height) / 2);
+        let text = G.chatBox ? typed(G.chatBox.value) : "";
+        const sheet = letters("#f3ead2"), room = CHAT.field[2] - 26;
+        const width = (str) => Array.from(str).reduce((w, ch) => w + font.glyphs[ch][1] + 2, 0);
+        while (text && width(text) > room) text = text.slice(1);  // a long message shows its end
+        let cx = CHAT.field[0] + 12;
+        const cy = CHAT.field[1] + Math.round((CHAT.field[3] - font.h) / 2) + 2;
+        if (sheet) {
+            for (const ch of text) {
+                const m = font.glyphs[ch];
+                ctx.drawImage(sheet, m[0], 0, m[1], font.h, cx, cy, m[1], font.h);
+                cx += m[1] + 2;
+            }
+        }
+        if (focused && Math.floor(t * 2.5) % 2 === 0) { ctx.fillStyle = "#ffe94a"; ctx.fillRect(cx + 1, cy, 3, font.h - 6); }
+        if (G.emojiOpen) {
+            pixelBox(ctx, EMOJI_PANEL, false);
+            O.emojis.forEach((e, i) => {
+                const [x, y, w, h] = emojiCell(i), im = img(e.img);
+                if (i === G.emojiFocus || i === G.hoverChat) {
+                    ctx.strokeStyle = "#ffe94a"; ctx.lineWidth = 3; ctx.strokeRect(x + 1.5, y + 1.5, w - 3, h - 3);
+                }
+                if (im) ctx.drawImage(im, x + (w - im.width) / 2, y + (h - im.height) / 2);
+            });
+        }
     }
 
     function pauseButton(ctx) {  // a small pause button in the corner, for the mouse (Esc does the same)
@@ -535,6 +725,7 @@ export default function (component) {
             G.press.tries += 1;
             G.send(G.press.kind, G.press.value);
         }
+        if (d.online && moved && t - (G.posSent || 0) > (d.online.posEvery || 0.35)) { G.posSent = t; G.send("pos", here()); }
         const zone = zoneAt(G.x, G.y);
         if (zone !== G.zone && G.zone !== null) G.send("pos", here());
         if (G.moving && !moved && zone === G.zone) G.send("pos", here());
@@ -592,6 +783,11 @@ export default function (component) {
             if (frame) ctx.drawImage(frame, p.x * S, p.y * S, p.w * S, p.h * S);
         }
 
+        for (const mat of (d.online && d.online.mats) || []) {  // online: where the chairs of the tables are
+            const im = img(mat.taken ? d.online.matImg.taken : d.online.matImg.free);
+            if (im) ctx.drawImage(im, Math.round(mat.x * S - im.width / 2), Math.round(mat.y * S - im.height / 2));
+        }
+
         // who stands where, then paint from back to front (tables first on a tie, as in hub_scene)
         const people = [];
         for (const actor of d.actors) {
@@ -639,6 +835,14 @@ export default function (component) {
         }
         const hud = img(d.hud.img);
         if (hud && !G.cut) ctx.drawImage(hud, d.hud.x, d.hud.y);
+        if (d.online) {  // the sign over each table (1/4, 2/4...) and the lobby's name plate
+            for (const sign of d.online.signs) {
+                const im = img(sign.img);
+                if (im) ctx.drawImage(im, Math.round(sign.x - im.width / 2), Math.round(sign.y - im.height / 2));
+            }
+            const plate = d.online.plate && img(d.online.plate.img);
+            if (plate && !G.cut) ctx.drawImage(plate, d.online.plate.x, d.online.plate.y);
+        }
 
         // name tags, front-most last
         for (const p of people.slice().sort((a, b) => a.y - b.y)) {
@@ -655,6 +859,19 @@ export default function (component) {
                 if (!p || !im) continue;
                 const x = Math.max(4, Math.min(956 - line.w, Math.round(p.x * S - line.w / 2)));
                 const y = Math.max(4, Math.round((p.y - 23) * S) - 8 - p.actor.tagAnchor[1] - line.h);
+                ctx.drawImage(im, x, y);
+            }
+        }
+
+        // online: what each player said last, above their name tag, for a few seconds
+        if (d.online) {
+            const latest = {};
+            for (const say of d.online.says) if ((G.says[say.id] || 0) > t) latest[say.who] = say;
+            for (const say of Object.values(latest)) {
+                const p = people.find((pp) => pp.actor.name === say.who), im = img(say.img);
+                if (!p || !im) continue;
+                const x = Math.max(4, Math.min(956 - im.width, Math.round(p.x * S - im.width / 2)));
+                const y = Math.max(4, Math.round((p.y - 23) * S) - 8 - p.actor.tagAnchor[1] - im.height);
                 ctx.drawImage(im, x, y);
             }
         }
@@ -677,6 +894,7 @@ export default function (component) {
         }
 
         if (!G.cut) pauseButton(ctx);
+        if (d.online) chatBar(ctx, t);
         if (G.cut && G.cut.darkP > 0) {  // the end of the zoom: fade to black, the table then fades in from black
             ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = `rgba(0, 0, 0, ${G.cut.darkP})`; ctx.fillRect(0, 0, 960, 540);
         }
@@ -693,12 +911,16 @@ export default function (component) {
 }
 
 const DIRS = ["down", "up", "left", "right"];
+// The online chat bar at the bottom of the picture: emoji button, text box, send button; the emoji panel above it.
+const CHAT = { bar: [270, 490, 420, 40], emoji: [270, 490, 42, 40], field: [318, 490, 324, 40], send: [648, 490, 42, 40] };
+const EMOJI_COLS = 6;
+const EMOJI_PANEL = [270, 374, 6 * 48 + 14, 2 * 48 + 14];
 function nameHash(name) { let s = 0; for (const ch of name) s += ch.charCodeAt(0); return s; }
 """
 
 _room = st.components.v2.component("arcade_room", css=ROOM_CSS, js=ROOM_JS)
 
-EVENTS = ("pos", "interact", "rules", "pause", "cut_done", "need", "talk")
+EVENTS = ("pos", "interact", "rules", "pause", "cut_done", "need", "talk", "chat")
 
 
 def mount(data: dict, key: str = "arcade_room"):

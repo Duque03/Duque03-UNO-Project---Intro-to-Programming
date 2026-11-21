@@ -1,8 +1,10 @@
-"""An online game: UNO, checkers or Connect Four against the other people in the lobby (no bots).
+"""An online game: UNO, checkers or Connect Four against the other people who sat down at that table of the online
+room (no bots).
 
-The game itself lives in the lobby, on the server (arcade/logic/lobby.py); every move goes through
+The game itself lives in the lobby, on the server (arcade/logic/lobby.py: the table's Table); every move goes through
 online.lobbies().act(), which checks it. This screen draws the table from this player's seat with the same pictures
-as the arcade (the other players sit across the table, in turn order) and looks for changes once a second.
+as the arcade (the other players sit across the table, in turn order) and looks for changes once a second. After the
+game (or LEAVE in the middle of it) the player is back in the online room (screens/online_room.py).
 """
 
 from __future__ import annotations
@@ -25,13 +27,21 @@ from arcade.logic.trivia import ROUND_SECONDS
 from arcade.logic.uno import COLOURS, WILD, card_name, ordinal
 from arcade.logic.uno import IllegalMove as UnoIllegal
 from arcade.screens import checkers as checkers_screen
-from arcade.screens import common
+from arcade.screens import common, online_room
 from arcade.screens import connect4 as connect4_screen
 from arcade.screens import online as online_screens
 from arcade.screens import uno as uno_screen
 from arcade.state import S
 
 PROBLEMS = (LobbyError, UnoIllegal, CheckersIllegal, Connect4Illegal)
+
+
+def _slot():
+    """The game picture's place, made once per run: the roulette and the table must share it (a second ui.screen()
+    in the same run would be a duplicate element)."""
+    if S.get("_oslot_run") is not S.get("_oslot_token"):
+        S["_oslot_run"], S["_oslot"] = S.get("_oslot_token"), ui.screen()
+    return S["_oslot"]
 
 
 def _act(move: str, **args) -> None:
@@ -46,10 +56,11 @@ def _act(move: str, **args) -> None:
 
 
 @st.fragment(run_every=1.0)
-def _watch(code: str, seen: int, turn: str | None, deadline: float | None, me: str, label: str | None = None) -> None:
+def _watch(code: str, game: str, seen: int, turn: str | None, deadline: float | None, me: str,
+           label: str | None = None) -> None:
     """Once a second: the time left for whoever is playing (or to answer, in a Corta UNO face-off), and a new
-    picture as soon as the game changes."""
-    if online.lobbies().version(code) != seen:
+    picture as soon as the game at this table changes (the room around it may change all it likes)."""
+    if online.lobbies().version(code, game) != seen:
         st.rerun(scope="app")
     if (turn or label) and deadline:
         left = max(0, int(deadline - time.time() + 0.99))
@@ -89,18 +100,20 @@ def _result_text(lobby, me: str) -> tuple[str, str]:
 
 
 def render() -> None:
+    S["_oslot_token"] = object()  # a new run: a new picture slot (see _slot)
     code, me = S.get("lobby_code"), S.player["name"]
     try:
-        lobby = online.lobbies().get(code)
+        everyone = online.lobbies().get(code)
     except LobbyError:
         S.online_message = "That lobby has closed."
         online_screens.leave()
         st.rerun()
-    if me not in lobby.names():
+    if me not in everyone.names():
         online_screens.leave()
         st.rerun()
-    if lobby.table is None:
-        S.screen = "lobby"
+    lobby = everyone.table_of(me)  # this player's table (called lobby here: it has what the whole lobby used to have)
+    if lobby is None:  # the table is free again: back in the room
+        online_room.enter()
         st.rerun()
     S["_track"] = lobby.game  # the game's own music (arcade/music.py)
     S.setdefault("online_flash", "")
@@ -122,32 +135,32 @@ def render() -> None:
     draw(lobby, me, mine, over)
     duel = lobby.duel
     if duel is not None:  # the face-off's own clock
-        _watch(code, lobby.version, None, duel.deadline if duel.phase == "ask" else None, me, "ANSWER")
+        _watch(code, lobby.game, lobby.version, None, duel.deadline if duel.phase == "ask" else None, me, "ANSWER")
     else:
-        _watch(code, lobby.version, turn, lobby.deadline, me)
+        _watch(code, lobby.game, lobby.version, turn, lobby.deadline, me)
 
 
 def _bar_end(bar, lobby, me: str, over: bool, action=None) -> None:
-    """The last keys of every online table: back to the lobby when the game is over (Enter, or a click on the
-    picture), and Leave (Esc, or LEAVE in the corner of the picture)."""
+    """The last keys of every online table: back to the room when the game is over (Enter, or a click on the
+    picture), and Leave (Esc, or LEAVE in the corner of the picture: the game ends for the others)."""
     if over:
         with bar[0]:
             back = ui.button("Lobby", "otable_lobby", "Enter", type="primary")
         if back or action == ("lobby",):
-            S.online_round_done = lobby.round
-            ui.fade_next()
-            S.screen = "lobby"
+            online.lobbies().done(S.lobby_code, me)
+            online_room.enter()
             st.rerun()
     with bar[-1]:
         out = ui.button("Leave", "otable_leave", "Esc")
     if out or action == ("leave",):
-        online_screens.leave()
+        online.lobbies().quit_table(S.lobby_code, me)
+        online_room.enter()
         st.rerun()
 
 
 def _show(img, regions, lobby, me, over, plan=None):
     """Show the table (with the result box when the game is over), after an animation if there is one."""
-    slot = ui.screen()
+    slot = _slot()
     if over and not lobby.result.get("left"):  # everyone on the podium
         title, line = _result_text(lobby, me)
         result, tied = lobby.result, False
@@ -344,7 +357,7 @@ def _uno_duel(lobby, me: str, opponents, key) -> None:
     table = uno_screen.draw(game, me, opponents)[0]
     img, regions = duel_art.duel_picture(table, view)
     regions += common.corner_buttons(img, ("leave",))
-    ui.show(ui.screen(), img)
+    ui.show(_slot(), img)
     point = ui.click()
     if point is not None:
         S.ouno_keyboard = False
@@ -389,7 +402,7 @@ def _connect4(lobby, me: str, mine: bool, over: bool) -> None:
     if mine:
         S.oc4_col = column
     if S.pop("ostarter_intro", False) and not over and not any(any(row) for row in game.board):
-        common.play_starter(ui.screen(), connect4_screen.draw(game, friend, me=side, quiet=True)[0],
+        common.play_starter(_slot(), connect4_screen.draw(game, friend, me=side, quiet=True)[0],
                             game.turn == side, friend["name"], None, connect4_screen.CARD_BOTTOM)
     flash = S.online_flash or ("" if mine or over else f"Waiting for {friend['name']}...")
     img, regions = connect4_screen.draw(game, friend, flash, column=column, me=side)
@@ -424,7 +437,7 @@ def _checkers(lobby, me: str, mine: bool, over: bool) -> None:
         S.ock_cur = cell
         sound.play("blip")
     if S.pop("ostarter_intro", False) and not over and game.last_move is None:  # (only before the first move)
-        common.play_starter(ui.screen(), checkers_screen.draw(game, friend, me=side, quiet=True)[0],
+        common.play_starter(_slot(), checkers_screen.draw(game, friend, me=side, quiet=True)[0],
                             game.turn == side, friend["name"], None)
     flash = S.online_flash or ("" if mine or over else f"Waiting for {friend['name']}...")
     img, regions = checkers_screen.draw(game, friend, selected, flash, cursor_cell=cell if mine else None, me=side)
