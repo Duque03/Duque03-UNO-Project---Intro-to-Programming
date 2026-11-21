@@ -130,3 +130,20 @@ def test_a_screen_that_breaks_goes_back_to_the_arcade_instead_of_a_black_screen(
     assert not at.exception
     assert at.session_state["screen"] == "hub" and at.session_state["match"] is None
     assert any("Something went wrong" in t["text"] for t in at.session_state["_toasts"])
+
+
+def test_the_pause_menu_is_quiet_and_sets_the_music_level(app):
+    _start(app, "checkers", ["DEAN"])
+    assert app.session_state["_track"] == "checkers"  # the game's tune from its very first run
+    app.session_state["paused_from"] = "checkers"
+    app.session_state["screen"] = "pause"
+    app.run()
+    assert not app.exception, app.exception
+    assert app.session_state["_track"] == "silence"  # Esc: the music stops while the menu is open
+    _press(app, "pause_music")
+    assert app.session_state["player"]["music"] == "medium" and app.session_state["screen"] == "pause"
+    _press(app, "pause_music")
+    _press(app, "pause_music")
+    assert app.session_state["player"]["music"] == "high"  # round again: high, medium, low, high
+    _press(app, "pause_resume")
+    assert app.session_state["screen"] == "checkers" and app.session_state["_track"] == "checkers"

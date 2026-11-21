@@ -141,8 +141,11 @@ changing these files, and change them in a small pull request of their own.
   `ROOM_JS` in `arcade/room.py`, `TITLE_JS` in `arcade/title_view.py` and `ANIM_JS` and `ALIVE_JS` in `arcade/table_anim.py`.** `ANIM_JS` only draws (and plays the card sounds through `SOUND_JS`) and never sends anything back. `ALIVE_JS` only loops the moving parts of the wall behind a table (see below). `INPUT_JS` reports clicks on the game picture.
   `FULLSCREEN_JS` is the small full-screen icon (and the F key) and sends nothing back. `SOUND_JS` only plays sounds
   by name (and draws the small music icon, which does what M does) and never sends anything back. Its tunes come from
-  `arcade/music.py`, written into the script once (`__SCORE__`); each run only sends the name of the tune the screen
-  wants (`music.track_for`). To change a tune, edit its text in `music.py`; `tests/test_music.py` checks it fits. `ROOM_JS` moves and draws the room; it numbers every press of E (interact or talk), I and Esc and
+  `arcade/music.py`, written into the script once (`__SCORE__`). There are two players of the same script:
+  `sound.render_music()` at the **top** of every run (key `music_player`: the tune the screen wants, `music.track_for`,
+  and the level from `player["music"]`), so a table's tune starts before its slow first run; and `sound.render()` at
+  the end (key `sound_player`: the sound cues). The pause menu's tune is `"silence"`. Each tune keeps its own start
+  time in the browser (`goTo`), so coming back to it continues as if it had played all along. To change a tune, edit its text in `music.py`; `tests/test_music.py` checks it fits. `ROOM_JS` moves and draws the room; it numbers every press of E (interact or talk), I and Esc and
   sends it again until Python has handled it (`room.new_press`), so a press is never lost. Python checks every value
   it receives before using it. The store and the wardrobe are pictures too (`arcade/art/shop.py`): a click on an item
   is only accepted if the id exists in `catalog.py`.
@@ -160,7 +163,8 @@ changing these files, and change them in a small pull request of their own.
   picture (for the tables: `common.corner_buttons` for RULES / PAUSE / LEAVE, the deck, the pile, PASS).
 - **Little messages go through `ui.toast(text)`, never `st.toast`**: the browser's font is not the game's. `ui.toast`
   paints the message in the game's pixel font and keeps it for a few seconds across reruns; `app.py` shows the ones
-  still up on every run (`ui.render_toasts`, laid on the picture at the top right).
+  still up on every run, after the screen (`ui.render_toasts`, laid on the picture at the top right). `delay` makes one
+  wait before it pops up (the welcome waits for the arcade to fade in).
 - **A screen that raises never leaves a black page**: `app.py` catches it and `state.recover` writes the traceback to
   the log (Streamlit Cloud: Manage app > Logs), shows "Oops! Something went wrong. Back to the arcade.", clears the
   game and goes back to the room (or the lobby) with progress saved. More than three times in a minute, or with

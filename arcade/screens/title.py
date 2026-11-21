@@ -51,11 +51,14 @@ def _sign_in(value: dict, number: int) -> None:
             S.screen = "online"
         ui.fade_next()
         sound.play("start")
-        ui.toast(f"Welcome, {player['name']}!" if is_new else f"Welcome back, {player['name']}!")
+        ui.toast(f"Welcome, {player['name']}!" if is_new else f"Welcome back, {player['name']}!", WELCOME_DELAY)
         st.rerun()
     S.title_pending = {"player": player, "new": is_new}
     S.title_enter = number  # the browser flies into the arcade (and plays the start sound), then sends "entered"
     st.rerun()
+
+
+WELCOME_DELAY = 0.9  # the welcome pops up once the arcade has faded in from black (the fade takes 0.4 s)
 
 
 def _walk_in() -> None:
@@ -67,7 +70,7 @@ def _walk_in() -> None:
     player = pending["player"]
     state.start_session(player)
     ui.fade_next()  # the flight ends on black, and the arcade fades in from black
-    ui.toast(f"Welcome, {player['name']}!" if pending["new"] else f"Welcome back, {player['name']}!")
+    ui.toast(f"Welcome, {player['name']}!" if pending["new"] else f"Welcome back, {player['name']}!", WELCOME_DELAY)
     st.rerun()
 
 
