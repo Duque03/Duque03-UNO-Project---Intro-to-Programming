@@ -245,7 +245,7 @@ Numbers live in `arcade/config.py`.
 
 - Esc opens a light-blue menu: **Resume**, **Wardrobe**, **How to play**, **Music: High** (each click or Enter goes
   to Medium, Low, High again), **Leave arcade**, and **Play online** in the room (O) or **Leave table** at a table.
-  The music stops while the menu is open.
+  The music stops while the menu is open, and stays off in everything opened from it (wardrobe, how to play).
 - The wardrobe is a picture like the store, with only owned items, and the character in the fitting room on the right.
 - Clicking an item previews it. **EQUIP** (E or Enter) wears it (its tile says WEARING). **UNEQUIP** (U) takes it off
   and the player's own look (made when they created their player) returns.

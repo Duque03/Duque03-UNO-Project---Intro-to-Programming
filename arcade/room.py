@@ -375,7 +375,11 @@ export default function (component) {
     // ================================================================ the loop
     function frame() {
         const c = G.canvas;
-        if (!c || !c.isConnected) { G.running = false; G.keys.length = 0; return; }
+        if (!c || !c.isConnected) {  // the room left the page (pause menu, a table, online...)
+            G.running = false; G.keys.length = 0;
+            G.press = null;  // the press that took it away was handled: never send it again when the room is back
+            return;
+        }
         const t = performance.now() / 1000;
         const dt = Math.min(0.05, t - G.last);
         G.last = t;

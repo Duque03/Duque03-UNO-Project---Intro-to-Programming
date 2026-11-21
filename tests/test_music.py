@@ -47,6 +47,7 @@ def test_each_screen_plays_its_own_tune_or_keeps_the_last_one():
     assert music.track_for("uno") == "uno" and music.track_for("connect4") == "connect4"
     assert music.track_for("pause", playing="checkers") == music.SILENCE  # the pause menu is quiet
     assert music.track_for("howto", playing=music.SILENCE) == music.SILENCE  # (its rules too)
+    assert music.track_for("wardrobe", playing=music.SILENCE) == music.SILENCE  # and its wardrobe
     assert music.track_for("howto") == "title"
 
 
