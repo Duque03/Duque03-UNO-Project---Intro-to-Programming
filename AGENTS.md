@@ -122,7 +122,12 @@ changing these files, and change them in a small pull request of their own.
   `entered`, and only then does the player walk in. The best player shown dancing comes from
   `championship.best_player(db.all_players())`, looked up at most once a minute.
 - **Screens fade in with a browser animation** (`ui._fade_style`), never with pictures sent one by one: those
-  stutter. Do not add animations made of several pictures to the table screens.
+  stutter. Do not add animations made of several pictures to the table screens. The fade only plays after
+  `ui.fade_next()` (for `FADE_WINDOW` seconds): call it only where the game should go through black (into a table,
+  back into the room). Any other change of screen is a plain cut, and on the first run of a new screen `app.py` puts
+  the previous picture behind everything (`ui.backdrop`, `_last_src`: kept by `ui.show`, or by `ui.remember` for a
+  screen the browser draws, like the room before it opens the pause menu or the store), so the page never shows black
+  while the new screen makes its picture. The screens of the title menu draw on `title_layers.still()`.
 - **Cards that move on the UNO table are drawn by the browser** (`arcade/table_anim.py`), on a see-through canvas laid
   over the picture (`ui.Slot.overlay`, CSS `game_screen_anim`). Python sends one plan (a picture of the table before
   the move, the card pictures, where each card starts and lands and when), shows the real picture behind it and waits

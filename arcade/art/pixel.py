@@ -128,7 +128,23 @@ def _ttf_mask(text: str, scale: int) -> Image.Image:
 
 
 @lru_cache(maxsize=4096)
-def _text_mask(text: str, scale: int) -> Image.Image:
+def _mixed_mask(text: str, scale: int) -> Image.Image:
+    """Text as typed (small letters, accents: "Não, você!"), with room above the capitals for accents and below the
+    line for g, j, p, q, y. Used for what players write (the online chat)."""
+    face = _ttf(max(2, scale))
+    top, bottom = face.getbbox("ÁÊÕÇ")[1], face.getbbox("gjpqyÇ,")[3]
+    left, _, right, _ = face.getbbox(text)
+    mask = Image.new("L", (max(1, right - left), bottom - top), 0)
+    draw = ImageDraw.Draw(mask)
+    draw.fontmode = "1"
+    draw.text((-left, -top), text, font=face, fill=255)
+    return mask
+
+
+@lru_cache(maxsize=4096)
+def _text_mask(text: str, scale: int, mixed: bool = False) -> Image.Image:
+    if mixed and TEXT_FONT:
+        return _mixed_mask(text, scale)
     if _ttf(scale) is not None:
         return _ttf_mask(text.upper(), scale)
     mask = Image.new("L", (max(1, font.width(text)), font.GLYPH_H), 0)
@@ -145,20 +161,24 @@ def _text_mask(text: str, scale: int) -> Image.Image:
     return mask
 
 
-def text_size(text: str, scale: int = 2) -> tuple[int, int]:
-    """Width and height (of the capital letters) of the text, in pixels of the picture."""
+def text_size(text: str, scale: int = 2, mixed: bool = False) -> tuple[int, int]:
+    """Width and height (of the capital letters) of the text, in pixels of the picture. mixed: as typed (small
+    letters and accents kept; the height then includes the accents and the tails)."""
     text = str(text)
+    if mixed and TEXT_FONT:
+        return (_mixed_mask(text, scale).width if text else 0), _mixed_mask("Ág", scale).height
     if _ttf(scale) is not None:
         return (_ttf_mask(text.upper(), scale).width if text else 0), font.GLYPH_H * scale
     return font.width(text) * scale, font.GLYPH_H * scale
 
 
-def draw_text(img, xy, text, scale=2, fill="#ffffff", anchor="lt", shadow=None):
-    """Draw pixel text. anchor is two letters: l/m/r then t/m/b."""
+def draw_text(img, xy, text, scale=2, fill="#ffffff", anchor="lt", shadow=None, mixed=False):
+    """Draw pixel text. anchor is two letters: l/m/r then t/m/b. Text is written in capitals, unless mixed (as typed:
+    small letters and accents, for what players write)."""
     text = str(text)
     if not text:
         return (xy[0], xy[1], xy[0], xy[1])
-    mask = _text_mask(text, scale)
+    mask = _text_mask(text, scale, mixed)
     width, height = text_size(text, scale)  # anchors use the capital letters, not the room left for , Q and J
     x, y = xy
     if anchor[0] == "m":

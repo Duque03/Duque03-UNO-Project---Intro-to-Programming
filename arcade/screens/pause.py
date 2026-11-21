@@ -117,13 +117,11 @@ def render() -> None:
         st.rerun()
     if not at_table and not online_room and (go_online or action == ("menu", "online")):  # create or join a lobby with friends
         state.save()
-        ui.fade_next()
         state.go("online")
         st.rerun()
     if not online_room and (leave or action == ("menu", "leave")):
         state.save()  # progress is kept for next time
         S.match = S.game = S.result = S.champ = None
         S.naming = False
-        ui.fade_next()  # back to the title screen through black (A1)
-        state.go("title")
+        state.go("title")  # back to the title's menu (offline, online, log out)
         st.rerun()

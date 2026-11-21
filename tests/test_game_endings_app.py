@@ -257,3 +257,38 @@ def test_space_cuts_a_uno_online(app, monkeypatch):
     _press(app, "keys_ouno_space")
     duel = lobbies.get(code).tables["uno"].duel
     assert duel is not None and (duel.holder, duel.cutter) == ("BRUNO", "TESTER")
+
+
+def test_after_sitting_down_online_the_player_stays_on_the_chair(monkeypatch):
+    """The walk to the chair is only a cutscene in the browser: afterwards the browser must be told to put the player
+    on the chair (a new seq), or they would pop back to where they started while still seated."""
+    from arcade import online
+    from arcade.logic.lobby import Lobbies
+    from arcade.screens import online_room
+
+    lobbies = Lobbies(random.Random(1))
+    monkeypatch.setattr(online, "lobbies", lambda: lobbies)
+    code = lobbies.create({"name": "ANA", "look": None, "tag": None})
+    lobbies.sit(code, "ANA", "uno")
+    hub = {"pos": (100, 150), "dir": "up", "seq": 100000, "synced": (100, 150),
+           "walk": {"id": 1, "from": (100, 150), "to": (58, 116), "dir": "down"}}
+    online_room._finish_walk(code, "ANA", hub)
+    target = online_room._player_target(hub)
+    assert target["seq"] == 100001 and (target["x"], target["y"], target["dir"]) == (58, 116, "down")
+    assert lobbies.get(code).room["ANA"]["pos"] == (58, 116)
+
+
+def test_the_shop_works_from_the_online_room_and_goes_back_to_it(app, monkeypatch):
+    from arcade import online
+    from arcade.logic.lobby import Lobbies
+
+    lobbies = Lobbies(random.Random(2))
+    monkeypatch.setattr(online, "lobbies", lambda: lobbies)
+    code = lobbies.create(online.card(app.session_state["player"]))
+    app.session_state["lobby_code"] = code
+    app.session_state["store_from"] = "lobby"
+    app.session_state["screen"] = "store"
+    app.run()
+    assert not app.exception, app.exception
+    _press(app, "store_back")
+    assert app.session_state["screen"] == "lobby"

@@ -91,12 +91,31 @@ def said(text: str | None, emoji_name: str | None, mine: bool) -> Image.Image:
         img, mid = _bubble(face.width + 20, face.height + 14, mine)
         img.alpha_composite(face, (mid - face.width // 2, 7))
         return img
-    lines = wrap((text or "").upper(), 20)[:2]
-    width = max(text_size(line, 2)[0] for line in lines) + 24
-    img, mid = _bubble(width, 20 * len(lines) + 16, mine)
+    lines = wrap(text or "", 22)[:2]  # written as typed: small letters and accents
+    tall = text_size("Ág", 2, mixed=True)[1]
+    width = max(text_size(line, 2, mixed=True)[0] for line in lines) + 24
+    img, mid = _bubble(width, tall * len(lines) + 12, mine)
     for i, line in enumerate(lines):
-        draw_text(img, (mid, 10 + i * 20), line, 2, INK, "mt")
+        draw_text(img, (mid, 6 + i * tall), line, 2, INK, "mt", mixed=True)
     return img
+
+
+@lru_cache(maxsize=1)
+def chat_font():
+    """The letters the chat can write (logic/chat.py), white on see-through, for the browser to draw what is being
+    typed in the chat bar. Returns (picture, {letter: [x, width]}, height)."""
+    from arcade.logic.chat import LETTERS
+
+    height = text_size("Ág", 2, mixed=True)[1] + 2
+    widths = {ch: (text_size(ch, 2, mixed=True)[0] if ch != " " else 8) for ch in LETTERS}
+    img = Image.new("RGBA", (sum(widths.values()) + 2 * len(LETTERS), height), (0, 0, 0, 0))
+    glyphs, x = {}, 0
+    for ch in LETTERS:
+        if ch != " ":
+            draw_text(img, (x, 1), ch, 2, "#ffffff", "lt", mixed=True)
+        glyphs[ch] = [x, widths[ch]]
+        x += widths[ch] + 2
+    return img, glyphs, height
 
 
 @lru_cache(maxsize=128)

@@ -35,7 +35,11 @@ Numbers live in `arcade/config.py`.
   | Wardrobe | Left / Right choose an item, Up / Down change tab. E or Enter equips it, U takes it off, Esc goes back. |
 
   The title screen and the arcade room already work both ways (sections 1 and 2).
-- Changing screen fades in from black, smoothly (the browser does the fade).
+- Only going into a game or coming back into the room goes through black (a smooth fade, done by the browser). Menus
+  that open over the room or a table (the opponent picker, the pause menu, the store, How to play) and the screens of
+  the title menu are a plain cut: the previous picture stays until the new one is there, never a black flash. The
+  screens opened from the title menu (making your character, the online menu, joining a lobby, How to play) are
+  drawn on the title screen's own background, so only their box comes up.
 
 ## 1. Title screen
 
@@ -290,18 +294,21 @@ Saved per player name: coins, owned cosmetics, equipped cosmetics, wins per game
 - **The lobby is a room like the arcade** (like Club Penguin): up to **4 players**, each with their own look and name
   tag, walking about with the same keys and clicks as offline. No bots: the people in the lobby are the ones walking
   about (they come in by the door). The lobby's code and how many are in is on a plate at the bottom right, to give to
-  friends. Someone can join while others are playing at a table. The championship is offline only for now (its cabinet says COMING SOON...).
-- **Chat**: a bar at the bottom of the picture. **Enter** (or a click / tap on the box) to type, **Enter** to send,
-  **Esc** to give up. What is said shows in a speech bubble above the player's head for 6 seconds (your own light
-  blue, the others' cream). Messages are short (40 letters), in the game's own capital letters (accents are dropped),
-  and rude words, in English and Portuguese, turn into stars. Not too fast: a message every 1.2 seconds and at most 5
+  friends. Someone can join while others are playing at a table. The **store** works as offline (SHOP at the counter;
+  the others see you standing there; back to the room after). The championship is offline only for now (its cabinet
+  says COMING SOON...). "Welcome back" pops up once you are in the room, not on the online menu.
+- **Chat**: a bar at the bottom of the picture. **Enter** (or a click / tap on the box) to type (the box lights up
+  and a **|** blinks where the next letter goes), **Enter** to send, **Esc** to give up. What is said shows in a
+  speech bubble above the player's head for 6 seconds (your own light blue, the others' cream). Messages are short
+  (40 letters) and written as typed, in the game's pixel font: small and capital letters and Portuguese accents
+  (ã, õ, ê, ç, á...). Rude words, in English and Portuguese, turn into stars. Not too fast: a message every 1.2 seconds and at most 5
   in 10 seconds ("Slow down a little!").
 - **Emojis**: the face on the left of the bar (or **Tab**) opens a panel of 12 pixel emojis of our own (smile, laugh,
   wink, cool, love, wow, sad, angry, heart, thumbs up, trophy, GG). Click one, or move the yellow frame with the arrows
   and press Enter; Esc or Tab closes it. The emoji pops up above the player's head like a message.
 - **Tables**: each table has a sign over it with a square per chair and the count (**1/4**, **2/4**...), and a mat on
   the floor at every chair, lit where someone sits. Walk to a table and press **E** (or click PLAY): your character
-  sits on a free chair. **E** again (STAND UP) or walking away gets up. **Checkers** and **Connect Four** start as
+  sits on a free chair and stays there, waiting. **E** again (LEAVE SEAT) or walking away gets up. **Checkers** and **Connect Four** start as
   soon as both chairs are taken. **UNO** starts at **4/4**, or **10 seconds** after the second player sat down (the
   sign counts down: STARTS IN 7); with 2 or 3 it starts with those seated. A table that is playing shows PLAYING and
   takes nobody else; the other tables are free, so two games can be played at the same time. Esc in the room opens the

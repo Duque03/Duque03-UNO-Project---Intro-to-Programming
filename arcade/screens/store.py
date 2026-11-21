@@ -124,6 +124,6 @@ def render() -> None:
         state.save()
         st.rerun()
     if back or action == ("back",):
-        state.go("hub")
+        state.go(S.pop("store_from", None) or "hub")  # back to the room it was opened from (the online room too)
         st.rerun()
 

@@ -12,13 +12,21 @@ import time
 
 import streamlit as st
 
-from arcade import bots, dialogues, hubmap, match, room, state, ui, wander
+from arcade import (
+    bots,
+    dialogues,
+    hubmap,
+    match,
+    room,
+    sound,  # A7 (own line, so it merges cleanly with A4)
+    state,
+    ui,
+    wander,
+)
 from arcade.art import scenes
 from arcade.config import ANIMATIONS, GAMES, IDLE_EVERY
 from arcade.logic import championship
 from arcade.state import S
-from arcade import sound  # A7 (own line, so it merges cleanly with A4)
-
 
 
 def _prompts(near: str | None) -> list[dict]:
@@ -75,12 +83,14 @@ def _can_read_rules(near: str | None) -> bool:
 
 def _remember_still(glow=None) -> None:
     """The next screen fades from this picture of the room (ui.show keeps the last picture in _last_frame)."""
-    S["_last_frame"] = picture(glow=glow, hint=False)[0]
+    ui.remember(picture(glow=glow, hint=False)[0])
 
 
 def _interact(near: str | None) -> None:
     if near in GAMES:
-        from arcade.screens import versus  # (imported here: versus is a screen like this one)
+        from arcade.screens import (
+            versus,  # (imported here: versus is a screen like this one)
+        )
 
         sound.play("blip")
         _remember_still(glow=near)
@@ -88,6 +98,7 @@ def _interact(near: str | None) -> None:
     elif near == "store":
         sound.play("coin")
         _remember_still()
+        S.store_from = "hub"
         state.go("store")
     elif near == "champ" and championship.is_unlocked(S.player):
         _remember_still()
@@ -100,7 +111,7 @@ def _interact(near: str | None) -> None:
 
 def _pause() -> None:
     sound.play("pause")
-    _remember_still()
+    ui.remember(still())  # drawn now (and kept): the pause menu's first run is quick, and the room is its backdrop
     S.paused_from = "hub"
     state.go("pause")
 

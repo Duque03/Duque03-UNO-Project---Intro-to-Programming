@@ -4,15 +4,16 @@ from __future__ import annotations
 
 from PIL import Image, ImageDraw
 
-from arcade.art import sprites
+from arcade.art import sprites, title_layers
 from arcade.art.pixel import draw_text, panel, rgb
 from arcade.config import SCREEN_H, SCREEN_W
 from arcade.logic import looks
 
 ROW_Y = [132, 226, 312, 398]  # the top of each row of choices
 LABELS = {"hair": "HAIR", "hair_colour": "HAIR COLOUR", "shirt": "T-SHIRT", "skin": "SKIN"}
-DONE_BOX = (560, 474, 860, 524)
+DONE_BOX = (560, 462, 860, 512)
 GOLD, INK = "#ffe94a", "#16122b"
+BOX = (34, 10, SCREEN_W - 34, SCREEN_H - 10)  # the panel on the title screen's background
 
 
 def _look(choice: dict) -> tuple:
@@ -22,20 +23,20 @@ def _look(choice: dict) -> tuple:
 def creator_picture(name: str, choice: dict, focus_row: int | None, t: int = 0):
     """Returns (picture, clickable regions). focus_row: the row the arrow keys are on (5 = DONE), shown only while the
     player uses the keys (None hides it)."""
-    img = Image.new("RGB", (SCREEN_W, SCREEN_H), rgb("#1c1642"))
+    img = title_layers.still().copy()  # the title screen's background (this is opened from its menu), and a box on it
+    panel(img, BOX, "#1c1642", "#3ad6ff", bw=4)
     d = ImageDraw.Draw(img)
-    for y in range(0, SCREEN_H, 6):  # a soft glow from the top
-        d.rectangle([0, y, SCREEN_W, y + 5], fill=tuple(round(c * (1 - y / SCREEN_H * 0.45)) for c in (44, 34, 96)))
+    for y in range(BOX[1] + 6, BOX[3] - 6, 6):  # a soft glow from the top
+        d.rectangle([BOX[0] + 6, y, BOX[2] - 6, min(y + 5, BOX[3] - 6)],
+                    fill=tuple(round(c * (1 - y / SCREEN_H * 0.45)) for c in (44, 34, 96)))
     draw_text(img, (SCREEN_W // 2, 34), "CREATE YOUR PLAYER", 4, GOLD, "mt", shadow=INK)
     regions = []
 
-    # the character, under a spotlight, with their name
-    d.ellipse([70, 110, 390, 500], fill=(52, 42, 112))
-    d.ellipse([110, 440, 350, 486], fill=(30, 24, 70))
+    # the character, big, with their name
     body = sprites.sprite(*_look(choice), "down", 0, t)
     body = body.resize((body.width * 9, body.height * 9), Image.NEAREST)
     img.paste(body, (230 - body.width // 2, 468 - body.height), body)
-    sprites.draw_name_tag(img, 230, 200, name)
+    sprites.draw_name_tag(img, 230, 468 - body.height + body.getbbox()[1] - 10, name)  # just over the hair
 
     # the choices
     for row, ((key, options), y) in enumerate(zip(looks.ROWS, ROW_Y)):

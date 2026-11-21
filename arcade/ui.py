@@ -13,10 +13,11 @@ from __future__ import annotations
 import base64
 import io
 import time
+from functools import lru_cache
 
 import streamlit as st
 
-from arcade.art import effects, scenes
+from arcade.art import effects
 from arcade.config import ANIMATIONS, FRAME_DELAY, GAME_TITLE, GLOW, SCREEN_H, SCREEN_W
 
 SCREEN_KEY = "game_screen"
@@ -54,7 +55,12 @@ _CSS = f"""
 html, body, .stMain, [data-testid="stAppViewContainer"] {{ overflow: hidden !important; }}
 .stApp {{ background: #05030d !important; }}
 [data-testid="stMainBlockContainer"] > div {{ gap: 0 !important; }}
-.st-key-game_frame {{ position: relative; gap: 0 !important; }}
+.st-key-game_frame {{ position: relative; gap: 0 !important; isolation: isolate; }}
+/* the previous screen's picture, behind everything, for the first run of a new screen (see backdrop()): until the
+   new screen's own picture arrives, this shows instead of the black page. Where the picture always is: the middle. */
+.st-key-game_backdrop {{ position: fixed !important; left: 50%; top: 50%; transform: translate(-50%, -50%);
+    width: min(100vw, calc(100vh * 16 / 9)) !important; aspect-ratio: 16 / 9; z-index: -1; pointer-events: none;
+    background: center / 100% 100% no-repeat; image-rendering: pixelated; }}
 .st-key-sound_player, .st-key-music_player {{ display: none; }}  /* the sound and music players (arcade/sound.py) */
 /* the countdown of a turn (or of a face-off answer) sits on the picture, at the top in the middle */
 .st-key-game_clock {{ position: absolute !important; top: 1.2%; left: 50%; transform: translateX(-50%); width: 34.375%;
@@ -287,26 +293,59 @@ def show(slot, img) -> None:
     _fade_style), so it is smooth on every computer instead of a few pictures sent one by one.
     """
     st.session_state.pop("_fade_next", False)
-    slot.image(inline(img), width="stretch")
-    st.session_state["_last_frame"] = img
+    src = inline(img)
+    slot.image(src, width="stretch")
+    st.session_state["_last_frame"], st.session_state["_last_src"] = img, src
     if (hasattr(img, "info") and img.info.get("alive")) or getattr(slot, "_alive", None) is not None:
         from arcade import table_anim  # (table_anim uses this module)
 
         table_anim.alive(slot, img)  # the machines on the wall behind a table keep playing
 
 
+FADE_WINDOW = 0.7  # seconds after fade_next() during which a new picture fades in from black
+
+
 def _fade_style() -> None:
-    """Every run writes one small style. After fade_next() it switches the game picture to the other of two
-    identical fade-in animations; a new animation name makes the browser play the fade again from black."""
+    """Every run writes one small style. Only after fade_next() (entering a table, coming back into the room) does
+    the game picture fade in from black: it switches to the other of two identical fade-in animations, and a new
+    animation name makes the browser play it again. Any other change of screen (a menu over the room, the pause
+    menu, the screens of the title menu) is a plain cut: no black flash (Miguel's call)."""
+    now = time.time()
     if st.session_state.get("_fade_next") and ANIMATIONS:
         st.session_state["_fade_count"] = st.session_state.get("_fade_count", 0) + 1
+        st.session_state["_fade_until"] = now + FADE_WINDOW
     name = f"arcade-fade-{st.session_state.get('_fade_count', 0) % 2}"
+    rule = f"{name} .4s ease-out" if now < st.session_state.get("_fade_until", 0) else "none"
     st.markdown(
-        f"<style>.st-key-{SCREEN_KEY} img, .st-key-{SCREEN_KEY}_alive canvas {{ animation: {name} .4s ease-out; }}"
+        f"<style>.st-key-{SCREEN_KEY} img, .st-key-{SCREEN_KEY}_alive canvas {{ animation: {rule}; }}"
         "@keyframes arcade-fade-0 { from { opacity: 0; } to { opacity: 1; } }"
         "@keyframes arcade-fade-1 { from { opacity: 0; } to { opacity: 1; } }</style>",
         unsafe_allow_html=True,
     )
+
+
+def remember(img) -> None:
+    """Keep this as the last picture on screen (a screen drawn by the browser, like the room, calls it just before
+    handing over): the next screen can draw on it, and backdrop() shows it while the next screen gets ready."""
+    st.session_state["_last_frame"], st.session_state["_last_src"] = img, inline(img)
+
+
+@lru_cache(maxsize=1)
+def title_backdrop() -> str:
+    """The title screen's background, ready to send: the backdrop when leaving the title (drawn by the browser)."""
+    from arcade.art import title_layers
+
+    return inline(title_layers.still())
+
+
+def backdrop(src: str | None) -> None:
+    """On the first run of a new screen: the previous picture, behind everything. The old screen's picture (or the
+    room) goes away as soon as the new screen draws its first element, and its own picture can take a moment to
+    make: without this the page showed black for a moment (opening the pause menu, the opponent picker...)."""
+    if src:
+        with st.container(key="game_backdrop"):  # (the picture is the box's own background: exactly its size)
+            st.markdown(f'<style>.st-key-game_backdrop {{ background-image: url("{src}"); }}</style>',
+                        unsafe_allow_html=True)
 
 
 def fade_next() -> None:

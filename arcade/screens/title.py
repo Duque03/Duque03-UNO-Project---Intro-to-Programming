@@ -49,8 +49,7 @@ def _sign_in(value: dict, number: int) -> None:
     state.start_session(player)
     S.title_welcome = f"Welcome, {player['name']}!" if is_new else f"Welcome back, {player['name']}!"
     if S.screen == "create":  # a new player makes their character first, then chooses offline or online
-        S.after_create = "title"
-        ui.fade_next()
+        S.after_create = "title"  # (on the title's own background: only the box comes up)
         sound.play("start")
     else:
         S.screen = "title"  # the title screen's menu is now PLAY OFFLINE / PLAY ONLINE
@@ -63,10 +62,8 @@ def _play(value: dict) -> None:
     if S.player is None:
         return
     if isinstance(value, dict) and value.get("where") == "online":
-        S.screen = "online"
-        ui.fade_next()
+        S.screen = "online"  # the online menu, on the title's own background (the welcome waits for the online room)
         sound.play("start")
-        _welcome()
         st.rerun()
     S.title_enter = value["n"]  # the browser flies into the arcade (and plays the start sound), then sends "entered"
     st.rerun()
@@ -75,8 +72,8 @@ def _play(value: dict) -> None:
 WELCOME_DELAY = 0.9  # the welcome pops up once the arcade has faded in from black (the fade takes 0.4 s)
 
 
-def _welcome() -> None:
-    """Welcome (back), once per sign-in, when the player first goes in."""
+def welcome() -> None:
+    """Welcome (back), once per sign-in, when the player first goes into a room (the arcade, or an online lobby)."""
     text = S.pop("title_welcome", None)
     if text:
         ui.toast(text, WELCOME_DELAY)
@@ -91,7 +88,7 @@ def _walk_in() -> None:
     S.match = S.game = S.result = S.champ = None
     S.screen = "hub"
     ui.fade_next()  # the flight ends on black, and the arcade fades in from black
-    _welcome()
+    welcome()
     st.rerun()
 
 
