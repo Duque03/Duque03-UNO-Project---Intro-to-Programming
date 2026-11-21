@@ -37,10 +37,10 @@ UNO_PLACE_SHARE = {1: 1.0, 2: 0.5, 3: 0.25}
 
 # How each level plays. UNO: chances between 0 and 1 (see UnoGame.bot_turn).
 UNO_LEVELS = {
-    "easy": {"twins": 0.0, "stack": 0.0, "smart": 0.0, "forget_uno": 0.7},
-    "medium": {"twins": 0.2, "stack": 0.3, "smart": 0.35, "forget_uno": 0.4},
-    "hard": {"twins": 0.75, "stack": 0.85, "smart": 0.9, "forget_uno": 0.1},
-    "expert": {"twins": 1.0, "stack": 1.0, "smart": 1.0, "forget_uno": 0.0},
+    "easy": {"twins": 0.0, "stack": 0.0, "smart": 0.0},
+    "medium": {"twins": 0.2, "stack": 0.3, "smart": 0.35},
+    "hard": {"twins": 0.75, "stack": 0.85, "smart": 0.9},
+    "expert": {"twins": 1.0, "stack": 1.0, "smart": 1.0},
 }
 # Checkers and Connect Four: depth = how many moves the bot looks ahead, blunder = chance of a random move.
 # Connect Four also: win / block = chance the bot notices a four it can make now / one it must stop.
@@ -67,10 +67,10 @@ FRAME_DELAY = 0.045
 # Bots think for a random time between these two numbers of seconds before each move
 # Corta UNO (arcade/logic/trivia.py), for each bot level:
 #   cut     the chance the bot tries to cut the player's UNO, and react: how fast it presses (seconds after the UNO
-#           button appears; the player has UNO_SECONDS to say UNO first)
+#           button appears; the button stays until the player presses it, so the player must be quicker)
 #   say     how long the bot takes to say its own UNO: the time the player has to cut it
 #   knows   how often it answers a question right, and think: how many seconds it takes to answer
-CUT_LEVELS = {  # react: how long after the UNO button shows a bot needs to cut it (the player has UNO_SECONDS)
+CUT_LEVELS = {  # react: how long after the UNO button shows a bot needs to cut it
     "easy": {"cut": 0.25, "react": (1.7, 2.3), "say": (2.0, 2.8), "knows": 0.55, "think": (3.0, 6.5)},
     "medium": {"cut": 0.4, "react": (1.5, 2.1), "say": (1.6, 2.4), "knows": 0.7, "think": (2.5, 6.0)},
     "hard": {"cut": 0.55, "react": (1.3, 1.9), "say": (1.2, 2.0), "knows": 0.82, "think": (2.0, 5.0)},

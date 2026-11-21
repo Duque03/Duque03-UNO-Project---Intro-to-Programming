@@ -103,5 +103,5 @@ def test_a_bot_can_wait_to_say_uno():
     game = _uno_game()
     game.turn = 1
     game.hands["A"] = [("red", "1"), ("green", "9")]
-    game.bot_turn("A", forget_uno=0, say_uno=False)
+    game.bot_turn("A", say_uno=False)
     assert game.uno_due == "A"  # the screen gives the others a moment to cut it

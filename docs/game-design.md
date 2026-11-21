@@ -28,7 +28,7 @@ Numbers live in `arcade/config.py`.
   | Championship YES / NO | Left / Right move the highlight, Enter chooses it (or Y / N). |
   | How to play | Left / Right (or 1-4) change tab. Esc goes back. |
   | Choose your opponent | Left / Right move the highlight, Space picks or un-picks that bot (or its number). Enter plays, Esc goes back. |
-  | UNO | Left / Right move along your hand (the frame starts on the first card), Space picks or drops that card, like a click. Enter plays the picked cards, like a click on the discard pile; X cancels them. Choosing a wild's colour: Left / Right and Enter (or Space); X cancels. D draws, P passes, U says UNO, K cuts a UNO; in the face-off Y / N (or Left / Right and Enter). The yellow frame only shows while the keys are being used: a mouse click hides it, so nothing glows when playing with the mouse. |
+  | UNO | Left / Right move along your hand (the frame starts on the first card), Space picks or drops that card, like a click. Enter plays the picked cards, like a click on the discard pile; X cancels them. Choosing a wild's colour: Left / Right and Enter (or Space); X cancels. D draws, P passes; Space presses the big UNO! or CORTA UNO! button while it is up (online, Enter then plays the card the frame is on); in the face-off Y / N (or Left / Right and Enter). The yellow frame only shows while the keys are being used: a mouse click hides it, so nothing glows when playing with the mouse. |
   | Checkers | The arrow keys move a cursor on the board (blue, because yellow already marks the pieces); Space or Enter acts like a click on that square. |
   | Connect Four | Left / Right choose a column; Space, Enter or Down drops the disc. 1-7 drop straight into that column. |
   | Store | Left / Right choose an item, Up / Down change tab. Enter buys it (or wears it, if it is owned). Esc goes back. |
@@ -49,10 +49,11 @@ Numbers live in `arcade/config.py`.
   alphabetical order). Nobody stands there until someone has won a championship, and it changes as people play.
 - Menu choices make arcade sounds (a coin when you confirm, a blip when you move), and the chosen option has a
   spinning coin on each side.
-- The menu is drawn in the picture, like a real game: **PLAY OFFLINE**, **PLAY ONLINE** or **HOW TO PLAY** (arrow
-  keys or W S to choose, Enter to confirm, Esc to go back, or the mouse). Both PLAY choices ask **NEW PLAYER** or
-  **I HAVE AN ACCOUNT** (or BACK). PLAY OFFLINE flies into the arcade; PLAY ONLINE goes to the online menu
-  (section 8).
+- The menu is drawn in the picture, like a real game (arrow keys or W S to choose, Enter to confirm, Esc to go back,
+  or the mouse). First who you are: **CREATE A CHARACTER**, **I HAVE AN ACCOUNT** or **HOW TO PLAY**. Only after
+  signing in (and, for a new player, making the character) comes where to play: "HELLO, ANA!" and **PLAY OFFLINE**,
+  **PLAY ONLINE**, **HOW TO PLAY** or **LOG OUT**. PLAY OFFLINE flies into the arcade; PLAY ONLINE goes to the online
+  menu (section 8). Leaving the arcade from the pause menu comes back to this choice.
 - Then a panel with the boxes to type in (titled **ENTER YOUR NAME** for a new player, like an arcade high score):
   name and PIN (dots instead of digits). Arrow keys or Tab move between the
   boxes and the CREATE / LOG IN and BACK buttons. A refusal is written in red in the panel and the PIN boxes empty.
@@ -61,9 +62,10 @@ Numbers live in `arcade/config.py`.
   (5 wrong PINs lock the name for a minute). A PIN cannot be recovered.
 - Names: 1 to 10 characters, letters, numbers, spaces, `-` and `_`. Stored in capitals. Anything else is rejected with a message.
 - A name that has played before continues with its saved coins, cosmetics, wins and championship status.
-- When the sign-in is accepted, the camera flies forward into the arcade (about one second) and fades to black, and
-  the arcade room fades in: the player enters the game without a cut.
-- **Create your player** (only once, right after NEW PLAYER, before the arcade or the online menu): the character
+- After PLAY OFFLINE the camera flies forward into the arcade (about one second) and fades to black, and the arcade
+  room fades in: the player enters the game without a cut.
+- **Create your player** (only once, straight after the name and PINs of CREATE A CHARACTER, before choosing offline
+  or online): the character
   stands on the left, the choices on the right: **hair** (boy or girl), **hair colour** (black, ginger, brown,
   blond), **T-shirt** (9 plain colours, nothing printed) and **skin** (6 tones). A click picks; Up / Down move between
   the rows and Left / Right change the choice (the yellow arrow only shows while the keys are used). **LET'S PLAY!**
@@ -186,13 +188,15 @@ Numbers live in `arcade/config.py`.
   stands up a little); cards with the same number or symbol can be picked with it; a click on a picked card drops it.
   A click on the **discard pile** (or Enter) plays the picked cards in the order they were picked; with nothing picked
   it does nothing. If the first picked card does not fit, a message says so and nothing is played.
-- House rule, UNO: when a play leaves a player with one card they must say UNO within 2 seconds (button or U), or
-  draw 2. Bots forget now and then.
+- House rule, UNO: when a play leaves a player with one card, a big **UNO!** button (a comic-book burst of our own)
+  appears in the middle of the table: a click or **Space** says it. It has **no time limit** and being slow costs
+  nothing by itself: the button stays until the player presses it, or until someone cuts the UNO first (Corta UNO,
+  below). Offline the game waits for it. Bots always say their UNO.
 - Facing a +2 / +4 with nothing to answer it, the player takes the cards straight away (they fly to the hand): there
   is nothing to choose. With a card that can answer it, they choose as usual.
 - Whose turn it is: that player lights up a little and their name glows (no frame around them).
 - House rule, **Corta UNO**: while a player who is down to one card has not said UNO yet, anyone else can press
-  **CORTA UNO!** (K, or the button on the table). If they are first, the two of them play a **trivia face-off**:
+  the big **CORTA UNO!** button in the middle of the table (a click or Space). If they are first, the two of them play a **trivia face-off**:
   yes-or-no questions, **8 seconds** each (Y / N, Left / Right and Enter, or a click; no answer counts as wrong).
   When both are right or both are wrong, another question comes. As soon as one is right and the other is wrong it is
   over: if the player with UNO was wrong they draw **7 cards**; if the one who cut was wrong the UNO stands, as if it
@@ -205,9 +209,11 @@ Numbers live in `arcade/config.py`.
   - Online, any player at the table can cut another's UNO. The game waits during the face-off; the others watch it.
 - House rule, going out: nobody goes out with several cards at once. When a play would use the player's whole hand
   (for example their last two 1s), all but the last card go down and the player must say UNO; the last card then
-  goes down by itself and they win. Missing UNO means drawing 2 and keeping that card.
+  goes down by itself and they win. A cut UNO means drawing 7 and keeping that card.
 - House rule, places: the first player with no cards finishes 1st and the others play on without them (they are
-  skipped), until only one player has cards left: that player comes last. With two players left, a Reverse works
+  skipped), until only one player has cards left: that player comes last. A player who has finished but is still at
+  the table (online, while the others play on) sees their own place where their cards were: a medal and
+  **1ST PLACE!** (2ND, 3RD...). With two players left, a Reverse works
   like a Skip. A player who goes out by saying UNO on a turn that came back round to them passes the turn on.
 
 ### Checkers
@@ -306,7 +312,8 @@ Saved per player name: coins, owned cosmetics, equipped cosmetics, wins per game
   places included). Moves out of turn are refused; a yellow frame shows whose turn it is. In checkers and Connect Four
   the first chair is red and moves first (a roulette shows who starts).
 - Each player has **15 seconds** a turn (shown at the top for everyone). When time runs out the game plays for them,
-  as offline. In UNO, a player down to one card has 3 seconds to say UNO (U) or draws 2. Online games also start with
+  as offline. In UNO, a player down to one card says UNO with the big button (a click or Space), with no time limit; until
+  then any other player at the table can cut it (the big CORTA UNO! button). Online games also start with
   the roulette (the server picks who starts; UNO after the deal), so the first turn gets 9 more seconds in UNO and 4
   in checkers and Connect Four; each browser animates the cards that moved since it last looked.
 - Each browser looks for changes about once a second, so a friend's move shows up within about a second.

@@ -1,8 +1,9 @@
 """Title screen: drawn and animated by the browser, with an in-game menu (arcade/title_view.py).
 
-PRESS ENTER -> PLAY -> NEW PLAYER or I HAVE AN ACCOUNT -> name and PIN, all on the picture, by keyboard or mouse.
-Python only checks what the browser sends: HOW TO PLAY, or a name and PIN to sign in with. When the sign-in is
-accepted, the browser flies into the arcade and then sends "entered"; only then does the player walk in.
+PRESS ENTER -> CREATE A CHARACTER or I HAVE AN ACCOUNT -> name and PIN -> (a new player makes their character) ->
+PLAY OFFLINE or PLAY ONLINE, all on the picture, by keyboard or mouse. Python only checks what the browser sends:
+HOW TO PLAY, a name and PIN to sign in with, where to play, LOG OUT. After PLAY OFFLINE the browser flies into the
+arcade and then sends "entered"; only then does the player walk in.
 """
 
 from __future__ import annotations
@@ -11,7 +12,7 @@ import time
 
 import streamlit as st
 
-from arcade import accounts, catalog, db, room, sound, state, title_view, ui
+from arcade import accounts, catalog, db, hubmap, room, sound, state, title_view, ui
 from arcade import player as player_model
 from arcade.logic import championship
 from arcade.player import InvalidName
@@ -28,7 +29,9 @@ def _text(value, limit: int) -> str:
 
 
 def _sign_in(value: dict, number: int) -> None:
-    """NEW PLAYER or I HAVE AN ACCOUNT. A refusal goes back to the browser, which shows it on the screen."""
+    """CREATE A CHARACTER or I HAVE AN ACCOUNT. A refusal goes back to the browser, which shows it on the screen.
+    A new player goes straight to making their character; then (and straight away for an account) the title screen
+    asks where to play: offline or online."""
     mode = value.get("mode") if isinstance(value, dict) else None
     name, pin = _text(value.get("name"), 40), _text(value.get("pin"), 20)
     try:
@@ -43,34 +46,60 @@ def _sign_in(value: dict, number: int) -> None:
         sound.play("lose")
         st.rerun()
     S.title_error = None
-    if value.get("where") == "online":  # PLAY ONLINE: straight to the online menu (create or join a lobby)
-        state.start_session(player)
-        if S.screen == "create":  # a new player makes their look first, then goes online
-            S.after_create = "online"
-        else:
-            S.screen = "online"
+    state.start_session(player)
+    S.title_welcome = f"Welcome, {player['name']}!" if is_new else f"Welcome back, {player['name']}!"
+    if S.screen == "create":  # a new player makes their character first, then chooses offline or online
+        S.after_create = "title"
         ui.fade_next()
         sound.play("start")
-        ui.toast(f"Welcome, {player['name']}!" if is_new else f"Welcome back, {player['name']}!", WELCOME_DELAY)
+    else:
+        S.screen = "title"  # the title screen's menu is now PLAY OFFLINE / PLAY ONLINE
+        sound.play("coin")
+    st.rerun()
+
+
+def _play(value: dict) -> None:
+    """PLAY OFFLINE (fly into the arcade first) or PLAY ONLINE (the online menu: create or join a lobby)."""
+    if S.player is None:
+        return
+    if isinstance(value, dict) and value.get("where") == "online":
+        S.screen = "online"
+        ui.fade_next()
+        sound.play("start")
+        _welcome()
         st.rerun()
-    S.title_pending = {"player": player, "new": is_new}
-    S.title_enter = number  # the browser flies into the arcade (and plays the start sound), then sends "entered"
+    S.title_enter = value["n"]  # the browser flies into the arcade (and plays the start sound), then sends "entered"
     st.rerun()
 
 
 WELCOME_DELAY = 0.9  # the welcome pops up once the arcade has faded in from black (the fade takes 0.4 s)
 
 
+def _welcome() -> None:
+    """Welcome (back), once per sign-in, when the player first goes in."""
+    text = S.pop("title_welcome", None)
+    if text:
+        ui.toast(text, WELCOME_DELAY)
+
+
 def _walk_in() -> None:
-    """The flight into the arcade is over: start playing with the player who signed in."""
-    pending = S.get("title_pending")
-    if not pending:
+    """The flight into the arcade is over: the player walks in by the door."""
+    if S.player is None:
         return
-    S.title_pending = None
-    player = pending["player"]
-    state.start_session(player)
+    S.hub["pos"], S.hub["dir"], S.hub["walk"] = hubmap.SPAWN, "up", None
+    state.reset_bots()
+    S.match = S.game = S.result = S.champ = None
+    S.screen = "hub"
     ui.fade_next()  # the flight ends on black, and the arcade fades in from black
-    ui.toast(f"Welcome, {player['name']}!" if pending["new"] else f"Welcome back, {player['name']}!", WELCOME_DELAY)
+    _welcome()
+    st.rerun()
+
+
+def _log_out() -> None:
+    state.save()
+    S.player = None
+    S.title_welcome = None
+    sound.play("blip")
     st.rerun()
 
 
@@ -95,11 +124,12 @@ def render() -> None:
     sent = S.setdefault("_title_sent", set())
     events = title_view.mount(title_view.scene(sent, error=S.get("title_error"), ack=S.get("title_ack", 0),
                                                last_name=S.get("last_name") or "", champion=_champion(),
-                                               enter=S.get("title_enter", 0)))
+                                               enter=S.get("title_enter", 0),
+                                               signed_in=S.player["name"] if S.get("player") else ""))
     if events.need:  # the browser lost some pictures (it was reloaded): send them again
         sent.difference_update(key for key in events.need if isinstance(key, str))
         st.rerun()
-    for name in ("howto", "submit", "entered"):
+    for name in ("howto", "submit", "play", "logout", "entered"):
         value = getattr(events, name)
         if value is None:
             continue
@@ -113,5 +143,9 @@ def render() -> None:
             st.rerun()
         if name == "entered":
             _walk_in()
+        elif name == "play":
+            _play(value)
+        elif name == "logout":
+            _log_out()
         else:
             _sign_in(value, number)

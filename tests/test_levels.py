@@ -41,8 +41,6 @@ def test_levels_get_stronger_in_order():
     for key in ("twins", "stack", "smart"):
         values = [UNO_LEVELS[level][key] for level in LEVELS]
         assert values == sorted(values)
-    forgets = [UNO_LEVELS[level]["forget_uno"] for level in LEVELS]
-    assert forgets == sorted(forgets, reverse=True)
     assert [levels.stars(level) for level in LEVELS] == [1, 2, 3, 4]
 
 

@@ -205,3 +205,55 @@ def test_the_online_room_takes_players_to_their_table_and_back(app, monkeypatch)
     assert not app.exception, app.exception
     _press(app, "pause_leave_lobby")
     assert app.session_state["screen"] == "online" and "TESTER" not in lobbies.get(code).names()
+
+
+def test_space_says_uno_offline_with_no_time_limit(app):
+    _start(app, "uno", ["DEAN", "BARK", "MANHOSA"])
+    game = UnoGame(["TESTER", "DEAN", "BARK", "MANHOSA"], random.Random(4), start=0)
+    top = game.discard[-1]
+    colour = "red" if top[0] == "wild" else top[0]
+    game.hands["TESTER"] = [(colour, "5"), ("blue", "1") if colour != "blue" else ("green", "1")]
+    game.colour = colour
+    game.play("TESTER", [game.hands["TESTER"][0]])  # down to one card: the big UNO! button
+    app.session_state["game"] = game
+    app.session_state["uno_intro"] = False
+    app.session_state["uno_cutter"] = None  # (no bot will cut it)
+    app.run()
+    assert not app.exception, app.exception
+    assert game.uno_due == "TESTER"
+    time.sleep(0.01)
+    app.run()  # time goes by: still there, no +2
+    assert app.session_state["game"].uno_due == "TESTER" and len(app.session_state["game"].hands["TESTER"]) == 1
+    _press(app, "keys_uno_space")
+    assert app.session_state["game"].uno_due is None and len(app.session_state["game"].hands["TESTER"]) == 1
+
+
+def test_space_cuts_a_uno_online(app, monkeypatch):
+    from arcade import online
+    from arcade.logic.lobby import UNO_COUNTDOWN, Lobbies
+
+    clock = [1000.0]
+    lobbies = Lobbies(random.Random(5), clock=lambda: clock[0])
+    monkeypatch.setattr(online, "lobbies", lambda: lobbies)
+    me = app.session_state["player"]
+    code = lobbies.create(online.card(me))
+    lobbies.join(code, {"name": "BRUNO", "look": bots.look(bots.get("JOHN")), "tag": None})
+    lobbies.join(code, {"name": "CARLA", "look": bots.look(bots.get("DEAN")), "tag": None})
+    for name in ("TESTER", "BRUNO", "CARLA"):
+        lobbies.sit(code, name, "uno")
+    clock[0] += UNO_COUNTDOWN
+    lobbies.get(code)  # (the countdown is over: UNO starts)
+    with lobbies._lock:  # BRUNO is down to one card and has not said UNO
+        table = lobbies._find(code).tables["uno"]
+        table.table.hands["BRUNO"] = [("red", "5")]
+        table.table.uno_due = "BRUNO"
+    app.session_state["lobby_code"] = code
+    app.session_state["online_game"] = "uno"
+    app.session_state["screen"] = "online_table"
+    app.session_state["ouno_intro"] = False
+    app.session_state["online_round_seen"] = lobbies.get(code).tables["uno"].round
+    app.run()
+    assert not app.exception, app.exception
+    _press(app, "keys_ouno_space")
+    duel = lobbies.get(code).tables["uno"].duel
+    assert duel is not None and (duel.holder, duel.cutter) == ("BRUNO", "TESTER")

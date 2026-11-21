@@ -364,13 +364,13 @@ def test_going_down_to_one_card_means_uno_is_due_and_saying_it_clears_it():
     assert len(game.hands["ME"]) == 1
 
 
-def test_forgetting_uno_costs_two_cards():
+def test_not_saying_uno_yet_costs_nothing_it_waits_until_someone_cuts_it():
     game = make_game()
     set_up(game, [("red", "5"), ("blue", "1")], ("red", "9"))
     game.play("ME", ("red", "5"))
-    game.miss_uno("ME")
-    assert game.uno_due is None
-    assert len(game.hands["ME"]) == 3
+    game.bot_turn("A")  # the game goes on: the UNO is still there to say (or to cut)
+    assert game.uno_due == "ME" and len(game.hands["ME"]) == 1
+    assert not hasattr(game, "miss_uno")  # (no more +2 for being slow)
 
 
 def test_saying_uno_when_it_is_not_due_does_nothing():
@@ -379,7 +379,6 @@ def test_saying_uno_when_it_is_not_due_does_nothing():
     game.play("ME", ("red", "5"))
     assert game.uno_due is None
     assert game.call_uno("ME") is False
-    game.miss_uno("ME")
     assert len(game.hands["ME"]) == 2
 
 
@@ -491,15 +490,15 @@ def test_a_bot_plays_all_the_twins_of_its_card():
     assert game.hands["A"] == [("yellow", "2")]
 
 
-def test_a_bot_says_uno_unless_it_forgets():
-    for forget, cards in ((0.0, 1), (1.0, 3)):
+def test_a_bot_always_says_uno():
+    for seed in range(10):
         game = make_game()
+        game.rng = random.Random(seed)
         set_up(game, [("blue", "1")], ("red", "9"))
         game.turn = 1
         game.hands["A"] = [("red", "7"), ("yellow", "2")]
-        game.bot_turn("A", forget_uno=forget)
-        assert len(game.hands["A"]) == cards
-        assert game.uno_due is None
+        game.bot_turn("A")
+        assert len(game.hands["A"]) == 1 and game.uno_due is None
 
 @pytest.mark.parametrize("seed", range(25))
 def test_four_bots_always_finish_a_game_with_legal_moves(seed):
@@ -626,13 +625,13 @@ def test_saying_uno_plays_the_waiting_card_and_wins():
     assert game.hands["ME"] == [] and game.top == ("blue", "1") and game.held is None
 
 
-def test_missing_uno_keeps_the_waiting_card_and_draws_two():
+def test_a_cut_uno_keeps_the_waiting_card_and_draws_the_penalty():
     game = make_game()
     set_up(game, [("red", "1"), ("blue", "1")], ("red", "9"))
     game.play("ME", [("red", "1"), ("blue", "1")])
-    game.miss_uno("ME")
+    game.lose_cut("ME", 7)
     assert game.winner is None and game.held is None
-    assert ("blue", "1") in game.hands["ME"] and len(game.hands["ME"]) == 3
+    assert ("blue", "1") in game.hands["ME"] and len(game.hands["ME"]) == 8
 
 
 def test_three_equal_cards_as_the_whole_hand_also_wait_for_uno():
@@ -654,12 +653,8 @@ def test_a_single_last_card_still_wins_straight_away():
 def test_a_bot_with_two_equal_last_cards_also_says_uno_first():
     game = make_game()
     _bot_to_play(game, [("red", "1"), ("blue", "1")], ("red", "9"))
-    game.bot_turn("A", forget_uno=0.0, twins=1.0)
+    game.bot_turn("A", twins=1.0)
     assert game.out == ["A"]
-    game = make_game()
-    _bot_to_play(game, [("red", "1"), ("blue", "1")], ("red", "9"))
-    game.bot_turn("A", forget_uno=1.0, twins=1.0)
-    assert game.out == [] and len(game.hands["A"]) == 3
 
 
 def test_going_out_on_a_turn_that_came_back_round_passes_the_turn_on():

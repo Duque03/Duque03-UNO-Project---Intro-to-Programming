@@ -27,7 +27,7 @@ TABS = [
             ("SPACE / CLICK", "PLAY THE GLOWING CARD"),
             ("ENTER / X", "PLAY / CANCEL THE PICKED CARDS"),
             ("D / P", "DRAW A CARD / PASS AFTER DRAWING"),
-            ("U", "SAY UNO!"),
+            ("SPACE / CLICK", "THE BIG UNO! OR CORTA UNO! BUTTON"),
             ("ENTER / A", "AT THE END: ROOM / PLAY AGAIN"),
             ("ESC", "PAUSE"),
         ],
