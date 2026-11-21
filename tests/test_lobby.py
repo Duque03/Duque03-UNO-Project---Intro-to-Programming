@@ -196,14 +196,16 @@ def test_back_in_the_room_after_the_game_frees_the_table(setup):
 def test_the_chat_cleans_messages_and_hides_rude_words(setup):
     lobbies, clock, code = _room(setup, ["ANA", "BRUNO"])
     said = lobbies.say(code, "ANA", "  Olá, vamos jogar?  ")
-    assert said["text"] == "OLA, VAMOS JOGAR?" and said["name"] == "ANA"
+    assert said["text"] == "Olá, vamos jogar?" and said["name"] == "ANA"  # as typed: small letters, accents
     clock.now += 2
-    assert lobbies.say(code, "BRUNO", "what the fuck")["text"] == "WHAT THE ****"
+    assert lobbies.say(code, "BRUNO", "what the fuck")["text"] == "what the ****"
     clock.now += 2
-    assert lobbies.say(code, "BRUNO", "o meu computador")["text"] == "O MEU COMPUTADOR"  # not a rude word inside
+    assert lobbies.say(code, "BRUNO", "o meu computador")["text"] == "o meu computador"  # not a rude word inside
+    clock.now += 2
+    assert lobbies.say(code, "BRUNO", "Não, és um CARALHO")["text"] == "Não, és um *******"  # accents, any case
     clock.now += 2
     assert lobbies.say(code, "ANA", emoji="laugh")["emoji"] == "laugh"
-    assert [m["name"] for m in lobbies.get(code).chat] == ["ANA", "BRUNO", "BRUNO", "ANA"]
+    assert [m["name"] for m in lobbies.get(code).chat] == ["ANA", "BRUNO", "BRUNO", "BRUNO", "ANA"]
 
 
 def test_the_chat_refuses_empty_messages_unknown_emojis_and_spam(setup):
@@ -227,10 +229,11 @@ def test_the_chat_refuses_empty_messages_unknown_emojis_and_spam(setup):
         lobbies.say(code, "NOBODY", "hello")
 
 
-def test_messages_are_short_and_written_with_the_games_letters():
+def test_messages_are_short_and_keep_portuguese_letters():
     assert len(chat.clean("A" * 100)) == chat.MAX_LETTERS
-    assert chat.clean("café & pão <3") == "CAFE PAO 3"
-    assert chat.clean("@@@") == ""
+    assert chat.clean("Café & pão <3") == "Café & pão 3"  # (the font has no < or >)
+    assert chat.clean("Ação, avô, você, ÃÕÊ ç") == "Ação, avô, você, ÃÕÊ ç"
+    assert chat.clean("<<<>>>") == ""
 
 
 def test_a_new_look_is_seen_by_the_others(setup):

@@ -5,12 +5,11 @@ from __future__ import annotations
 import streamlit as st
 
 from arcade import controls, sound, state, ui
-from arcade.art import scenes
+from arcade.art import scenes, title_layers
 from arcade.config import GAMES
 from arcade.logic import cursor
 from arcade.screens import hub
 from arcade.state import S
-
 
 BACK_TO = ("title", "pause") + tuple(GAMES)  # screens the panel can be opened from
 
@@ -36,7 +35,7 @@ def render() -> None:
         sound.play("blip")
     # The panel sits on top of the screen it was opened from.
     if back_to == "title" or not S.player:
-        behind = scenes.title_scene(0)
+        behind = title_layers.still()  # the title screen's own background: only the panel comes up
     elif back_to in GAMES and S.get("howto_behind") is not None:
         behind = S.howto_behind
     else:

@@ -46,3 +46,32 @@ def test_a_toast_can_wait_before_it_shows(monkeypatch):
     item = st.session_state["_toasts"][-1]
     assert item["delay"] == 0.9
     assert item["until"] >= before + 0.9 + ui.TOAST_SECONDS  # it stays its full time once it shows
+
+
+def test_a_picture_only_fades_in_from_black_when_asked(monkeypatch):
+    from arcade import ui
+
+    styles = []
+    monkeypatch.setattr(st, "session_state", {}, raising=False)
+    monkeypatch.setattr(st, "markdown", lambda text, **_: styles.append(text))
+    monkeypatch.setattr(ui, "ANIMATIONS", True)
+    ui._fade_style()  # a menu over the room, the pause menu...: a plain cut
+    assert "animation: none" in styles[-1]
+    ui.fade_next()  # entering a table: through black
+    ui._fade_style()
+    assert "animation: arcade-fade-" in styles[-1]
+    st.session_state.pop("_fade_next")
+    ui._fade_style()  # (the same fade, still playing, on the runs right after)
+    assert "animation: arcade-fade-" in styles[-1]
+    st.session_state["_fade_until"] = 0
+    ui._fade_style()
+    assert "animation: none" in styles[-1]
+
+
+def test_chat_letters_keep_small_letters_and_accents():
+    from arcade.art import chat as chat_art
+
+    _, glyphs, _ = chat_art.chat_font()
+    assert {"a", "ã", "õ", "ê", "ç", "Ã", "É"} <= set(glyphs)
+    small, big = chat_art.said("olá", None, False), chat_art.said("OLÁ", None, False)
+    assert small.tobytes() != big.tobytes()  # written as typed, not in capitals

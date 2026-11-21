@@ -10,6 +10,7 @@ The dancing bots reuse the room's sprite sheets and name tags (room_layers.sheet
 
 from __future__ import annotations
 
+import math
 import random
 from functools import lru_cache
 
@@ -17,7 +18,7 @@ from PIL import Image, ImageDraw, ImageFilter
 
 from arcade.art.pixel import draw_text, mix, new_base, rect, rgb, text_size, upscale
 from arcade.art.scenes import _machine
-from arcade.config import BASE_W, SCREEN_W
+from arcade.config import BASE_W, SCREEN_H, SCREEN_W
 
 HORIZON = 110  # small-canvas row where the floor starts
 CABINETS = ((26, "#3a2f6b", "#3ad6ff"), (58, "#4a2f5f", "#ff4fa3"), (262, "#2f3f6b", "#7cff3a"), (294, "#3a2f6b", "#ffe94a"))
@@ -33,6 +34,29 @@ def backdrop() -> Image.Image:
         rect(d, 0, y, BASE_W, 1, mix("#120d2e", "#3a1a5e", y / HORIZON))
     rect(d, 0, HORIZON, BASE_W, 180 - HORIZON, (14, 10, 36))
     return upscale(img)
+
+
+@lru_cache(maxsize=1)
+def still() -> Image.Image:
+    """The title screen's background as one picture (sky, stars, the neon floor grid, the cabinets), without the
+    logo or the regulars. The screens opened from the title menu (online menu, join, how to play, making your
+    character) are drawn on it, so going into them only brings up their panel: no black, no other place."""
+    img = backdrop().convert("RGBA")
+    d = ImageDraw.Draw(img)
+    for x, y, colour, phase in stars():
+        alpha = int(255 * (0.35 + 0.65 * max(0.0, math.sin(phase))))
+        d.rectangle([x, y, x + 2, y + 2], fill=rgb(colour) + (alpha,))
+    horizon = HORIZON * 3
+    grid = Image.new("RGBA", img.size, (0, 0, 0, 0))
+    g = ImageDraw.Draw(grid)
+    for i in range(9):
+        y = horizon + round(((i / 9) ** 1.8) * (SCREEN_H - horizon) / 3) * 3
+        g.rectangle([0, y, SCREEN_W, y + 2], fill=(255, 79, 163, 140))
+    for i in range(-10, 11):
+        g.line([(480 + i * 36, horizon), (480 + i * 180, SCREEN_H)], fill=(255, 79, 163, 115), width=3)
+    img.alpha_composite(grid)
+    img.alpha_composite(cabinets())
+    return img.convert("RGB")
 
 
 @lru_cache(maxsize=1)

@@ -23,6 +23,7 @@ from arcade.config import ANIMATIONS, GAMES, SCALE, SCREEN_H, SCREEN_W
 from arcade.logic import chat
 from arcade.logic.lobby import GAME_SIZES, MAX_PLAYERS, LobbyError
 from arcade.screens import online as online_screens
+from arcade.screens import title as title_screen
 from arcade.state import S
 from arcade.wander import SEAT_FACING
 
@@ -67,6 +68,7 @@ def render() -> None:
         online.lobbies().update_card(code, card)
     if lobby.table_of(me) is not None:  # a game this player sat down for has started
         _to_table(lobby.table_of(me).game)
+    title_screen.welcome()  # (the first time in a room since signing in: "Welcome back, ...!")
     hub = _hub()
     if hub["pos"] is None:
         spot = lobby.room[me]["pos"]
@@ -149,8 +151,16 @@ def _accept(code: str, me: str, hub: dict, value, lobby) -> None:
 
 
 def _interact(code: str, me: str, lobby, hub: dict) -> None:
-    """E at a table: sit down (or get up, if this is where the player sits)."""
+    """E at a table: sit down (or get up, if this is where the player sits). E at the counter: the store, as in the
+    arcade (the others see the player standing at the counter meanwhile)."""
     near = hubmap.near_spot(hub["pos"])
+    if near == "store":
+        online.lobbies().stand(code, me)
+        sound.play("coin")
+        ui.remember(still(lobby, me, hub))  # (the backdrop while the store gets ready)
+        S.store_from = "lobby"
+        state.go("store")
+        st.rerun()
     if near not in GAMES:
         return
     seat = lobby.chair_of(me)
@@ -173,9 +183,8 @@ def _interact(code: str, me: str, lobby, hub: dict) -> None:
 def _finish_walk(code: str, me: str, hub: dict) -> None:
     """The walk to the chair is over: the player sits there (the others see them on it)."""
     walk, hub["walk"] = hub["walk"], None
-    hub["pos"], hub["dir"] = walk["to"], walk["dir"]
-    hub["synced"] = tuple(walk["to"])
-    online.lobbies().move(code, me, walk["to"], walk["dir"])
+    hub["pos"], hub["dir"] = walk["to"], walk["dir"]  # (not marked as synced: the browser must jump onto the chair,
+    online.lobbies().move(code, me, walk["to"], walk["dir"])  # its walk was only a cutscene's)
 
 
 def _say(code: str, me: str, value) -> None:
@@ -197,6 +206,7 @@ def _pause(code: str, me: str, lobby, hub: dict) -> None:
     online.lobbies().stand(code, me)
     sound.play("pause")
     S.pause_behind = still(lobby, me, hub)
+    ui.remember(S.pause_behind)  # (the backdrop while the menu gets ready)
     S.paused_from = "lobby"
     state.go("pause")
     st.rerun()
@@ -219,19 +229,20 @@ def _actors(lobby, me: str, hub: dict) -> list[dict]:
 
 
 def _prompts(lobby, me: str) -> dict:
-    """The bubbles next to the player, by spot: PLAY at a table with a free chair (STAND UP where they sit)."""
+    """The bubbles next to the player, by spot: PLAY at a table with a free chair (LEAVE SEAT where they sit)."""
     seat = lobby.chair_of(me)
     bubbles = {spot: [] for spot in hubmap.SPOTS}
     for game in GAMES:
         table = lobby.tables[game]
         if seat and seat[0] == game:
-            bubbles[game] = [{"text": "STAND UP", "key": "E", "action": "interact"}]
+            bubbles[game] = [{"text": "LEAVE SEAT", "key": "E", "action": "interact"}]
         elif table.table is not None:
             bubbles[game] = [{"text": "PLAYING", "lock": True}]
         elif None not in table.chairs:
             bubbles[game] = [{"text": "FULL", "lock": True}]
         else:
             bubbles[game] = [{"text": "PLAY", "key": "E", "action": "interact"}]
+    bubbles["store"] = [{"text": "SHOP", "key": "E", "action": "interact"}]  # the same store as in the arcade
     bubbles["champ"] = [{"text": "COMING SOON...", "lock": True}]  # the online championship is not there yet
     return bubbles
 

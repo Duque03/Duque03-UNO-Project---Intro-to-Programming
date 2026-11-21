@@ -10,6 +10,7 @@ from arcade import online, sound, state, ui
 from arcade.art import online as art
 from arcade.logic import cursor
 from arcade.logic.lobby import CODE_LETTERS, LobbyError
+from arcade.screens import title as title_screen
 from arcade.state import S
 
 
@@ -19,7 +20,6 @@ def leave() -> None:
         online.lobbies().leave(S.lobby_code, S.player["name"])
     S.lobby_code = None
     S.online_message = ""
-    ui.fade_next()
     S.screen = "online"
 
 
@@ -67,9 +67,9 @@ def render_menu() -> None:
     elif choice == "arcade":  # play offline: back into the arcade, with the bots. The room as it was (signing in
         ui.fade_next()        # again would reset the count of key presses the room has handled: an old Esc returns)
         state.go("hub")
+        title_screen.welcome()
     else:
         S.player = None
-        ui.fade_next()
         S.screen = "title"
     st.rerun()
 

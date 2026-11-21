@@ -1,8 +1,9 @@
-"""What players may say in the online room: short messages in the game's own letters, rude words hidden, and our own
-pixel emojis (drawn in arcade/art/chat.py). No screen code here.
+"""What players may say in the online room: short messages written as typed (small and capital letters, Portuguese
+accents: "Não, você joga?"), rude words hidden, and our own pixel emojis (drawn in arcade/art/chat.py). No screen code
+here.
 
-    clean(raw)        the message as it will be shown: capitals, no accents, only letters the pixel font has, at most
-                      MAX_LETTERS long, rude words turned into stars
+    clean(raw)        the message as it will be shown: only letters the pixel font has, at most MAX_LETTERS long, rude
+                      words turned into stars
     allowed(times, now)  may this player send another message now? (not too fast, not too many)
 """
 
@@ -12,7 +13,10 @@ import re
 import unicodedata
 
 MAX_LETTERS = 40  # a message fits in a speech bubble of two short lines
-LETTERS = set("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 !?.,:-_()/+'*")  # what the pixel font can write
+ACCENTED = "ÁÀÂÃÄÉÈÊËÍÌÎÏÓÒÔÕÖÚÙÛÜÇÑáàâãäéèêëíìîïóòôõöúùûüçñ"
+SYMBOLS = " !?.,:;-_()/+'\"*@#&%€$=ºª"
+LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789" + ACCENTED + SYMBOLS  # what the font writes
+_ALLOWED = set(LETTERS)
 GAP = 1.2  # seconds between two messages from the same player
 BURST, BURST_SECONDS = 5, 10.0  # at most this many messages in this many seconds
 SHOWN = 6.0  # seconds a message stays above its player's head
@@ -31,25 +35,25 @@ _ANYWHERE = {"fuck", "bitch", "asshole", "bastard", "whore", "nigg", "faggot", "
 
 
 def _plain(text: str) -> str:
-    """Capitals without accents (ç becomes C, ã becomes A), as the pixel font writes them."""
+    """Small letters without accents (ç becomes c, Ã becomes a): how words are compared with the rude ones."""
     flat = unicodedata.normalize("NFKD", text or "")
-    return "".join(ch for ch in flat if not unicodedata.combining(ch)).upper()
+    return "".join(ch for ch in flat if not unicodedata.combining(ch)).lower()
 
 
 def _rude(word: str) -> bool:
-    low = word.lower()
+    low = _plain(word)
     return low in _WHOLE or any(bad in low for bad in _ANYWHERE)
 
 
 def censor(text: str) -> str:
     """Rude words become stars of the same length; everything else stays as it was."""
-    return re.sub(r"[A-Z0-9']+", lambda m: "*" * len(m.group()) if _rude(m.group().replace("'", "")) else m.group(),
-                  text)
+    return re.sub(r"[^\W_]+(?:'[^\W_]+)*", lambda m: "*" * len(m.group()) if _rude(m.group().replace("'", ""))
+                  else m.group(), text)
 
 
 def clean(raw: str) -> str:
     """The message as everyone will see it, or "" if nothing is left to say."""
-    text = "".join(ch for ch in _plain(raw) if ch in LETTERS)
+    text = "".join(ch for ch in unicodedata.normalize("NFC", raw or "") if ch in _ALLOWED)
     text = " ".join(text.split())[:MAX_LETTERS].strip()
     return censor(text)
 

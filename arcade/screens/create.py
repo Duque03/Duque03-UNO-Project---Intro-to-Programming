@@ -48,7 +48,9 @@ def render() -> None:
         state.save()
         for name in ("create_choice", "create_row", "create_keys"):
             S.pop(name, None)
-        state.go(S.pop("after_create", None) or "hub")
-        ui.fade_next()
+        target = S.pop("after_create", None) or "hub"
+        if target == "hub":
+            ui.fade_next()  # into the arcade through black (back to the title menu is a plain cut)
+        state.go(target)
         sound.play("start")
         st.rerun()

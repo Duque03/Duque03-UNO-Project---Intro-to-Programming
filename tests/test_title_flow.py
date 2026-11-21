@@ -62,6 +62,9 @@ def test_an_account_signs_in_and_then_chooses_offline_or_online(session):
     assert session.screen == "title" and session.player["name"] == "BRUNO"
     _send(title._play, {"where": "online", "n": 2})
     assert session.screen == "online"
+    assert not session.get("_toasts") and session.title_welcome  # the welcome waits for the first room
+    title.welcome()
+    assert session["_toasts"][-1]["text"] == "Welcome back, BRUNO!" and session.title_welcome is None
 
 
 def test_play_offline_flies_into_the_arcade_first(session):
@@ -91,3 +94,18 @@ def test_the_pixel_font_has_the_new_menu_words():
     words = ["CREATE A CHARACTER", "I HAVE AN ACCOUNT", "PLAY OFFLINE", "PLAY ONLINE", "LOG OUT", "HELLO, MIGUEL!"]
     assert not {ch for word in words for ch in word if ch not in glyphs}
     assert {"play", "logout"} <= set(title_view.EVENTS)
+
+
+def test_the_screens_of_the_title_menu_are_drawn_on_the_titles_own_background():
+    from arcade import bots
+    from arcade.art import create, online as online_art
+    from arcade.logic import looks
+
+    still = title_layers.still()
+    me = {"name": "ANA", "look": bots.look(bots.get("JOHN")), "tag": None}
+    menu, _ = online_art.menu_picture(me, [{"label": "CREATE LOBBY", "action": "create"}], 0)
+    join, _ = online_art.join_picture("", "ABD", 0)
+    maker, _ = create.creator_picture("ANA", {k: next(iter(o)) for k, o in looks.ROWS}, None)
+    for picture in (menu, join, maker):
+        for corner in ((5, 5), (5, 530), (950, 300)):  # around the box: the title screen shows
+            assert picture.convert("RGB").getpixel(corner) == still.getpixel(corner)

@@ -30,7 +30,6 @@ from __future__ import annotations
 import base64
 import io
 import json
-from functools import lru_cache
 
 import streamlit as st
 
@@ -177,25 +176,18 @@ def scene(sent: set, *, actors, coins, champ_locked, bubbles, player, cutscene=N
     return data
 
 
-@lru_cache(maxsize=1)
-def _font():
-    from arcade.art import title_layers
-
-    return title_layers.font_atlas()
-
-
 def _online(s: Scene, online: dict) -> dict:
     from arcade.art import chat as chat_art
     from arcade.logic.chat import EMOJIS
 
-    atlas, glyphs, height = _font()
+    atlas, glyphs, height = chat_art.chat_font()
     plate = online.get("plate")
     return {
         "mats": [{"x": mat["x"], "y": mat["y"], "taken": bool(mat["taken"])} for mat in online.get("mats", [])],
         "matImg": {"free": s.use("mat:free", lambda: chat_art.chair_mat(False)),
                    "taken": s.use("mat:taken", lambda: chat_art.chair_mat(True))},
         "posEvery": POS_EVERY,
-        "font": {"img": s.use("title:font", lambda: atlas), "glyphs": glyphs, "h": height},
+        "font": {"img": s.use("chat:font", lambda: atlas), "glyphs": glyphs, "h": height},
         "emojis": [{"name": name, "img": s.use(f"emoji:{name}", lambda n=name: chat_art.emoji(n, 3))} for name in EMOJIS],
         "send": s.use("chat:send", chat_art.send_icon),
         "says": [{"id": say["id"], "who": say["who"], "left": say["left"],
@@ -369,7 +361,12 @@ export default function (component) {
         chatBox.style.cssText = `position:absolute;left:${fx / 9.6}%;top:${fy / 5.4}%;width:${fw / 9.6}%;`
             + `height:${fh / 5.4}%;opacity:0;border:0;padding:0;margin:0;font-size:16px;cursor:text;z-index:2;`;
         canvas.parentNode.appendChild(chatBox);
-        chatBox.addEventListener("focus", () => { G.keys.length = 0; G.target = null; G.emojiOpen = false; });
+        // (the box lives inside the component's own part of the page, so document.activeElement never names it:
+        // its focus is followed here, for the yellow edge and the blinking | while typing)
+        chatBox.addEventListener("focus", () => {
+            G.keys.length = 0; G.target = null; G.emojiOpen = false; G.chatFocused = true; G.caretT0 = performance.now() / 1000;
+        });
+        chatBox.addEventListener("blur", () => { G.chatFocused = false; });
         chatBox.addEventListener("keydown", (event) => {
             event.stopPropagation();
             if (event.key === "Enter") {
@@ -386,7 +383,7 @@ export default function (component) {
     }
     if (chatBox) {
         chatBox.style.display = ON ? "block" : "none";
-        if (!ON && document.activeElement === chatBox) chatBox.blur();
+        if (!ON && G.chatFocused) chatBox.blur();
     }
     G.chatBox = ON ? chatBox : null;
     const sendEmoji = (i) => {
@@ -578,14 +575,13 @@ export default function (component) {
         return c;
     }
 
-    function typed(raw) {  // what was typed, as the game writes it: capitals, no accents, only letters the font has
+    function typed(raw) {  // what was typed, as it will be shown: small letters and accents kept, only letters the font has
         const glyphs = G.data.online.font.glyphs;
-        return Array.from(raw.toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, ""))
-            .filter((ch) => ch in glyphs).join("");
+        return Array.from(raw.normalize("NFC")).filter((ch) => ch in glyphs).join("");
     }
 
     function chatBar(ctx, t) {
-        const O = G.data.online, font = O.font, focused = document.activeElement === G.chatBox;
+        const O = G.data.online, font = O.font, focused = !!(G.chatFocused && G.chatBox);
         ctx.setTransform(1, 0, 0, 1, 0, 0);
         pixelBox(ctx, CHAT.emoji, G.emojiOpen || G.hoverChat === "emoji");
         const face = O.emojis.length && img(O.emojis[0].img);
@@ -607,7 +603,9 @@ export default function (component) {
                 cx += m[1] + 2;
             }
         }
-        if (focused && Math.floor(t * 2.5) % 2 === 0) { ctx.fillStyle = "#ffe94a"; ctx.fillRect(cx + 1, cy, 3, font.h - 6); }
+        if (focused && Math.floor((t - (G.caretT0 || 0)) * 2) % 2 === 0) {  // the blinking | where the next letter goes
+            ctx.fillStyle = "#ffffff"; ctx.fillRect(cx + 1, cy + 2, 3, font.h - 6);
+        }
         if (G.emojiOpen) {
             pixelBox(ctx, EMOJI_PANEL, false);
             O.emojis.forEach((e, i) => {

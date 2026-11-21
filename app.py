@@ -37,6 +37,10 @@ if st.session_state.player is None and st.session_state.screen != "howto":  # fo
     st.session_state.screen = "title"  # ("How to play" can be opened from the title screen, before a name is given)
 sound.render_music()  # first, so a new screen changes the tune at once (a table's first run takes a few seconds)
 with st.container(key="game_frame"):  # one glowing frame around the whole game, buttons included (ui.py)
+    shown = st.session_state.get("_screen_shown")
+    if shown != st.session_state.screen:  # a new screen: the last picture stays behind until its own arrives
+        st.session_state["_screen_shown"] = st.session_state.screen
+        ui.backdrop(ui.title_backdrop() if shown == "title" else st.session_state.get("_last_src"))
     try:
         SCREENS[st.session_state.screen]()
     except Exception as problem:  # never a black screen: log it, say so, back to the arcade (state.recover)
