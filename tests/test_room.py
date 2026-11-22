@@ -78,3 +78,14 @@ def test_a_press_without_a_number_is_ignored():
     assert room.new_press({"x": 1, "y": 2}, last=0) is None
     assert room.new_press({"n": "abc"}, last=0) is None
     assert room.new_press(None, last=0) is None
+
+
+def test_room_bubbles_show_their_key():
+    from arcade.art import room_layers
+
+    def width(text, key):
+        return room_layers.bubble(text, key)[1][0]
+
+    assert width("PLAY", "E") > width("PLAY", None)  # PLAY [E] (Miguel wants the E on PLAY, SHOP, TALK, CHAMPIONSHIP)
+    assert width("RULES", "I") > width("RULES", None)  # and RULES [I]
+    assert width("PLAY", "Q") == width("PLAY", None)  # no other key is printed

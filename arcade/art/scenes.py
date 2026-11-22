@@ -471,7 +471,8 @@ def hub_scene(actors, coins, prompts=(), champ_locked=True, glow=None, t=0, hud=
             small = prompt.get("small")
             scale = 2
             tw, th = text_size(prompt["text"], scale)
-            key_w = 0  # (no key printed on the bubble: E, or a click, is all it takes; How to play says so)
+            key = prompt.get("key") if prompt.get("key") in ("E", "I") else None  # (the room's keys, as in the room)
+            key_w = (text_size(key, 2)[0] + 12 + 8) if key else 0
             lock_w = 30 if prompt.get("lock") else 0
             w = tw + key_w + lock_w + 24
             h = 34 + (CHAR_H * 1 + 6 if small else 0)
@@ -485,6 +486,8 @@ def hub_scene(actors, coins, prompts=(), champ_locked=True, glow=None, t=0, hud=
                 lock(big, cursor, y + 5, 2, "#6b6880")
                 cursor += lock_w - 8
             draw_text(big, (cursor, y + 17), prompt["text"], scale, INK, "lm")
+            if key:
+                key_icon(big, cursor + tw + 8, y + 5, key, 2, "#ffe94a")
             if small:
                 draw_text(big, (x0 + 12, y + 31), small, 1, "#4a4660", "lt")
             if prompt.get("action"):

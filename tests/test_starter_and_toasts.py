@@ -56,16 +56,36 @@ def test_a_picture_only_fades_in_from_black_when_asked(monkeypatch):
     monkeypatch.setattr(st, "markdown", lambda text, **_: styles.append(text))
     monkeypatch.setattr(ui, "ANIMATIONS", True)
     ui._fade_style()  # a menu over the room, the pause menu...: a plain cut
-    assert "animation: none" in styles[-1]
-    ui.fade_next()  # entering a table: through black
+    assert "animation" not in styles[-1]
+    st.session_state["_screen_shown"] = "hub"
+    ui.fade_next()  # entering a table from the room (which faded to black itself): the table fades in at once
     ui._fade_style()
-    assert "animation: arcade-fade-" in styles[-1]
+    assert "animation: arcade-fade-" in styles[-1] and "0%, " not in styles[-1]
+    assert "game_screen_anim" in styles[-1]  # (the cards' animation fades in too)
     st.session_state.pop("_fade_next")
     ui._fade_style()  # (the same fade, still playing, on the runs right after)
     assert "animation: arcade-fade-" in styles[-1]
     st.session_state["_fade_until"] = 0
     ui._fade_style()
-    assert "animation: none" in styles[-1]
+    assert "animation" not in styles[-1]
+    st.session_state["_screen_shown"] = "uno"
+    ui.fade_next()  # from a table back to the room: the old picture darkens first, then the room comes up
+    ui._fade_style()
+    assert "0%, 43% { opacity: 0; }" in styles[-1] and "arcade_room" in styles[-1]
+
+
+def test_going_through_black_darkens_the_old_picture_or_starts_black(monkeypatch):
+    from arcade import ui
+
+    styles = []
+    monkeypatch.setattr(st, "markdown", lambda text, **_: styles.append(text))
+    monkeypatch.setattr(st, "container", lambda **_: __import__("contextlib").nullcontext())
+    ui.backdrop("data:old", "hub", "dim")
+    assert "data:old" in styles[-1] and "brightness(0)" in styles[-1] and "arcade-on-hub" in styles[-1]
+    ui.backdrop("data:old", "uno", "black")
+    assert "background: #000" in styles[-1] and "data:old" not in styles[-1]
+    ui.backdrop("data:old", "pause")
+    assert "data:old" in styles[-1] and "animation" not in styles[-1]  # a plain cut: the picture as it is
 
 
 def test_chat_letters_keep_small_letters_and_accents():

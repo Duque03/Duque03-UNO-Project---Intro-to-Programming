@@ -42,7 +42,11 @@ with st.container(key="game_frame"):  # one glowing frame around the whole game,
     st.session_state["_screen_shown"] = st.session_state.screen
     if shown == st.session_state.screen:
         ui.backdrop(None, shown)  # (the box is always there, empty, so nothing after it ever moves: a moved element
-    else:                         # is rebuilt by the browser, and that blinked black)
+                                  # is rebuilt by the browser, and that blinked black)
+    elif st.session_state.get("_fade_next") and ui.ANIMATIONS:  # through black (ui._fade_style)
+        ui.backdrop(st.session_state.get("_last_src"), st.session_state.screen,
+                    "black" if shown in ui.BROWSER_SCREENS else "dim")
+    else:  # a plain cut: the last picture stays until the new screen's own arrives
         ui.backdrop(ui.title_backdrop() if shown == "title" or st.session_state.screen == "title"
                     else st.session_state.get("_last_src"), st.session_state.screen)
     toasts = st.container(key="game_toasts")  # (made here, filled at the end: always second, whatever the screen)

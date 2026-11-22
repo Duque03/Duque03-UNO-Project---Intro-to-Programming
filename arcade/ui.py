@@ -91,6 +91,13 @@ img {{ image-rendering: pixelated; }}
     .st-key-arcade_title[data-stale="false"])
     :is(.st-key-game_screen_stage [data-stale="true"], .st-key-arcade_room[data-stale="true"],
         .st-key-arcade_title[data-stale="true"]) {{ display: none !important; }}
+/* and by the screen's name (marked in the backdrop box at the very start of the run): the room and the title never
+   show a game picture, and a picture screen never shows the room or the title. (An old picture came back for a
+   frame in the middle of the room's fade, when a second run marked the room stale too.) */
+.st-key-game_frame:has(.arcade-on-hub, .arcade-on-lobby, .arcade-on-title, .arcade-on-online)
+    .st-key-game_screen_stage {{ display: none !important; }}
+.st-key-game_frame:has(.arcade-on):not(:has(.arcade-on-hub, .arcade-on-lobby, .arcade-on-title, .arcade-on-online))
+    :is(.st-key-arcade_room, .st-key-arcade_title) {{ display: none !important; }}
 /* the turn clock only shows at a table (the screen's name is marked in the backdrop box, see backdrop()): opening the
    pause menu or going back to the room takes it away at once, not when that run ends */
 .st-key-game_frame:not(:has(.arcade-on-uno, .arcade-on-checkers, .arcade-on-connect4, .arcade-on-online_table))
@@ -333,26 +340,50 @@ def show(slot, img) -> None:
         table_anim.alive(slot, img)  # the machines on the wall behind a table keep playing
 
 
-FADE_WINDOW = 0.7  # seconds after fade_next() during which a new picture fades in from black
+FADE_WINDOW = 0.9  # seconds after fade_next() during which a new picture fades in from black
+DIM_SECONDS = 0.3  # going through black from a picture: the old picture darkens this long...
+FADE_IN_SECONDS = 0.4  # ...then the new screen comes up from black this long
+# The screens the browser draws itself (the room, the online lobby, the title): they never show a game picture, and
+# when they go through black they have already faded to black on their own (the zoom into a table, the flight).
+BROWSER_SCREENS = ("hub", "lobby", "title", "online")
+# What fades in: the game picture, the moving wall behind it and the cards' animation laid over it (a table starts
+# with an animation: without it the table popped up at full light). Plain selectors, so a rerun during the fade does
+# not start it again (a selector on data-stale did: the room faded in twice).
+FADE_TARGETS = (f".st-key-{SCREEN_KEY} img, .st-key-{SCREEN_KEY}_alive, .st-key-{SCREEN_KEY}_anim, "  # (the boxes:
+                ".st-key-game_toasts")  # the canvases inside are components; a message comes up with its screen)
 
 
 def _fade_style() -> None:
-    """Every run writes one small style. Only after fade_next() (entering a table, coming back into the room) does
-    the game picture fade in from black: it switches to the other of two identical fade-in animations, and a new
-    animation name makes the browser play it again. Any other change of screen (a menu over the room, the pause
-    menu, the screens of the title menu) is a plain cut: no black flash (Miguel's call)."""
+    """Every run writes one small style. Only after fade_next() (entering a table, coming back into the room, the
+    scoreboard) does the game go through black, like other games: the old screen darkens, then the new one comes up
+    from black. Any other change of screen (a menu over the room, the pause menu, the title menu) is a plain cut.
+
+    - From the room or the title (they faded to black themselves: the zoom into a table, the flight into the
+      arcade): the backdrop is black and the new picture fades in at once.
+    - From a picture (a table, the pause menu, the scoreboard): the backdrop holds the old picture and darkens it
+      (DIM_SECONDS), and the new picture, or the room, only starts to come up after that.
+
+    The old picture never fades in again: on the room it is hidden at once (by the screen's name), and an old picture
+    still under a new one goes transparent with it while the backdrop darkens the same picture."""
     now = time.time()
-    if st.session_state.get("_fade_next") and ANIMATIONS:
+    if st.session_state.get("_fade_next") and ANIMATIONS and now >= st.session_state.get("_fade_until", 0):
         st.session_state["_fade_count"] = st.session_state.get("_fade_count", 0) + 1
         st.session_state["_fade_until"] = now + FADE_WINDOW
-    name = f"arcade-fade-{st.session_state.get('_fade_count', 0) % 2}"
-    rule = f"{name} .4s ease-out" if now < st.session_state.get("_fade_until", 0) else "none"
-    st.markdown(
-        f"<style>.st-key-{SCREEN_KEY} img, .st-key-{SCREEN_KEY}_alive canvas {{ animation: {rule}; }}"
-        "@keyframes arcade-fade-0 { from { opacity: 0; } to { opacity: 1; } }"
-        "@keyframes arcade-fade-1 { from { opacity: 0; } to { opacity: 1; } }</style>",
-        unsafe_allow_html=True,
-    )
+        st.session_state["_fade_dip"] = st.session_state.get("_screen_shown") not in BROWSER_SCREENS
+    n = st.session_state.get("_fade_count", 0) % 2
+    rules = ""
+    if now < st.session_state.get("_fade_until", 0):
+        if st.session_state.get("_fade_dip"):
+            hold = round(DIM_SECONDS / (DIM_SECONDS + FADE_IN_SECONDS) * 100)
+            seconds = DIM_SECONDS + FADE_IN_SECONDS
+            frames = f"0%, {hold}% {{ opacity: 0; }} 100% {{ opacity: 1; }}"
+            targets = f"{FADE_TARGETS}, .st-key-arcade_room"
+        else:
+            seconds, frames = FADE_IN_SECONDS, "from { opacity: 0; } to { opacity: 1; }"
+            targets = FADE_TARGETS
+        rules = (f"{targets} {{ animation: arcade-fade-{n} {seconds}s ease-out both; }}"
+                 f"@keyframes arcade-fade-{n} {{ {frames} }}")
+    st.markdown(f"<style>{rules}</style>", unsafe_allow_html=True)
 
 
 def remember(img) -> None:
@@ -369,15 +400,27 @@ def title_backdrop() -> str:
     return inline(title_layers.still())
 
 
-def backdrop(src: str | None, screen: str = "") -> None:
-    """On the first run of a new screen: the previous picture, behind everything. The old screen's picture (or the
-    room) goes away as soon as the new screen draws its first element, and its own picture can take a moment to
-    make: without this the page showed black for a moment (opening the pause menu, the opponent picker...).
+def backdrop(src: str | None, screen: str = "", look: str = "still") -> None:
+    """On the first run of a new screen: what stays behind everything while the new screen gets ready. The old
+    screen's picture (or the room) goes away as soon as the new screen is there, and its own picture can take a
+    moment to make: without this the page showed black for a moment (opening the pause menu, the opponent picker...).
+
+    look: "still" shows `src` (the previous picture) as it is; "dim" shows it and darkens it to black (going through
+    black from a picture); "black" is just black (the previous screen already faded to black by itself).
 
     The box also carries the name of the screen (class arcade-on-<screen>), so the CSS knows at once, at the start of
-    the run, which screen is coming (the turn clock only shows at a table)."""
+    the run, which screen is coming (the turn clock only shows at a table; the room is hidden behind a picture)."""
     with st.container(key="game_backdrop"):  # (the picture is the box's own background: exactly its size)
-        style = f'<style>.st-key-game_backdrop {{ background-image: url("{src}"); }}</style>' if src else ""
+        if look == "black":
+            style = "<style>.st-key-game_backdrop { background: #000; }</style>"
+        elif src and look == "dim":
+            style = (f'<style>.st-key-game_backdrop {{ background-image: url("{src}"); '
+                     f"animation: arcade-dim {DIM_SECONDS}s ease-in both; }}"
+                     "@keyframes arcade-dim { from { filter: brightness(1); } to { filter: brightness(0); } }</style>")
+        elif src:
+            style = f'<style>.st-key-game_backdrop {{ background-image: url("{src}"); }}</style>'
+        else:
+            style = ""
         st.markdown(f'<span class="arcade-on arcade-on-{screen}"></span>{style}', unsafe_allow_html=True)
 
 
