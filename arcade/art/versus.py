@@ -6,7 +6,7 @@ from PIL import Image, ImageDraw
 
 from arcade.art import sprites
 from arcade.art.scenes import draw_button
-from arcade.art.pixel import coin, darken, draw_text, key_icon, panel, rgb, shade
+from arcade.art.pixel import coin, darken, draw_text, panel, rgb, shade
 from arcade.config import LEVEL_COINS, LEVELS, SCREEN_H, SCREEN_W
 
 LEVEL_COLOURS = {"easy": "#3ad678", "medium": "#ffd84a", "hard": "#ff9a3a", "expert": "#ff4f6d"}
@@ -41,7 +41,6 @@ def card(cardinfo: dict, picked: bool, number: int, t: int = 0) -> Image.Image:
         _star(d, CARD_W // 2 - 32 + i * 17, 262, colour if i <= LEVELS.index(level) else "#3a2f6b")
     border = "#ffffff" if picked else shade(colour, 0.7)
     d.rectangle([0, 0, CARD_W - 1, CARD_H - 1], outline=rgb(border), width=5 if picked else 3)
-    key_icon(img, 8, 8, str(number), 2)
     if picked:  # a big tick in the corner
         for x, y in ((CARD_W - 34, 18), (CARD_W - 28, 24), (CARD_W - 22, 18), (CARD_W - 16, 12), (CARD_W - 10, 6)):
             d.rectangle([x - 1, y - 1, x + 8, y + 8], fill=rgb("#16122b"))

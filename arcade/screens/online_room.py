@@ -60,8 +60,7 @@ def render() -> None:
     code, me = S.get("lobby_code"), S.player["name"]
     lobby = _lobby(code)
     if lobby is None or me not in lobby.names():
-        S.online_message = "That lobby has closed." if lobby is None else "You are not in that lobby any more."
-        online_screens.leave()
+        online_screens.leave("That lobby has closed." if lobby is None else "You are not in that lobby any more.")
         st.rerun()
     card = online.card(S.player)
     if lobby.card(me) != card:  # new clothes from the wardrobe: the others see them

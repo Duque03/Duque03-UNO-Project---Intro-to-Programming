@@ -11,7 +11,16 @@ from PIL import Image, ImageDraw
 
 from arcade import catalog
 from arcade.art import sprites
-from arcade.art.pixel import coin, darken, draw_text, key_icon, mix, rgb, shade, text_size, wrap
+from arcade.art.pixel import (
+    coin,
+    darken,
+    draw_text,
+    mix,
+    rgb,
+    shade,
+    text_size,
+    wrap,
+)
 from arcade.art.scenes import confetti, sparkle
 from arcade.config import SCREEN_H, SCREEN_W
 
@@ -180,14 +189,13 @@ def podium_picture(table, title: str, standings: list[dict], me: str, coins: int
 
 
 def _hint(img, cx, y, key, text) -> tuple:
-    """A key and what it does, on a dark plate, centred on cx. Returns the plate (for clicks)."""
+    """What clicking here (or its key) does, on a dark plate, centred on cx: just the word, no key printed.
+    Returns the plate (for clicks)."""
     d = ImageDraw.Draw(img)
-    tw, kw = text_size(text, 2)[0], text_size(key, 2)[0] + 12
-    width = kw + 10 + tw
-    x = cx - width // 2
-    box = (x - 12, y - 8, x + width + 12, y + 32)
+    tw = text_size(text, 2)[0]
+    x = cx - tw // 2
+    box = (x - 16, y - 8, x + tw + 16, y + 32)
     d.rectangle(box, fill=rgb(INK))
     d.rectangle([box[0] + 3, box[1] + 3, box[2] - 3, box[3] - 3], fill=rgb("#2a2150"))
-    key_icon(img, x, y, key, 2, "#ffe94a")
-    draw_text(img, (x + kw + 10, y + 12), text, 2, "#f3ead2", "lm")
+    draw_text(img, (x, y + 12), text, 2, "#f3ead2", "lm")
     return box

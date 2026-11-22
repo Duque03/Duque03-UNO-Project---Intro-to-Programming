@@ -116,8 +116,10 @@ def render() -> None:
         leave_table()
         st.rerun()
     if not at_table and not online_room and (go_online or action == ("menu", "online")):  # create or join a lobby with friends
+        from arcade.screens import online as online_screens
+
         state.save()
-        state.go("online")
+        online_screens.to_title("online")  # the title screen's online box
         st.rerun()
     if not online_room and (leave or action == ("menu", "leave")):
         state.save()  # progress is kept for next time

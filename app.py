@@ -31,21 +31,26 @@ SCREENS = {
     "online_table": online_table.render,
 }
 
+ui.fresh_page()  # first of all: a full run always starts at the top of the page (see ui.fresh_page)
 ui.setup_page()
 state.init()
 if st.session_state.player is None and st.session_state.screen != "howto":  # for example after a page reload
     st.session_state.screen = "title"  # ("How to play" can be opened from the title screen, before a name is given)
 sound.render_music()  # first, so a new screen changes the tune at once (a table's first run takes a few seconds)
 with st.container(key="game_frame"):  # one glowing frame around the whole game, buttons included (ui.py)
-    shown = st.session_state.get("_screen_shown")
-    if shown != st.session_state.screen:  # a new screen: the last picture stays behind until its own arrives
-        st.session_state["_screen_shown"] = st.session_state.screen
-        ui.backdrop(ui.title_backdrop() if shown == "title" else st.session_state.get("_last_src"))
+    shown = st.session_state.get("_screen_shown")  # a new screen: the last picture stays behind until its own arrives
+    st.session_state["_screen_shown"] = st.session_state.screen
+    if shown == st.session_state.screen:
+        ui.backdrop(None, shown)  # (the box is always there, empty, so nothing after it ever moves: a moved element
+    else:                         # is rebuilt by the browser, and that blinked black)
+        ui.backdrop(ui.title_backdrop() if shown == "title" or st.session_state.screen == "title"
+                    else st.session_state.get("_last_src"), st.session_state.screen)
+    toasts = st.container(key="game_toasts")  # (made here, filled at the end: always second, whatever the screen)
     try:
         SCREENS[st.session_state.screen]()
     except Exception as problem:  # never a black screen: log it, say so, back to the arcade (state.recover)
         if not state.recover(problem):
             raise
         st.rerun()
-    ui.render_toasts()  # little messages in the game's pixel font, laid on the picture (top right), after it
+    ui.render_toasts(toasts)  # little messages in the game's pixel font, laid on the picture (top right)
 sound.render()  # play the sounds asked for during this run (A7)
