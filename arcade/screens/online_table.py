@@ -150,11 +150,19 @@ def _bar_end(bar, lobby, me: str, over: bool, action=None) -> None:
             online_room.enter(curtain=True)
             st.rerun()
     with bar[-1]:
-        out = ui.button("Leave", "otable_leave", "Esc")
-    if out or action == ("leave",):
-        online.lobbies().quit_table(S.lobby_code, me)
-        online_room.enter(curtain=True)
+        paused = ui.button("Pause", "otable_pause", "Esc")
+    if paused or action == ("pause",):  # the pause menu: the game goes on meanwhile (and so does the clock)
+        sound.play("pause")
+        S.paused_from = "online_table"
+        S.pause_behind = S.get("_last_frame")  # the menu sits on top of the table as it was
+        state.go("pause")
         st.rerun()
+
+
+def leave_table() -> None:
+    """LEAVE TABLE in the pause menu: the game ends for the others, and the player goes back to the room."""
+    online.lobbies().quit_table(S.lobby_code, S.player["name"])
+    online_room.enter(curtain=True)
 
 
 def _show(img, regions, lobby, me, over, plan=None):
@@ -187,7 +195,7 @@ def _show(img, regions, lobby, me, over, plan=None):
         img = scenes.result_panel(img, title, line, online_coins(lobby.result, me))
         regions = [((0, 0, SCREEN_W, SCREEN_H), ("lobby",))]
     else:
-        regions = list(regions) + common.corner_buttons(img, ("leave",))  # no bar of buttons: LEAVE is on the picture
+        regions = list(regions) + common.corner_buttons(img, ("pause",))  # no bar of buttons: PAUSE is on the picture
     if plan is None:
         ui.show(slot, img)
         return regions
@@ -357,7 +365,7 @@ def _uno_duel(lobby, me: str, opponents, key) -> None:
             "focus": focus if asking and S.get("ouno_keyboard") else None}
     table = uno_screen.draw(game, me, opponents)[0]
     img, regions = duel_art.duel_picture(table, view)
-    regions += common.corner_buttons(img, ("leave",))
+    regions += common.corner_buttons(img, ("pause",))
     ui.show(_slot(), img)
     point = ui.click()
     if point is not None:

@@ -327,7 +327,8 @@ Saved per player name: coins, owned cosmetics, equipped cosmetics, wins per game
   and press Enter; Esc or Tab closes it. The emoji pops up above the player's head like a message.
 - **Tables**: each table has a sign over it with a square per chair and the count (**1/4**, **2/4**...), and a mat on
   the floor at every chair, lit where someone sits. Walk to a table and press **E** (or click PLAY): your character
-  sits on a free chair and stays there, waiting. **E** again (LEAVE SEAT) or walking away gets up. **Checkers** and **Connect Four** start as
+  walks to a free chair and only sits once there (so a game with someone waiting starts when you are seated), and
+  stays there, waiting. **E** again (LEAVE SEAT) or walking away gets up. **Checkers** and **Connect Four** start as
   soon as both chairs are taken. **UNO** starts at **4/4**, or **10 seconds** after the second player sat down (the
   sign counts down: STARTS IN 7); with 2 or 3 it starts with those seated. A table that is playing shows PLAYING and
   takes nobody else; the other tables are free, so two games can be played at the same time. Esc in the room opens the
@@ -336,7 +337,9 @@ Saved per player name: coins, owned cosmetics, equipped cosmetics, wins per game
 - **At the table** each player sees the game from their own seat, with the same pictures as in the arcade: in UNO the
   others sit round the table in turn order; in checkers and Connect Four the second player's checkers board is turned round so their pieces are at the bottom. The same rules as offline (UNO
   places included). Moves out of turn are refused; a yellow frame shows whose turn it is. In checkers and Connect Four
-  the first chair is red and moves first (a roulette shows who starts).
+  the first chair is red and moves first (a roulette shows who starts). **Esc** (or the pause button in the corner)
+  opens the pause menu (RESUME, HOW TO PLAY, MUSIC, LEAVE TABLE): the game goes on meanwhile for the others, and the
+  player's own clock keeps running. LEAVE TABLE ends the game for the others and goes back to the room.
 - Each player has **15 seconds** a turn (shown at the top for everyone). When time runs out the game plays for them,
   as offline. In UNO, a player down to one card says UNO with the big button (a click or Space), with no time limit; until
   then any other player at the table can cut it (the big CORTA UNO! button). Online games also start with

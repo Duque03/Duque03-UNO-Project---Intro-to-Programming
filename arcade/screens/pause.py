@@ -33,6 +33,8 @@ def options(paused_from: str | None, level: str = "high") -> list[dict]:
     the online room: leave the lobby, which takes the place of leaving the arcade."""
     if paused_from == "lobby":
         return OPTIONS[:3] + [music_option(level), LEAVE_LOBBY]
+    if paused_from == "online_table":  # (no wardrobe in the middle of a game with friends)
+        return [OPTIONS[0], OPTIONS[2], music_option(level), LEAVE_TABLE]
     extra = LEAVE_TABLE if paused_from in GAMES else PLAY_ONLINE
     return OPTIONS[:3] + [music_option(level), extra] + OPTIONS[3:]
 
@@ -53,7 +55,8 @@ def leave_table() -> None:
 
 
 def render() -> None:
-    at_table = S.paused_from in GAMES
+    online_table = S.paused_from == "online_table"  # an online game goes on while this menu is open
+    at_table = S.paused_from in GAMES or online_table
     online_room = S.paused_from == "lobby"
     behind = S.get("pause_behind") if (at_table or online_room) and S.get("pause_behind") is not None else hub.still()
     menu = options(S.paused_from, S.player.get("music", "high"))
@@ -73,7 +76,7 @@ def render() -> None:
     with bar[0]:
         resume = ui.button("Resume", "pause_resume", "Esc", type="primary")
     with bar[1]:
-        wardrobe = ui.button("Wardrobe", "pause_wardrobe")
+        wardrobe = ui.button("Wardrobe", "pause_wardrobe", disabled=online_table)
     with bar[2]:
         how = ui.button("How to play", "pause_howto", "H")
     with bar[3]:
@@ -91,7 +94,7 @@ def render() -> None:
     if louder or action == ("menu", "music"):  # stays in the menu, with the highlight on this row
         change_music()
         sound.play("blip")
-        S.pause_focus = 3
+        S.pause_focus = [option["action"] for option in menu].index("music")
         st.rerun()
     if action or resume or wardrobe or how or quit_table or go_online or leave:
         S.pause_focus = None  # the menu opens on RESUME again next time
@@ -111,6 +114,12 @@ def render() -> None:
 
         sound.play("blip")
         online_screens.leave()
+        st.rerun()
+    if online_table and (quit_table or action == ("menu", "leave_table")):
+        from arcade.screens import online_table as table_screen
+
+        sound.play("lose")
+        table_screen.leave_table()
         st.rerun()
     if at_table and (quit_table or action == ("menu", "leave_table")):
         leave_table()
