@@ -129,7 +129,11 @@ changing these files, and change them in a small pull request of their own.
 - **Screens fade in with a browser animation** (`ui._fade_style`), never with pictures sent one by one: those
   stutter. Do not add animations made of several pictures to the table screens. The fade only plays after
   `ui.fade_next()` (for `FADE_WINDOW` seconds): call it only where the game should go through black (into a table,
-  back into the room). Any other change of screen is a plain cut, and on the first run of a new screen `app.py` puts
+  back into the room). It is a dip to black: from a picture, `app.py` gives the backdrop the old picture darkening
+  (`backdrop(..., "dim")`) and the new screen (picture, card animation, room, messages) waits `DIM_SECONDS`, then
+  comes up; from a screen the browser draws (`ui.BROWSER_SCREENS`: it already went black by itself) the backdrop is
+  black and the new screen comes up at once. The fade's selectors must not depend on `data-stale` (a rerun during
+  the fade would start it again), and the canvases are reached through their boxes (they live inside components). Any other change of screen is a plain cut, and on the first run of a new screen `app.py` puts
   the previous picture behind everything (`ui.backdrop`, `_last_src`: kept by `ui.show`, or by `ui.remember` for a
   screen the browser draws, like the room before it opens the pause menu or the store), so the page never shows black
   while the new screen makes its picture. The screens of the title menu draw on `title_layers.still()`.
@@ -143,8 +147,9 @@ changing these files, and change them in a small pull request of their own.
   pointing inside a fragment's container after the fragment runs; when a full run follows in the same thread (quick
   clicks, a busy server), the whole page was written again inside `game_frame` (a doubled picture, blinks, even a
   white page). `tests/test_page_layout.py` checks it. Keep it the first line.
-- **No key hints on the screen** (Miguel's call): no key badges in prompts, buttons or bubbles and no "ARROWS: CHOOSE
-  - ENTER: OK" lines. The keys still work (hidden buttons, `ui.keys`), and How to play lists them.
+- **No key hints on the screen** (Miguel's call): no key badges on buttons and no "ARROWS: CHOOSE - ENTER: OK" lines.
+  The keys still work (hidden buttons, `ui.keys`), and How to play lists them. The one exception: the yellow keys on
+  the room's bubbles, E (PLAY, SHOP, TALK, START CHAMPIONSHIP, LEAVE SEAT) and I (RULES), `room_layers.SHOWN_KEYS`.
 - **Cards that move on the UNO table are drawn by the browser** (`arcade/table_anim.py`), on a see-through canvas laid
   over the picture (`ui.Slot.overlay`, CSS `game_screen_anim`). Python sends one plan (a picture of the table before
   the move, the card pictures, where each card starts and lands and when), shows the real picture behind it and waits

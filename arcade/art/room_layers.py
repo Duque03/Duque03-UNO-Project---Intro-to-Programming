@@ -28,6 +28,7 @@ from arcade.art import effects, lighting, sprites
 from arcade.art.pixel import (
     CHAR_H,
     draw_text,
+    key_icon,
     lock,
     panel,
     text_size,
@@ -45,6 +46,7 @@ from arcade.art.scenes import (
 from arcade.config import GLOW, SCALE, SCREEN_H, SCREEN_W
 
 DIRECTIONS = ["down", "up", "left", "right"]
+SHOWN_KEYS = ("E", "I")  # the keys printed on the room's bubbles (E: PLAY, SHOP, TALK...; I: RULES): Miguel likes them
 POSES = 4  # standing, step 1, step 2, blinking
 CELL_W, CELL_H = 24, 36  # one pose, on the small canvas
 FEET = (12, 30)  # where the feet are inside a cell
@@ -203,7 +205,8 @@ def bubble(text: str, key: str | None = None, locked: bool = False, small: str |
     """One prompt bubble, drawn as in hub_scene. Returns (picture, (width, height) of the box)."""
     scale = 2
     tw, _ = text_size(text, scale)
-    key_w = 0  # (no key printed on the bubble)
+    key = key if key in SHOWN_KEYS else None  # (only the room's own keys are printed)
+    key_w = (text_size(key, 2)[0] + 12 + 8) if key else 0
     lock_w = 30 if locked else 0
     w = tw + key_w + lock_w + 24
     h = 34 + (CHAR_H * 1 + 6 if small else 0)
@@ -218,6 +221,8 @@ def bubble(text: str, key: str | None = None, locked: bool = False, small: str |
         lock(img, cursor, y + 5, 2, "#6b6880")
         cursor += lock_w - 8
     draw_text(img, (cursor, y + 17), text, scale, INK, "lm")
+    if key:
+        key_icon(img, cursor + tw + 8, y + 5, key, 2, "#ffe94a")
     if small:
         draw_text(img, (x0 + 12, y + 31), small, 1, "#4a4660", "lt")
     return img, (w, h), pad

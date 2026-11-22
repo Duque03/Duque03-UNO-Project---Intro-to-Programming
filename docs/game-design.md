@@ -35,7 +35,10 @@ Numbers live in `arcade/config.py`.
   | Wardrobe | Left / Right choose an item, Up / Down change tab. E or Enter equips it, U takes it off, Esc goes back. |
 
   The title screen and the arcade room already work both ways (sections 1 and 2).
-- Only going into a game or coming back into the room goes through black (a smooth fade, done by the browser). Menus
+- Only going into a game, to the scoreboard or coming back into the room goes through black, the way other games do
+  it: the old screen darkens (about 0.3 s), then the new one comes up from black (about 0.4 s), with its messages.
+  From the room or the title, which darken by themselves (the zoom into a table, the flight into the arcade), the new
+  screen comes up straight from that black: the old picture never shows again in between. Menus
   that open over the room or a table (the opponent picker, the pause menu, the store, How to play) and the screens of
   the title menu are a plain cut: the previous picture stays until the new one is there, never a black flash. The
   screens opened from the title menu (making your character, the online menu, joining a lobby, How to play) are
@@ -44,7 +47,9 @@ Numbers live in `arcade/config.py`.
 - Never two screens at once: the old screen leaves the page as soon as the new one is there (no doubled picture, no
   small old picture in a corner), and a new picture fills the frame from its very first frame.
 - No keyboard hints on the screen (no yellow key badges, no "ARROWS: CHOOSE"): the arrows and Enter move everywhere,
-  E acts in the rooms, Space presses the big UNO! button. How to play lists every key.
+  E acts in the rooms, Space presses the big UNO! button. How to play lists every key. The one exception is the
+  keys on the room's bubbles, which Miguel wants kept: **E** (PLAY, SHOP, TALK, START CHAMPIONSHIP, LEAVE SEAT) and
+  **I** (RULES).
 
 ## 1. Title screen
 
@@ -95,7 +100,7 @@ Numbers live in `arcade/config.py`.
   the store, the prize machine or the dance pad, look around, and move on. Now and then two of them sit down at a
   table nobody is using and play together for a while (never at the table the player stands at). When the player
   picks them for a game, they stop what they are doing and walk to the table; anyone else sitting there leaves.
-- **Talking**: next to a bot, the prompt **TALK** appears (it replaces PLAY / SHOP there). E (or a click on it)
+- **Talking**: next to a bot, the prompt **TALK [E]** appears (it replaces PLAY / SHOP there). E (or a click on it)
   makes the player say something and the bot answer, in speech bubbles above their heads, one after the other: thirty
   little exchanges per bot, in its own voice, all thirty before any repeats. DEAN is a formal, kind dean who loses a
   lot; MANHOSA a sly, strict security officer; JOHN painfully ordinary (and the best player there); BARK is a dog and
@@ -104,7 +109,7 @@ Numbers live in `arcade/config.py`.
 - Three game tables stand out from the scenery: UNO (left), checkers (top middle), Connect Four (right).
 - The store is at the top right. The championship cabinet is at the top left.
 - A coin counter is shown at the top right of the room. It is not shown at the game tables.
-- Near a table the prompt **PLAY** appears (E). Near the store: **SHOP** (E). Clicking a prompt does the same. The prompts show no key badge.
+- Near a table the prompt **PLAY [E]** appears. Near the store: **SHOP [E]**. Clicking a prompt does the same.
 - No buttons under the room. A small pause button in the bottom-left corner opens the pause menu (like Esc).
 - Starting a game: everyone walks to the table, the view zooms in and fades to black, and the table fades in.
 
@@ -273,9 +278,9 @@ Numbers live in `arcade/config.py`.
 ## 6. Championship
 
 - The cabinet is locked until the player has won each of the three games at least once. Near it, a locked cabinet shows "LOCKED (must master all games to unlock)".
-- Once unlocked the prompt is **START CHAMPIONSHIP** (E).
+- Once unlocked the prompt is **START CHAMPIONSHIP [E]**.
 - The first time only, a light-blue bubble explains the rules, one sentence per press of Enter, ending with "Are you ready?" and **Yes** / **No**. No returns to the room.
-- From the second time on, the prompt also offers **RULES** (I).
+- From the second time on, the prompt also offers **RULES [I]**.
 - Three bots are picked at random. Round 1 is UNO with all four players, played until only one player is left (like
   free play: once the player is out, the bots finish it at once). In rounds 2 (checkers) and 3 (Connect Four) the
   player is drawn against one bot and the other two bots play each other (their result is simulated).
