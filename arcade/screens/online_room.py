@@ -50,10 +50,14 @@ def _hub() -> dict:
     return S.ohub
 
 
-def enter() -> None:
-    """Go into the room of the lobby in S.lobby_code (from the online menu, or back from a table)."""
-    ui.fade_next()
-    S.screen = "lobby"
+def enter(curtain: bool = False) -> None:
+    """Go into the room of the lobby in S.lobby_code: from the online menu (the flight fades in), or back from a
+    table (curtain=True: behind the ARCADE MASTERS curtain)."""
+    if curtain:
+        ui.curtain_to("lobby")
+    else:
+        ui.fade_next()
+        S.screen = "lobby"
 
 
 def render() -> None:
@@ -87,8 +91,7 @@ def _lobby(code):
 def _to_table(game: str) -> None:
     S.online_game = game
     S["_track"] = game  # with that game's tune from the first picture (sound.render_music)
-    ui.fade_next()
-    S.screen = "online_table"
+    ui.curtain_to("online_table")  # into the game behind the ARCADE MASTERS curtain
     st.rerun()
 
 

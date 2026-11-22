@@ -74,9 +74,9 @@ def next_championship_round() -> None:
         pairs = championship.draw_pairs(champ, state.rng())
         opponents, others = [pairs[0][1]], list(pairs[1])
     S.match = {"game": game_key, "mode": "champ", "bots": opponents, "others": others}
-    if champ["round"] > 0:  # coming from the scoreboard: back into the room through black (A1)
-        ui.fade_next()
     _walk_to_table(game_key, opponents + others)
+    if champ["round"] > 0:  # coming from the scoreboard: back into the room behind the curtain
+        ui.curtain_to(S.screen)
 
 
 def start_game() -> None:
@@ -145,8 +145,7 @@ def finish(winners: list[str], tied: bool = False, places: list[str] | None = No
     if match["game"] == "uno" and places:  # all four played to the last player: points by place
         championship.record_uno_round(S.champ, places)
         S.score_animated = False
-        ui.fade_next()
-        S.screen = "champ_score"
+        ui.curtain_to("champ_score")  # out of the game, behind the curtain
         return
     results = [(list(winners), tied)]
     if match["others"]:  # the other two bots "play" at the same time
@@ -156,8 +155,7 @@ def finish(winners: list[str], tied: bool = False, places: list[str] | None = No
         results.append(([a, b], True) if winner is None else ([winner], False))
     championship.record_round(S.champ, results)
     S.score_animated = False
-    ui.fade_next()  # from the table to the scoreboard through black (A1)
-    S.screen = "champ_score"
+    ui.curtain_to("champ_score")  # out of the game, behind the curtain
 
 
 def _finish_with_places(places: list[str]) -> None:
@@ -203,5 +201,4 @@ def back_to_hub(centre: bool = False) -> None:
     S.hub["walk"] = None
     S.match = S.game = S.result = None
     S.flash = ""
-    ui.fade_next()  # from the table back into the room through black (A1)
-    S.screen = "hub"
+    ui.curtain_to("hub")  # out of the game, back into the room behind the curtain

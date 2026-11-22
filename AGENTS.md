@@ -94,7 +94,7 @@ changing these files, and change them in a small pull request of their own.
   rule: `hubmap.floor_map()` turns the rules of `hubmap.py` (floor, tables, counter, zones) into a table for the
   browser, so change the rules in `hubmap.py` and the browser follows. The room's pictures come from
   `arcade/art/room_layers.py` and are sent once per session. The browser reports events (`pos`, `interact`,
-  `rules`, `pause`, `cut_done`, `need`, `talk`, and online `chat`), handled in `screens/hub.py` (online:
+  `rules`, `pause`, `cut_done`, `need`, `talk`, `versus`, and online `chat`), handled in `screens/hub.py` (online:
   `screens/online_room.py`); Python checks every position with
   `room.read_pos`. To move the player from Python, change `S.hub["pos"]`: the browser jumps there on the next run.
 - **The bots' walks are planned in Python** (`arcade/wander.py`, no Streamlit, tested in `tests/test_wander.py`): every
@@ -126,6 +126,16 @@ changing these files, and change them in a small pull request of their own.
   open the title on a step with `screens/online.to_title(step, notice)` (the pause menu's PLAY ONLINE, leaving a
   lobby with `online.leave`, which goes back to the `mode` step). The best player shown dancing comes from
   `championship.best_player(db.all_players())`, looked up at most once a minute.
+- **Into a game and out of it goes behind the curtain** (`ui.curtain_to(screen)`, never `S.screen = ...` there): the
+  screen becomes `"curtain"` (`ui.render_curtain`), whose run lets `CURTAIN_JS` bring the purple ARCADE MASTERS box
+  down over the old screen (it is laid on the page outside Streamlit, so no rerun touches it) and then opens the real
+  screen; the box lifts once that screen has drawn (its marker in the backdrop box and a fresh picture, the cards'
+  animation or a few frames of the room), after at least `CURTAIN_MIN`. Used by `hub._finish_walk`,
+  `match.back_to_hub`, the scoreboard and the online `online_room._to_table` / `enter(curtain=True)`.
+- **The opponent picker is drawn by `ROOM_JS` over the live room** (`hub._versus_data`, `room._versus`, pieces from
+  `art/versus.py` sent once): E at a table only sets `S.hub["versus"]` with a new number; the browser answers with the
+  numbered `versus` event (`{"picked": [...]}` for PLAY, `{"picked": None}` for BACK), checked again by
+  `hub._versus_answer` (`levels.check_pick`). `screens/versus.py` is the old picture version, no longer opened.
 - **Screens fade in with a browser animation** (`ui._fade_style`), never with pictures sent one by one: those
   stutter. Do not add animations made of several pictures to the table screens. The fade only plays after
   `ui.fade_next()` (for `FADE_WINDOW` seconds): call it only where the game should go through black (into a table,
@@ -167,7 +177,7 @@ changing these files, and change them in a small pull request of their own.
 - **Corta UNO** (`logic/trivia.py`): the face-off is plain logic that is given the time (`now`), so the same `Duel`
   runs offline (`screens/corta.py`, with fragments that let the bot answer and close questions four times a second)
   and online (`Table.duel`, moved on by `Lobbies._tick`). While a face-off runs, nothing else in the game moves.
-- **The only JavaScript is `INPUT_JS` and `FULLSCREEN_JS` in `arcade/ui.py`, `SOUND_JS` in `arcade/sound.py`,
+- **The only JavaScript is `INPUT_JS`, `FULLSCREEN_JS` and `CURTAIN_JS` in `arcade/ui.py`, `SOUND_JS` in `arcade/sound.py`,
   `ROOM_JS` in `arcade/room.py`, `TITLE_JS` in `arcade/title_view.py` and `ANIM_JS` and `ALIVE_JS` in `arcade/table_anim.py`.** `ANIM_JS` only draws (and plays the card sounds through `SOUND_JS`) and never sends anything back. `ALIVE_JS` only loops the moving parts of the wall behind a table (see below). `INPUT_JS` reports clicks on the game picture.
   `FULLSCREEN_JS` is the small full-screen icon (and the F key) and sends nothing back. `SOUND_JS` only plays sounds
   by name (and draws the small music icon, which does what M does) and never sends anything back. Its tunes come from

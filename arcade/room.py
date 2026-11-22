@@ -76,18 +76,44 @@ def _tag_key(spec) -> str | None:
     return json.dumps(spec, sort_keys=True) if spec else None
 
 
+def _versus(s: Scene, versus: dict) -> dict:
+    """The opponent picker's pieces and where they go (see art/versus.py)."""
+    from arcade.art import versus as vs  # (only needed when the picker opens)
+
+    cards, needed = versus["cards"], versus["needed"]
+    more = {str(k): s.use(f"vs:more:{k}", lambda k=k: vs.line_piece(f"PICK {k} MORE", "#d9d4ff"))
+            for k in range(1, needed + 1)}
+    prizes = {combo: s.use(f"vs:prize:{coins}", lambda c=coins: vs.line_piece(f"WIN AND GET {c} COINS", "#ffe94a"))
+              for combo, coins in versus["prizes"].items()}
+    return {
+        "n": versus["n"], "needed": needed, "names": [card["name"] for card in cards],
+        "frame": s.use(f"vs:frame:{versus['title']}", lambda: vs.frame_piece(versus["title"])),
+        "cards": [[s.use(f"vs:card:{card['name']}:{card['level']}:{int(chosen)}",
+                         lambda c=card, p=chosen: vs.card_piece(c, p)) for chosen in (False, True)] for card in cards],
+        "left": vs.card_left(len(cards)), "top": vs.CARD_TOP, "w": vs.CARD_W, "h": vs.CARD_H, "gap": vs.GAP,
+        "more": more, "prizes": prizes, "lineY": vs.LINE_Y,
+        "back": s.use("vs:back", lambda: vs.button_piece("BACK")),
+        "playOn": s.use("vs:play:1", lambda: vs.button_piece("PLAY", True)),
+        "playOff": s.use("vs:play:0", lambda: vs.button_piece("PLAY", False)),
+        "backBox": list(vs.BACK_BOX), "playBox": list(vs.PLAY_BOX),
+    }
+
+
 TALK_REACH = 18  # how close (small canvas) the player must be to a bot to talk to it (E)
 POS_EVERY = 0.35  # online, while walking the browser says where the player is this often (the others see the walk)
 
 
 def scene(sent: set, *, actors, coins, champ_locked, bubbles, player, cutscene=None, fade=0, ack=0, talk=None,
-          online=None) -> dict:
+          online=None, versus=None) -> dict:
     """Everything the browser needs for the room (data for ROOM_JS).
 
     actors   the six characters (state.hub_actors()); the player has player=True
     bubbles  spot -> list of prompts (see screens/hub._prompts)
     player   {"seq", "x", "y", "dir"}: where Python wants the player; the browser only jumps there when seq changes
     talk     what the player and a bot are saying: {"id", "me", "bot", "line", "reply"} (screens/hub.py), or None
+    versus   the opponent picker, open over the room (screens/hub._versus_data): {"n", "needed", "title", "cards",
+             "prizes"}, or None. The browser draws it from pieces painted once (art/versus.py) and sends back the
+             `versus` event: {"picked": [...]} for PLAY, {"picked": None} for BACK.
     online   the online room's extras (screens/online_room.py), or None offline: what each player said
              ("says": {"id", "who", "key", "picture", "left"}), the signs over the tables ("signs": {"key", "picture",
              "x", "y"}, centred there), the mats on the floor where the chairs are ("mats": {"x", "y", "taken"},
@@ -110,6 +136,7 @@ def scene(sent: set, *, actors, coins, champ_locked, bubbles, player, cutscene=N
         "botSpeed": wander.SPEED,
         "talkReach": TALK_REACH,
     }
+    data["versus"] = _versus(s, versus) if versus else None
     talk_img, (tw, th), tpad = layers.bubble("TALK", "E")
     data["talkBubble"] = {"img": s.use("bubble:talk", lambda: talk_img), "w": tw, "h": th, "pad": tpad}
     data["talk"] = None
@@ -331,6 +358,11 @@ export default function (component) {
         G.cut = null;
     }
     if (data.fade && data.fade !== G.fadeSeen) { G.fadeSeen = data.fade; G.fadeStart = now; }
+    // ---- the opponent picker, drawn over the live room (Python opens it with a new number)
+    if (data.versus && data.versus.n !== G.vsSeen) {
+        G.vsSeen = data.versus.n; G.vs = { focus: 0, picked: [] }; G.keys.length = 0; G.target = null;
+    }
+    if (!data.versus) G.vs = null;
 
     // ---- input
     const KEYS = { w: "up", arrowup: "up", s: "down", arrowdown: "down", a: "left", arrowleft: "left", d: "right", arrowright: "right" };
@@ -348,6 +380,16 @@ export default function (component) {
         G.press = { kind, value: { ...here(), ...(extra || {}), n: G.pressN }, t: performance.now(), tries: 1 };
         G.send(kind, G.press.value);
     };
+    const zoneActs = () => G.zone != null && (data.bubbles[String(G.zone)] || []).some((b) => b.action === "interact");
+    const blip = () => { const A = window.__arcadeAudio; if (A && A.effect) A.effect("blip"); };
+    const vsReady = () => G.vs && data.versus && G.vs.picked.length === data.versus.needed;
+    const vsToggle = (name) => {  // like logic/levels.toggle: picks it, or takes it back; the oldest pick makes room
+        const picked = G.vs.picked;
+        G.vs.picked = picked.includes(name) ? picked.filter((p) => p !== name) : picked.concat([name]).slice(-data.versus.needed);
+        blip();
+    };
+    const vsPlay = () => { const picked = G.vs.picked.slice(); G.vs = null; act("versus", { picked }); };
+    const vsBack = () => { G.vs = null; act("versus", { picked: null }); };
     // ---- online: the chat bar. Its text box is a real one (see-through, over the bar), so a phone shows its
     // keyboard and no other key of the game reacts while typing; the canvas draws what is typed in the pixel font.
     const ON = data.online;
@@ -395,6 +437,18 @@ export default function (component) {
         if (!canvas.isConnected || typing(event) || event.ctrlKey || event.metaKey || event.altKey) return;
         const key = (event.key || "").toLowerCase();
         if (G.cut) return;
+        if (G.vs && data.versus) {  // the opponent picker: Left / Right, Space or Enter picks, Enter plays, Esc goes back
+            event.preventDefault();
+            if (event.repeat) return;
+            const names = data.versus.names, n = names.length, f = G.vs.focus;
+            if (key === "arrowleft" || key === "a") { G.vs.focus = (f + n - 1) % n; blip(); }
+            else if (key === "arrowright" || key === "d") { G.vs.focus = (f + 1) % n; blip(); }
+            else if (key === " ") vsToggle(names[f]);
+            else if (key.length === 1 && key >= "1" && key <= String(n)) { G.vs.focus = Number(key) - 1; vsToggle(names[G.vs.focus]); }
+            else if (key === "enter") { if (vsReady()) vsPlay(); else if (!G.vs.picked.includes(names[f])) vsToggle(names[f]); }
+            else if (key === "escape") vsBack();
+            return;
+        }
         if (ON && G.emojiOpen) {  // the emoji panel: arrows move the yellow frame, Enter sends, Esc or Tab closes
             const n = ON.emojis.length, cols = EMOJI_COLS, f = G.emojiFocus || 0;
             const moves = { arrowleft: -1, a: -1, arrowright: 1, d: 1, arrowup: -cols, w: -cols, arrowdown: cols, s: cols };
@@ -410,7 +464,8 @@ export default function (component) {
             if (!G.keys.includes(key)) G.keys.push(key);
             G.target = null;
         } else if (key === "e" && !event.repeat) {
-            if (G.nearBot) act("talk", { name: G.nearBot });  // next to a bot: talk to it
+            if (zoneActs()) act("interact");  // at a table, the store or the cup: E does that, even with a bot there
+            else if (G.nearBot) act("talk", { name: G.nearBot });  // next to a bot elsewhere: talk to it
             else if (G.zone) act("interact");
         } else if (key === "i" && !event.repeat) {
             if (G.zone === 5) act("rules");
@@ -427,6 +482,16 @@ export default function (component) {
         if (G.cut) return;
         const box = canvas.getBoundingClientRect();
         const sx = (event.clientX - box.left) * 960 / box.width, sy = (event.clientY - box.top) * 540 / box.height;
+        if (G.vs && data.versus) {  // the opponent picker: a card picks it, then BACK or PLAY
+            const V = data.versus, within = (b) => sx >= b[0] && sx <= b[2] && sy >= b[1] && sy <= b[3];
+            for (let i = 0; i < V.names.length; i++) {
+                const [x, y] = vsCardAt(i);
+                if (sx >= x && sx <= x + V.w && sy >= y && sy <= y + V.h + 30) { G.vs.focus = i; vsToggle(V.names[i]); return; }
+            }
+            if (within(V.backBox)) vsBack();
+            else if (within(V.playBox) && vsReady()) vsPlay();
+            return;  // (nothing else reacts while it is open)
+        }
         const [px, py, pw, ph] = PAUSE_BOX;
         if (sx >= px && sx <= px + pw && sy >= py && sy <= py + ph) { act("pause"); return; }
         if (ON) {
@@ -492,7 +557,7 @@ export default function (component) {
         const t = performance.now() / 1000;
         const dt = Math.min(0.05, t - G.last);
         G.last = t;
-        try { update(t, dt); draw(t); } catch (err) { console.error("arcade room:", err); }
+        try { update(t, dt); draw(t); G.drawn = (G.drawn || 0) + 1; } catch (err) { console.error("arcade room:", err); }
         requestAnimationFrame(frame);
     }
 
@@ -810,6 +875,30 @@ export default function (component) {
         return im.complete && im.naturalWidth ? im : null;
     }
 
+    function vsCardAt(i) {  // a picked card stands 8 pixels higher
+        const V = G.data.versus, up = G.vs.picked.includes(V.names[i]) ? 8 : 0;
+        return [V.left + i * (V.w + V.gap), V.top - up];
+    }
+    function drawVersus(ctx) {  // the opponent picker over the room, which keeps moving (dimmed) behind it
+        const V = G.data.versus;
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.fillStyle = "rgba(6, 4, 22, 0.62)";
+        ctx.fillRect(0, 0, 960, 540);
+        const frame = img(V.frame);
+        if (frame) ctx.drawImage(frame, 0, 0);
+        V.names.forEach((name, i) => {
+            const [x, y] = vsCardAt(i), card = img(V.cards[i][G.vs.picked.includes(name) ? 1 : 0]);
+            if (card) ctx.drawImage(card, x, y);
+            if (i === G.vs.focus) { ctx.strokeStyle = "#ffe94a"; ctx.lineWidth = 4; ctx.strokeRect(x - 3, y - 3, V.w + 6, V.h + 6); }
+        });
+        const ready = G.vs.picked.length === V.needed;
+        const line = img(ready ? V.prizes[G.vs.picked.slice().sort().join(",")] : V.more[String(V.needed - G.vs.picked.length)]);
+        if (line) ctx.drawImage(line, 60, V.lineY);
+        const back = img(V.back), play = img(ready ? V.playOn : V.playOff);
+        if (back) ctx.drawImage(back, V.backBox[0], V.backBox[1]);
+        if (play) ctx.drawImage(play, V.playBox[0], V.playBox[1]);
+    }
+
     function draw(t) {
         const d = G.data, ctx = G.canvas.getContext("2d");
         G.missing = new Set();
@@ -931,7 +1020,8 @@ export default function (component) {
         // prompt bubbles next to the player
         G.hits = [];
         let items = (!G.cut && me && d.bubbles[String(zone)]) || [];
-        if (!G.cut && me && G.nearBot && d.talkBubble) items = [{ ...d.talkBubble, action: "talk" }];
+        const zoneAction = items.some((item) => item.action === "interact");  // (a table's PLAY wins over TALK)
+        if (!G.cut && me && G.nearBot && d.talkBubble && !zoneAction) items = [{ ...d.talkBubble, action: "talk" }];
         if (items.length) {
             const onLeft = me.x > 200;
             let y = Math.round((me.y - 20) * S);
@@ -947,6 +1037,7 @@ export default function (component) {
 
         if (!G.cut) pauseButton(ctx);
         if (d.online) chatBar(ctx, t);
+        if (G.vs && d.versus) drawVersus(ctx);
         if (G.cut && G.cut.darkP > 0) {  // the end of the zoom: fade to black, the table then fades in from black
             ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = `rgba(0, 0, 0, ${G.cut.darkP})`; ctx.fillRect(0, 0, 960, 540);
         }
@@ -972,7 +1063,7 @@ function nameHash(name) { let s = 0; for (const ch of name) s += ch.charCodeAt(0
 
 _room = st.components.v2.component("arcade_room", css=ROOM_CSS, js=ROOM_JS)
 
-EVENTS = ("pos", "interact", "rules", "pause", "cut_done", "need", "talk", "chat")
+EVENTS = ("pos", "interact", "rules", "pause", "cut_done", "need", "talk", "chat", "versus")
 
 
 def mount(data: dict, key: str = "arcade_room"):

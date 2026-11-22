@@ -103,3 +103,44 @@ def test_fresh_page_puts_the_run_back_at_the_top_of_the_page():
     assert "top" in top_level  # written on the page itself, not inside the box
     frame = next(child for child in app.main.children.values() if getattr(child, "key", None) == "frame")
     assert [getattr(child, "value", None) for child in frame.children.values()] == ["inside"]
+
+
+def test_into_a_game_and_out_goes_behind_the_curtain(monkeypatch):
+    """curtain_to() opens the "curtain" screen (the old screen stays while the curtain comes down), and that screen
+    then opens the real one."""
+    import streamlit as st
+
+    from arcade import ui
+
+    session = {"screen": "uno", "player": {"name": "TESTER"}, "_fade_next": True}
+    monkeypatch.setattr(st, "session_state", session, raising=False)
+    ui.curtain_to("hub")
+    assert session["screen"] == "curtain" and session["_curtain_target"] == "hub"
+    assert "_fade_next" not in session  # (the curtain is the transition: no fade on top of it)
+    first = session["_curtain_n"]
+    slept = []
+    monkeypatch.setattr(ui.time, "sleep", slept.append)
+
+    class Rerun(Exception):
+        pass
+
+    def rerun():
+        raise Rerun
+
+    monkeypatch.setattr(st, "rerun", rerun)
+    with pytest.raises(Rerun):
+        ui.render_curtain()
+    assert session["screen"] == "hub" and "_curtain_target" not in session
+    assert slept and slept[0] >= ui.CURTAIN_CLOSE  # (it waits for the curtain to be down first)
+    ui.curtain_to("connect4")
+    assert session["_curtain_n"] == first + 1  # (a new number: the browser brings the curtain down again)
+
+
+def test_the_curtain_is_always_on_the_page(at):
+    keys = [getattr(child, "key", None) for child in at.main.children.values()]
+    assert "curtain" in keys
+    _sign_in(at)
+    at.session_state["screen"] = "hub"
+    at.run()
+    assert not at.exception, at.exception
+    assert [getattr(child, "key", None) for child in at.main.children.values()].index("curtain") == keys.index("curtain")

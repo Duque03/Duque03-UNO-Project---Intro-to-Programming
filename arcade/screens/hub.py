@@ -8,12 +8,14 @@ or a walk to a table finished).
 
 from __future__ import annotations
 
+import itertools
 import time
 
 import streamlit as st
 
 from arcade import (
     bots,
+    catalog,
     dialogues,
     hubmap,
     match,
@@ -24,8 +26,8 @@ from arcade import (
     wander,
 )
 from arcade.art import scenes
-from arcade.config import ANIMATIONS, GAMES, IDLE_EVERY
-from arcade.logic import championship
+from arcade.config import ANIMATIONS, BOTS_PER_GAME, GAME_LABELS, GAMES, IDLE_EVERY
+from arcade.logic import championship, levels
 from arcade.state import S
 
 
@@ -87,14 +89,10 @@ def _remember_still(glow=None) -> None:
 
 
 def _interact(near: str | None) -> None:
-    if near in GAMES:
-        from arcade.screens import (
-            versus,  # (imported here: versus is a screen like this one)
-        )
-
+    if near in GAMES:  # choose the opponents first, over the room itself; PLAY starts the walk to the table
         sound.play("blip")
-        _remember_still(glow=near)
-        versus.open_for(near)  # choose the opponents first; Play starts the walk to the table
+        S.hub["versus_n"] = S.hub.get("versus_n", 0) + 1
+        S.hub["versus"] = {"game": near, "n": S.hub["versus_n"]}
     elif near == "store":
         sound.play("coin")
         _remember_still()
@@ -107,6 +105,35 @@ def _interact(near: str | None) -> None:
         else:
             S.intro_page = 0
             state.go("champ_intro")
+
+
+def _versus_data() -> dict | None:
+    """The opponent picker for the browser to draw over the room, or None when it is closed."""
+    choice = S.hub.get("versus")
+    if not choice:
+        return None
+    game = choice["game"]
+    needed = BOTS_PER_GAME[game]
+    cards = [{"name": b["name"], "level": b["level"], "look": bots.look(b), "tag": catalog.spec_for("name", b["tag"])}
+             for b in bots.BOTS]
+    prizes = {",".join(sorted(combo)): levels.win_coins([bots.level(name) for name in combo])
+              for combo in itertools.combinations(bots.BOT_NAMES, needed)}
+    title = f"{GAME_LABELS[game]}: CHOOSE {'YOUR OPPONENT' if needed == 1 else f'{needed} OPPONENTS'}"
+    return {"n": choice["n"], "needed": needed, "title": title, "cards": cards, "prizes": prizes}
+
+
+def _versus_answer(value) -> None:
+    """PLAY (the bots picked) or BACK in the opponent picker. The picks are checked again here."""
+    choice, S.hub["versus"] = S.hub.get("versus"), None
+    picked = value.get("picked") if isinstance(value, dict) else None
+    if not choice or not isinstance(picked, list):
+        return  # BACK
+    try:
+        levels.check_pick(choice["game"], picked, bots.BOT_NAMES)
+    except levels.BadPick:
+        return
+    sound.play("table")
+    match.begin_free_play(choice["game"], picked)  # everyone walks to the table, then the game opens
 
 
 def _pause() -> None:
@@ -154,6 +181,7 @@ def _scene_data() -> dict:
         fade=S.get("_room_fade", 0),
         ack=S.hub.get("pressed", 0),
         talk=_current_talk(),
+        versus=_versus_data(),
     )
 
 
@@ -206,10 +234,10 @@ def _finish_walk() -> None:
         else:
             hub["bots"][name] = {"pos": end, "dir": face}
     hub["walk"] = None
-    # The browser zoomed in and faded to black itself; the table then fades in from black (ui.show).
+    # The browser zoomed in and faded to black itself; the ARCADE MASTERS curtain then opens the table.
     if walk.get("then") == "start_game":
-        ui.fade_next()  # from the zoomed table to the game, through black
         match.start_game()
+        ui.curtain_to(S.screen)
     st.rerun()
 
 
@@ -228,7 +256,7 @@ def _room_view() -> None:
     walk = hub.get("walk")
     if walk and events.cut_done is not None and events.cut_done == walk.get("id"):
         _finish_walk()
-    for name in ("interact", "rules", "pause", "talk"):
+    for name in ("interact", "rules", "pause", "talk", "versus"):
         value = getattr(events, name)
         if value is None:
             continue
@@ -241,7 +269,9 @@ def _room_view() -> None:
         if name == "talk":
             _talk(value)
             st.rerun(scope="fragment")
-        if name == "pause":
+        if name == "versus":
+            _versus_answer(value)
+        elif name == "pause":
             _pause()
         elif name == "rules" and _can_read_rules(near):
             _remember_still()

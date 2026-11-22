@@ -96,8 +96,9 @@ img {{ image-rendering: pixelated; }}
    frame in the middle of the room's fade, when a second run marked the room stale too.) */
 .st-key-game_frame:has(.arcade-on-hub, .arcade-on-lobby, .arcade-on-title, .arcade-on-online)
     .st-key-game_screen_stage {{ display: none !important; }}
-.st-key-game_frame:has(.arcade-on):not(:has(.arcade-on-hub, .arcade-on-lobby, .arcade-on-title, .arcade-on-online))
-    :is(.st-key-arcade_room, .st-key-arcade_title) {{ display: none !important; }}
+.st-key-game_frame:has(.arcade-on):not(:has(.arcade-on-hub, .arcade-on-lobby, .arcade-on-title, .arcade-on-online,
+    .arcade-on-curtain)) :is(.st-key-arcade_room, .st-key-arcade_title) {{ display: none !important; }}
+/* (while the curtain comes down, the old screen stays exactly as it was underneath) */
 /* the turn clock only shows at a table (the screen's name is marked in the backdrop box, see backdrop()): opening the
    pause menu or going back to the room takes it away at once, not when that run ends */
 .st-key-game_frame:not(:has(.arcade-on-uno, .arcade-on-checkers, .arcade-on-connect4, .arcade-on-online_table))
@@ -243,7 +244,139 @@ def setup_page() -> None:
     result = _input_catcher(key="click_catcher", on_click_change=lambda: None)
     st.session_state["_click"] = _as_point(result.click)
     _fullscreen(key="fullscreen_button")
+    _curtain_view()
     _fade_style()
+
+
+# ---- The curtain: going into a game and out of it ----------------------------------------------------------------
+# Changing screen means Streamlit swapping parts of the page, and some swaps showed a strange frame for a moment.
+# Going into a game (or out of it), a purple ARCADE MASTERS screen now comes down over the old screen FIRST
+# (CURTAIN_CLOSE), the new screen is built behind it while it is fully up, and it only lifts (CURTAIN_OPEN) once the
+# new screen has really drawn (at least CURTAIN_MIN after it started to come down). So nothing in between is seen.
+#   curtain_to(screen) asks for it; the screen "curtain" (render_curtain) waits for the curtain to be down, then
+#   changes to the real screen. The curtain itself is a box laid on the whole page by CURTAIN_JS, outside Streamlit,
+#   so no rerun can touch it; it watches the page to know when the new screen is there.
+CURTAIN_CLOSE = 0.25
+CURTAIN_OPEN = 0.35
+CURTAIN_MIN = 0.75
+CURTAIN_JS = r"""
+const CLOSE = __CLOSE__, OPEN = __OPEN__, MIN = __MIN__, MAX = 8000;
+export default function (component) {
+    const d = component.data || {};
+    const G = window.__arcadeCurtain || (window.__arcadeCurtain = { up: 0, opening: false, target: null });
+    if (!G.el || !G.el.isConnected) {
+        if (!document.getElementById("arcade-curtain-style")) {
+            const style = document.createElement("style");
+            style.id = "arcade-curtain-style";
+            style.textContent = `
+.arcade-curtain { position: fixed; inset: 0; z-index: 2147483000; opacity: 0; visibility: hidden;
+  pointer-events: none; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background: radial-gradient(ellipse at 50% 42%, #4a2f9a 0%, #2a1866 48%, #140a38 100%); }
+.arcade-curtain img { width: min(78vw, 138vh); image-rendering: pixelated; }
+.arcade-curtain .dots { display: flex; gap: min(1.6vw, 2.8vh); margin-top: min(3vw, 5vh); }
+.arcade-curtain .dots i { width: min(1.2vw, 2.1vh); height: min(1.2vw, 2.1vh); background: #ffe94a;
+  animation: arcade-curtain-dot 0.9s steps(1) infinite; }
+.arcade-curtain .dots i:nth-child(2) { animation-delay: 0.3s; }
+.arcade-curtain .dots i:nth-child(3) { animation-delay: 0.6s; }
+@keyframes arcade-curtain-dot { 0% { opacity: 1; } 33% { opacity: 0.25; } }`;
+            document.head.appendChild(style);
+        }
+        const el = document.createElement("div");
+        el.className = "arcade-curtain";
+        el.innerHTML = '<img alt=""><div class="dots"><i></i><i></i><i></i></div>';
+        document.body.appendChild(el);
+        G.el = el; G.img = el.querySelector("img");
+    }
+    if (d.logo && G.img.getAttribute("src") !== d.logo) G.img.setAttribute("src", d.logo);
+    if (d.n && d.phase === "close" && G.up !== d.n) {  // come down over the old screen
+        G.up = d.n; G.opening = false; G.target = null; G.shownAt = performance.now();
+        G.el.style.transition = `opacity ${CLOSE}ms ease-out`;
+        G.el.style.visibility = "visible"; G.el.style.pointerEvents = "auto";
+        void G.el.offsetWidth;  // (so the change of opacity below is animated)
+        G.el.style.opacity = "1";
+    }
+    if (d.n && d.phase === "open" && G.up === d.n && !G.opening && G.target !== d.screen) {  // lift once it is drawn
+        G.target = d.screen;
+        G.drawn0 = (window.__arcadeRoom && window.__arcadeRoom.drawn) || 0;
+        watch();
+    }
+}
+
+function ready(screen) {  // the new screen is on the page and has drawn
+    const frame = document.querySelector(".st-key-game_frame");
+    if (!frame || !frame.querySelector(".arcade-on-" + screen)) return false;
+    const tall = (el) => el && el.getBoundingClientRect().height > 100;
+    if (screen === "hub" || screen === "lobby") {
+        const room = frame.querySelector('.st-key-arcade_room[data-stale="false"]'), R = window.__arcadeRoom;
+        return tall(room) && R && (R.drawn || 0) > window.__arcadeCurtain.drawn0 + 3;  // (a few frames of the room)
+    }
+    const img = frame.querySelector('.st-key-game_screen [data-stale="false"] img');
+    if (tall(img) && img.complete && img.naturalWidth > 0) return true;
+    return tall(frame.querySelector('.st-key-game_screen_anim [data-stale="false"]'));  // a game that starts moving
+}
+
+function watch() {
+    const G = window.__arcadeCurtain;
+    if (G.watching) return;
+    G.watching = true;
+    let since = 0;
+    const tick = () => {
+        if (!G.target || G.opening) { G.watching = false; return; }
+        const now = performance.now();
+        since = ready(G.target) ? (since || now) : 0;
+        if ((since && now - since > 180 && now - G.shownAt > MIN) || now - G.shownAt > MAX) {
+            G.watching = false; G.opening = true; G.target = null;
+            G.el.style.transition = `opacity ${OPEN}ms ease-in`;
+            G.el.style.opacity = "0";
+            setTimeout(() => { if (G.opening) { G.el.style.visibility = "hidden"; G.el.style.pointerEvents = "none"; } },
+                       OPEN + 40);
+            return;
+        }
+        requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+}
+""".replace("__CLOSE__", str(int(CURTAIN_CLOSE * 1000))).replace("__OPEN__", str(int(CURTAIN_OPEN * 1000))) \
+   .replace("__MIN__", str(int(CURTAIN_MIN * 1000)))
+_curtain = st.components.v2.component("arcade_curtain", js=CURTAIN_JS)
+
+
+@lru_cache(maxsize=1)
+def curtain_logo() -> str:
+    from arcade.art import title_layers  # (art must not import ui; this way round is fine)
+
+    buffer = io.BytesIO()  # (PNG, as it is: the logo is see-through around its letters)
+    title_layers.logo().save(buffer, format="PNG", optimize=True)
+    return "data:image/png;base64," + base64.b64encode(buffer.getvalue()).decode("ascii")
+
+
+def _curtain_view() -> None:
+    """The curtain's place on the page (always there, so nothing after it moves). It comes down while the screen is
+    "curtain" and lifts on the next screen."""
+    S = st.session_state
+    closing = S.get("screen") == "curtain"
+    send_logo = closing or S.get("_screen_shown") != S.get("screen")  # (only now and then: it is not small)
+    _curtain(key="curtain", data={"n": S.get("_curtain_n", 0), "phase": "close" if closing else "open",
+                                  "screen": S.get("screen"), "logo": curtain_logo() if send_logo else ""})
+
+
+def curtain_to(screen: str) -> None:
+    """Go to `screen` behind the ARCADE MASTERS curtain (into a game, out of it). Call it instead of changing
+    S.screen, then st.rerun() as usual."""
+    S = st.session_state
+    S.pop("_fade_next", None)  # (the curtain does the transition: no fade on top of it)
+    S["_curtain_target"] = screen
+    S["_curtain_n"] = S.get("_curtain_n", 0) + 1
+    S["screen"] = "curtain"
+
+
+def render_curtain() -> None:
+    """The screen "curtain": the old screen stays as it is while the curtain comes down over it, then the real
+    screen is opened (behind the curtain, which lifts by itself once that screen has drawn)."""
+    S = st.session_state
+    time.sleep(CURTAIN_CLOSE + 0.12)
+    S["screen"] = S.pop("_curtain_target", None) or ("hub" if S.get("player") else "title")
+    st.rerun()
 
 
 def _as_point(value) -> tuple[float, float] | None:
