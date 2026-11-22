@@ -105,8 +105,7 @@ def render() -> None:
     try:
         everyone = online.lobbies().get(code)
     except LobbyError:
-        S.online_message = "That lobby has closed."
-        online_screens.leave()
+        online_screens.leave("That lobby has closed.")
         st.rerun()
     if me not in everyone.names():
         online_screens.leave()

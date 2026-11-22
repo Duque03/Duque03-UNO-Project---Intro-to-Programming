@@ -80,7 +80,21 @@ img {{ image-rendering: pixelated; }}
 
 /* the game picture: the frame around it glows (see game_frame), the picture itself just has round corners */
 .st-key-{SCREEN_KEY} img, .st-key-{TITLE_KEY} img {{ border-radius: 0; display: block; }}
-.st-key-{SCREEN_KEY} img {{ cursor: pointer; }}
+.st-key-{SCREEN_KEY} img {{ cursor: pointer; width: 100% !important; height: auto !important; }}
+.st-key-{SCREEN_KEY} div:has(img) {{ width: 100% !important; }}
+/* (the full width from the very first frame: a new picture was drawn at its own size until Streamlit measured it) */
+/* Never two screens at once. The old screen stays on the page until the run that replaces it has finished, and when
+   the new screen's picture (or the room, or the title) sits at another place on the page, both showed for a moment:
+   the page twice as tall, the picture doubled (or the old one small in a corner). As soon as the new one is there,
+   the old one is taken out (the backdrop shows the last picture until the new screen has drawn). */
+.st-key-game_frame:has(.st-key-game_screen [data-stale="false"] img, .st-key-arcade_room[data-stale="false"],
+    .st-key-arcade_title[data-stale="false"])
+    :is(.st-key-game_screen_stage [data-stale="true"], .st-key-arcade_room[data-stale="true"],
+        .st-key-arcade_title[data-stale="true"]) {{ display: none !important; }}
+/* the turn clock only shows at a table (the screen's name is marked in the backdrop box, see backdrop()): opening the
+   pause menu or going back to the room takes it away at once, not when that run ends */
+.st-key-game_frame:not(:has(.arcade-on-uno, .arcade-on-checkers, .arcade-on-connect4, .arcade-on-online_table))
+    .st-key-game_clock {{ display: none !important; }}
 /* animations are drawn on a see-through canvas laid exactly over the picture (arcade/table_anim.py) */
 .st-key-{SCREEN_KEY}_stage {{ position: relative; gap: 0 !important; }}
 .st-key-{SCREEN_KEY}_anim {{ position: absolute !important; inset: 0; z-index: 3; pointer-events: none; }}
@@ -196,6 +210,23 @@ export default function (component) {
 }
 """
 _fullscreen = st.components.v2.component("arcade_fullscreen", css=FULLSCREEN_CSS, js=FULLSCREEN_JS)
+
+
+def fresh_page() -> None:
+    """Start the run at the top of the page. Call it first, on every full run (app.py).
+
+    Streamlit 1.67 keeps, after a fragment has run (the turn clock, the room's look at the lobby...), the place where
+    that fragment wrote as "where the next things go", and when the next full run follows straight away in the same
+    thread (quick clicks, a busy server) the whole page was written again INSIDE game_frame: the picture doubled, the
+    screen blinked, and with two copies of the same keyed parts the browser could even give up (a white page). This
+    puts the page back to its top before anything is drawn. (It uses a part of Streamlit that is not public: if it
+    is not there, nothing happens.)"""
+    try:
+        from streamlit.delta_generator_singletons import context_dg_stack, get_default_dg_stack_value
+
+        context_dg_stack.set(get_default_dg_stack_value())
+    except (ImportError, RuntimeError, AttributeError):
+        pass
 
 
 def setup_page() -> None:
@@ -338,14 +369,16 @@ def title_backdrop() -> str:
     return inline(title_layers.still())
 
 
-def backdrop(src: str | None) -> None:
+def backdrop(src: str | None, screen: str = "") -> None:
     """On the first run of a new screen: the previous picture, behind everything. The old screen's picture (or the
     room) goes away as soon as the new screen draws its first element, and its own picture can take a moment to
-    make: without this the page showed black for a moment (opening the pause menu, the opponent picker...)."""
-    if src:
-        with st.container(key="game_backdrop"):  # (the picture is the box's own background: exactly its size)
-            st.markdown(f'<style>.st-key-game_backdrop {{ background-image: url("{src}"); }}</style>',
-                        unsafe_allow_html=True)
+    make: without this the page showed black for a moment (opening the pause menu, the opponent picker...).
+
+    The box also carries the name of the screen (class arcade-on-<screen>), so the CSS knows at once, at the start of
+    the run, which screen is coming (the turn clock only shows at a table)."""
+    with st.container(key="game_backdrop"):  # (the picture is the box's own background: exactly its size)
+        style = f'<style>.st-key-game_backdrop {{ background-image: url("{src}"); }}</style>' if src else ""
+        st.markdown(f'<span class="arcade-on arcade-on-{screen}"></span>{style}', unsafe_allow_html=True)
 
 
 def fade_next() -> None:
@@ -448,13 +481,17 @@ def toast_picture(text: str):
     return img
 
 
-def render_toasts() -> None:
-    """Show the messages that are still up. Call it on every full run, inside game_frame, after the screen (so a
-    message never shows on the black before the new screen's picture)."""
+def render_toasts(box) -> None:
+    """Show the messages that are still up, in `box` (st.container(key="game_toasts")). Call it on every full run,
+    after the screen, so the messages asked for while drawing it show straight away.
+
+    The box itself is made at the top of game_frame, before the screen: its place on the page never changes. When it
+    came after the screen, it moved whenever the new screen had more or fewer parts, and for a moment the browser
+    showed the old screen's picture inside it (small, in the corner) or a message picture full size on the left."""
     now = time.time()
     active = [t for t in st.session_state.get("_toasts", []) if t["until"] > now]
     st.session_state["_toasts"] = active
-    with st.container(key="game_toasts"):
+    with box:
         for item in active:
             img = toast_picture(item["text"])
             buffer = io.BytesIO()

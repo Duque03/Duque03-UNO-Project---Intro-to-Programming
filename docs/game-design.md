@@ -39,7 +39,12 @@ Numbers live in `arcade/config.py`.
   that open over the room or a table (the opponent picker, the pause menu, the store, How to play) and the screens of
   the title menu are a plain cut: the previous picture stays until the new one is there, never a black flash. The
   screens opened from the title menu (making your character, the online menu, joining a lobby, How to play) are
-  drawn on the title screen's own background, so only their box comes up.
+  drawn on the title screen's own background, so only their box comes up. The online menu and the join box are drawn
+  by the title screen itself: moving between them never changes the page at all.
+- Never two screens at once: the old screen leaves the page as soon as the new one is there (no doubled picture, no
+  small old picture in a corner), and a new picture fills the frame from its very first frame.
+- No keyboard hints on the screen (no yellow key badges, no "ARROWS: CHOOSE"): the arrows and Enter move everywhere,
+  E acts in the rooms, Space presses the big UNO! button. How to play lists every key.
 
 ## 1. Title screen
 
@@ -80,7 +85,9 @@ Numbers live in `arcade/config.py`.
 ## 2. Arcade room
 
 - Pixel-art room seen from above. The player appears at the bottom, by the door, wearing their look, with the name in a tag above the head.
-- The player walks with W A S D (or arrow keys, or by clicking) and has four looks: down, up, left, right.
+- The player walks with W A S D (or arrow keys, or by clicking) and has four looks: down, up, left, right. A click
+  walks the player there round the tables and walls (the shortest way over the floor), not in a straight line that
+  stops at the first table; a key, or a bot in the way, stops the walk.
 - Four bots, one per level, each with its own name and look (all our own designs): **DEAN** (easy, a university
   dean in a suit and glasses), **BARK** (medium, a dog with a blue bandana, on four legs), **MANHOSA** (hard, a
   security officer in uniform and cap) and **JOHN** (expert, the most ordinary guy there is).
@@ -88,7 +95,7 @@ Numbers live in `arcade/config.py`.
   the store, the prize machine or the dance pad, look around, and move on. Now and then two of them sit down at a
   table nobody is using and play together for a while (never at the table the player stands at). When the player
   picks them for a game, they stop what they are doing and walk to the table; anyone else sitting there leaves.
-- **Talking**: next to a bot, the prompt **TALK [E]** appears (it replaces PLAY / SHOP there). E (or a click on it)
+- **Talking**: next to a bot, the prompt **TALK** appears (it replaces PLAY / SHOP there). E (or a click on it)
   makes the player say something and the bot answer, in speech bubbles above their heads, one after the other: thirty
   little exchanges per bot, in its own voice, all thirty before any repeats. DEAN is a formal, kind dean who loses a
   lot; MANHOSA a sly, strict security officer; JOHN painfully ordinary (and the best player there); BARK is a dog and
@@ -97,7 +104,7 @@ Numbers live in `arcade/config.py`.
 - Three game tables stand out from the scenery: UNO (left), checkers (top middle), Connect Four (right).
 - The store is at the top right. The championship cabinet is at the top left.
 - A coin counter is shown at the top right of the room. It is not shown at the game tables.
-- Near a table the prompt **PLAY [E]** appears. Near the store: **SHOP [E]**. Clicking a prompt does the same.
+- Near a table the prompt **PLAY** appears (E). Near the store: **SHOP** (E). Clicking a prompt does the same. The prompts show no key badge.
 - No buttons under the room. A small pause button in the bottom-left corner opens the pause menu (like Esc).
 - Starting a game: everyone walks to the table, the view zooms in and fades to black, and the table fades in.
 
@@ -254,7 +261,9 @@ Numbers live in `arcade/config.py`.
 ## 5. Pause menu and wardrobe
 
 - Esc opens a light-blue menu: **Resume**, **Wardrobe**, **How to play**, **Music: High** (each click or Enter goes
-  to Medium, Low, High again), **Leave arcade**, and **Play online** in the room (O) or **Leave table** at a table.
+  to Medium, Low, High again), **Leave arcade**, and **Play online** in the room or **Leave table** at a table.
+  **Play online** opens the online menu (section 8). In the online lobby the last choice is **Leave lobby**, which goes
+  back to the choice of offline or online.
   The music stops while the menu is open, and stays off in everything opened from it (wardrobe, how to play).
 - The wardrobe is a picture like the store, with only owned items, and the character in the fitting room on the right.
 - Clicking an item previews it. **EQUIP** (E or Enter) wears it (its tile says WEARING). **UNEQUIP** (U) takes it off
@@ -264,9 +273,9 @@ Numbers live in `arcade/config.py`.
 ## 6. Championship
 
 - The cabinet is locked until the player has won each of the three games at least once. Near it, a locked cabinet shows "LOCKED (must master all games to unlock)".
-- Once unlocked the prompt is **START CHAMPIONSHIP [E]**.
+- Once unlocked the prompt is **START CHAMPIONSHIP** (E).
 - The first time only, a light-blue bubble explains the rules, one sentence per press of Enter, ending with "Are you ready?" and **Yes** / **No**. No returns to the room.
-- From the second time on, the prompt also offers **RULES [I]**.
+- From the second time on, the prompt also offers **RULES** (I).
 - Three bots are picked at random. Round 1 is UNO with all four players, played until only one player is left (like
   free play: once the player is out, the bots finish it at once). In rounds 2 (checkers) and 3 (Connect Four) the
   player is drawn against one bot and the other two bots play each other (their result is simulated).
@@ -283,13 +292,16 @@ Saved per player name: coins, owned cosmetics, equipped cosmetics, wins per game
 ## 8. Playing online with friends
 
 - Everyone plays on their own phone or laptop, at the game's web address. No bots online: only the people in the lobby.
-- **Online menu**, drawn on the picture like the pause menu (Up / Down move the yellow highlight, Enter or a click
-  chooses): **CREATE LOBBY** (N) gives a 4-letter code; **JOIN A LOBBY** (J); **PLAY OFFLINE** (A) goes back into the
-  arcade; **LOG OUT** (Esc) to the title.
+- **Online menu**: a box over the title screen, whose animation keeps going behind it (stars, floor grid, arcade
+  machines). Your character dances inside the box with their moving name tag, beside four big white buttons; the
+  chosen one turns yellow with a spinning coin on each side. Up / Down move, Enter or a click chooses:
+  **CREATE LOBBY** gives a 4-letter code and walks you into the lobby; **JOIN A LOBBY**; **PLAY OFFLINE** flies into
+  the arcade; **GO BACK** (or Esc) returns to the choice of offline or online ("HELLO, ANA!"), never to the name.
+  Pressing CREATE LOBBY several times quickly makes one lobby (the button says "..." until the lobby is there).
 - **Join a lobby**: four boxes for the code, like an arcade's high-score letters. Type the letters on the keyboard, or
   move along an on-screen keyboard with the arrows and press Enter (or click / tap a letter: phones have no keyboard).
-  Backspace or DEL deletes, Enter or JOIN joins (the highlight jumps to JOIN after the 4th letter), Esc or BACK goes
-  back. Codes never use I or O (they look like 1 and 0), C or R (Streamlit keeps those keys) or M and F (music and
+  Backspace or DEL deletes; once the 4th letter is in, the highlight jumps to JOIN and Enter joins; Esc or BACK goes
+  back to the online menu. Codes never use I or O (they look like 1 and 0), C or R (Streamlit keeps those keys) or M and F (music and
   full screen), so every letter of a code can be typed.
 - **The lobby is a room like the arcade** (like Club Penguin): up to **4 players**, each with their own look and name
   tag, walking about with the same keys and clicks as offline. No bots: the people in the lobby are the ones walking

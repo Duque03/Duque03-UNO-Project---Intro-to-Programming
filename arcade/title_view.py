@@ -9,15 +9,19 @@ font, like in a real game:
 
     CREATE A CHARACTER / I HAVE AN ACCOUNT / HOW TO PLAY  ->  name and PIN boxes  ->  (a new player makes their
     character first: screens/create.py)  ->  PLAY OFFLINE / PLAY ONLINE / HOW TO PLAY / LOG OUT
+    PLAY ONLINE  ->  the online box: CREATE LOBBY / JOIN A LOBBY / PLAY OFFLINE / GO BACK  ->  JOIN: the code box
+Everything before a room is this one animated screen: changing step only changes what is drawn (no new picture, no
+black, the stars and the dancers keep going).
 
 Arrow keys (or W S) choose, Enter confirms, Esc goes back; the mouse works too. The browser only tells
 Python two things (read them from the value mount() returns):
 
     howto    HOW TO PLAY was chosen: {n}
     submit   the name and PIN were sent: {mode: "new" or "login", name, pin, pin2, n}
-    play     a signed-in player chose PLAY OFFLINE or PLAY ONLINE: {where: "offline" or "online", n}
+    play     a signed-in player chose PLAY OFFLINE: {where: "offline", n}
+    lobby    CREATE LOBBY or JOIN with a code: {action: "create"} or {action: "join", code}, with n
     logout   a signed-in player chose LOG OUT: {n}
-    entered  the camera finished flying into the arcade after PLAY OFFLINE: {n}
+    entered  the camera finished flying into the arcade after PLAY OFFLINE (or into the lobby's room): {n}
     need     the browser is missing some pictures (it reloaded): their keys
 
 It starts like an arcade machine waiting for a player: the logo drops in and PRESS ENTER blinks. Clicking a
@@ -38,6 +42,7 @@ from arcade import bots, catalog
 from arcade.accounts import PIN_MAX, PIN_MIN
 from arcade.art import room_layers, title_layers
 from arcade.config import NAME_MAX, SCALE
+from arcade.logic.lobby import CODE_LENGTH, CODE_LETTERS
 from arcade.room import Scene, _look_key, _tag_key
 
 FEET_Y = 176 * SCALE  # where the bots stand on the big picture
@@ -64,12 +69,16 @@ def _dancer(s: Scene, look: tuple, name: str, spec) -> dict:
 
 
 def scene(sent: set, *, error: dict | None = None, ack: int = 0, last_name: str = "", champion: dict | None = None,
-          enter: int = 0, signed_in: str = "") -> dict:
+          enter: int = 0, signed_in: str = "", me: dict | None = None, start: dict | None = None,
+          notice: dict | None = None) -> dict:
     """Everything the browser needs for the title screen (data for TITLE_JS).
 
     champion: {"name", "look", "tag", "titles"} of the arcade's best player (it changes as people play), or None.
     enter: the number of a PLAY OFFLINE Python accepted: the browser flies into the arcade, then sends "entered".
     signed_in: the name of the player who has signed in (the menu is then PLAY OFFLINE / PLAY ONLINE...), or "".
+    me: the signed-in player's card ({"name", "look", "tag"}), who dances in the online box.
+    start: {"step", "n"}: open on this step (a new n each time), e.g. the online box from the pause menu.
+    notice: {"text", "n"}: a message for the online box (for example "That lobby has closed.").
     """
     s = Scene(sent)
     atlas, glyphs, height = title_layers.font_atlas()
@@ -87,10 +96,13 @@ def scene(sent: set, *, error: dict | None = None, ack: int = 0, last_name: str 
         "feetY": FEET_Y, "bots": [],
         "error": error, "ack": ack, "lastName": last_name, "enter": enter, "lines": LINES, "signedIn": signed_in,
         "nameMax": NAME_MAX, "pinMin": PIN_MIN, "pinMax": PIN_MAX,
+        "codeLetters": CODE_LETTERS, "codeLength": CODE_LENGTH, "start": start, "notice": notice, "me": None,
     }
     for i, bot in enumerate(bots.BOTS):
         dancer = _dancer(s, bots.look(bot), bot["name"], catalog.spec_for("name", bot["tag"]))
         data["bots"].append({"x": BOT_X[i], "spot": SPOT_COLOURS[i], **dancer})
+    if me:
+        data["me"] = _dancer(s, me["look"], me["name"], me.get("tag"))
     data["champion"] = None
     if champion:
         data["champion"] = {"x": CHAMPION_X, "titles": champion["titles"], "spot": "#ffd84a",
@@ -113,6 +125,7 @@ export default function (component) {
         images: {}, tinted: {}, step: "menu", sel: 0, focus: 0,
         fields: { name: "", pin: "", pin2: "" }, error: "", pending: null, pressN: 0, lastNeed: 0,
         running: false, hover: null, pokes: {}, attractDone: false, flyT0: null, enterSeen: 0, introT0: null,
+        code: "", pad: 0, startSeen: 0, noticeSeen: 0,
     });
     const sfx = (name) => { const A = window.__arcadeAudio; if (A && A.effect) A.effect(name); };
     G.data = data;
@@ -126,7 +139,7 @@ export default function (component) {
     if (G.pending && (data.ack || 0) >= G.pending.n) {
         const refused = data.error && data.error.n === G.pending.n;
         G.error = refused ? String(data.error.text).toUpperCase() : "";
-        if (refused) { G.fields.pin = ""; G.fields.pin2 = ""; G.focus = 1; }
+        if (refused && G.pending.kind === "submit") { G.fields.pin = ""; G.fields.pin2 = ""; G.focus = 1; }
         G.pending = null;
     }
 
@@ -141,11 +154,17 @@ export default function (component) {
         if (!G.attractDone) G.introT0 = performance.now() / 1000;
     }
     G.canvas = canvas;
-    if (data.signedIn && G.step !== "mode") {  // signed in (or a new character made): now offline or online
+    const SIGNED = ["mode", "online", "join"];  // the steps of a signed-in player
+    if (data.start && data.start.n !== G.startSeen) {  // opened on a given step (the online box, from the pause menu)
+        G.startSeen = data.start.n; G.step = data.start.step; G.sel = 0; G.pad = 0; G.code = ""; G.error = "";
+        G.attractDone = true;
+    }
+    if (data.signedIn && !SIGNED.includes(G.step)) {  // signed in (or a new character made): now offline or online
         G.step = "mode"; G.sel = 0; G.error = ""; G.attractDone = true; G.pending = null;
-    } else if (!data.signedIn && G.step === "mode") {  // logged out
+    } else if (!data.signedIn && SIGNED.includes(G.step)) {  // logged out
         G.step = "menu"; G.sel = 0;
     }
+    if (data.notice && data.notice.n !== G.noticeSeen) { G.noticeSeen = data.notice.n; G.error = String(data.notice.text).toUpperCase(); }
     if (data.enter && data.enter !== G.enterSeen) {  // Python accepted the sign-in: fly into the arcade
         G.enterSeen = data.enter; G.flyT0 = performance.now() / 1000; sfx("start");
     }
@@ -154,13 +173,35 @@ export default function (component) {
     const MENUS = {  // first who you are, then where you play
         menu: [["CREATE A CHARACTER", () => go("new")], ["I HAVE AN ACCOUNT", () => go("login")],
                ["HOW TO PLAY", () => act("howto", {})]],
-        mode: [["PLAY OFFLINE", () => act("play", { where: "offline" })], ["PLAY ONLINE", () => act("play", { where: "online" })],
+        mode: [["PLAY OFFLINE", () => act("play", { where: "offline" })], ["PLAY ONLINE", () => go("online")],
                ["HOW TO PLAY", () => act("howto", {})], ["LOG OUT", () => act("logout", {})]],
+        online: [["CREATE LOBBY", () => lobby({ action: "create" })], ["JOIN A LOBBY", () => go("join")],
+                 ["PLAY OFFLINE", () => act("play", { where: "offline" })], ["GO BACK", () => go("mode", 1)]],
     };
+    const PAD_ACTIONS = ["DEL", "JOIN", "BACK"];
+    const padKeys = () => [...data.codeLetters, ...PAD_ACTIONS];
+    function lobby(value) {  // CREATE LOBBY or JOIN: once (a second press waits for Python's answer)
+        if (G.pending) return;
+        if (value.action === "join" && G.code.length !== data.codeLength) { G.error = `A CODE HAS ${data.codeLength} LETTERS`; return; }
+        G.error = "";
+        act("lobby", value);
+        G.pending = G.lastPress;
+    }
+    function padPress(label) {
+        if (label === "DEL") { G.code = G.code.slice(0, -1); G.error = ""; sfx("blip"); }
+        else if (label === "JOIN") lobby({ action: "join", code: G.code });
+        else if (label === "BACK") go("online", 1);
+        else if (G.code.length < data.codeLength) {
+            G.code += label; G.error = ""; sfx("blip");
+            if (G.code.length === data.codeLength) G.pad = data.codeLetters.length + 1;  // the code is whole: on JOIN
+        }
+    }
     const formItems = () => G.step === "new" ? ["name", "pin", "pin2", "submit", "back"] : ["name", "pin", "submit", "back"];
     const inForm = () => G.step === "new" || G.step === "login";
-    function go(step) {
-        G.step = step; G.sel = 0; G.focus = 0; G.error = "";
+    const inBox = () => inForm() || G.step === "online" || G.step === "join";  // a box over the title (no logo, no pokes)
+    function go(step, sel = 0) {
+        G.step = step; G.sel = sel; G.focus = 0; G.error = ""; G.pad = 0;
+        if (step === "join") G.code = "";
         G.fields.pin = ""; G.fields.pin2 = "";
         sfx("coin");
     }
@@ -201,7 +242,7 @@ export default function (component) {
         if (!G.canvas || !G.canvas.isConnected || e.ctrlKey || e.metaKey || e.altKey) return;
         const key = e.key || "", k = key.toLowerCase();
         if (G.flyT0) return stop(e);  // flying into the arcade
-        if (!inForm() && /^[1-9]$/.test(key) && Number(key) <= d.bots.length) { poke(Number(key) - 1); return stop(e); }
+        if (!inBox() && /^[1-9]$/.test(key) && Number(key) <= d.bots.length) { poke(Number(key) - 1); return stop(e); }
         if (!G.attractDone) {
             if (k === "enter" || k === " ") { start(); return stop(e); }
             return;
@@ -227,11 +268,29 @@ export default function (component) {
             }
             return;
         }
+        if (G.step === "join") {  // type the code (or move the yellow frame over the letters), Enter, Esc
+            const keys = padKeys(), cols = 5, n = data.codeLetters.length;
+            if (k === "escape") { go("online", 1); return stop(e); }
+            if (k === "backspace") { padPress("DEL"); return stop(e); }
+            if (k === "enter" && G.code.length === data.codeLength) { lobby({ action: "join", code: G.code }); return stop(e); }
+            if (k === "enter" || k === " ") { padPress(keys[G.pad]); return stop(e); }
+            const moves = { arrowleft: -1, arrowright: 1, arrowup: -cols, arrowdown: cols };
+            if (k in moves) {
+                let next = G.pad + moves[k];
+                if (G.pad >= n && (k === "arrowup")) next = n - cols + Math.min(cols - 1, (G.pad - n) * 2);
+                else if (G.pad < n && next >= n) next = n + Math.min(2, Math.floor((G.pad % cols) / 2));
+                G.pad = Math.max(0, Math.min(keys.length - 1, next)); sfx("blip"); return stop(e);
+            }
+            if (key.length === 1 && data.codeLetters.includes(key.toUpperCase())) { padPress(key.toUpperCase()); return stop(e); }
+            if (key.length === 1) return stop(e);  // (other letters do nothing here, not even the game's keys)
+            return;
+        }
         const items = MENUS[G.step];
+        if (k === "escape" && G.step === "online") { go("mode", 1); return stop(e); }
         if (k === "arrowdown" || k === "s") { G.sel = (G.sel + 1) % items.length; sfx("blip"); return stop(e); }
         if (k === "arrowup" || k === "w") { G.sel = (G.sel + items.length - 1) % items.length; sfx("blip"); return stop(e); }
         if (k === "enter" || k === " ") { items[G.sel][1](); return stop(e); }
-        if (k === "h") { act("howto", {}); return stop(e); }
+        if (k === "h" && G.step !== "online") { act("howto", {}); return stop(e); }
     };
     const where = (e) => {
         const box = canvas.getBoundingClientRect();
@@ -245,7 +304,9 @@ export default function (component) {
         const hit = hitAt(...where(e));
         canvas.style.cursor = hit || !G.attractDone ? "pointer" : "default";
         if (!hit || hit[5] === "bot") return;
-        if (inForm()) { if (hit[5] !== "field") G.focus = hit[4]; } else if (G.sel !== hit[4]) { G.sel = hit[4]; sfx("blip"); }
+        if (inForm()) { if (hit[5] !== "field") G.focus = hit[4]; }
+        else if (G.step === "join") { if (G.pad !== hit[4]) { G.pad = hit[4]; sfx("blip"); } }
+        else if (G.sel !== hit[4]) { G.sel = hit[4]; sfx("blip"); }
     };
     const onClick = (e) => {
         if (G.flyT0) return;
@@ -254,6 +315,7 @@ export default function (component) {
         if (!G.attractDone) return start();
         if (!hit) return;
         if (inForm()) { G.focus = hit[4]; if (hit[5] !== "field") activateFormItem(formItems()[hit[4]]); }
+        else if (G.step === "join") { G.pad = hit[4]; padPress(padKeys()[hit[4]]); }
         else { G.sel = hit[4]; MENUS[G.step][hit[4]][1](); }
     };
     // Listeners are added once; they always call the newest handlers (so a key is never handled twice).
@@ -391,8 +453,9 @@ export default function (component) {
 
         // the five regulars dancing under coloured spotlights
         const [cw, ch] = d.cell, [fx, fy] = d.feet, tick = Math.floor(t * 2);
-        const dancers = d.bots.map((b, i) => ({ ...b, i, feet: d.feetY }));
-        if (d.champion) dancers.push({ ...d.champion, i: 5, feet: d.feetY - 18, champ: true });
+        const boxedOnline = G.step === "online" || G.step === "join";  // (behind the big online box: only their feet showed)
+        const dancers = boxedOnline ? [] : d.bots.map((b, i) => ({ ...b, i, feet: d.feetY }));
+        if (d.champion && !boxedOnline) dancers.push({ ...d.champion, i: 5, feet: d.feetY - 18, champ: true });
         ctx.globalCompositeOperation = "lighter";
         for (const b of dancers) { const sp = spotSprite(b.spot); ctx.drawImage(sp, b.x - 80, b.feet - 34); }
         ctx.globalCompositeOperation = "source-over";
@@ -427,38 +490,40 @@ export default function (component) {
             if (b.champ) {
                 crown(ctx, b.x - 64, b.feet - hop - 196);
                 text(ctx, b.titles > 1 ? `CHAMPION X${b.titles}` : "CHAMPION", b.x + 14, b.feet - hop - 202, 1, "#ffd84a", "center", 2);
-            } else if (!fly && !inForm()) {
+            } else if (!fly && !inBox()) {
                 G.hits.push([b.x - 48, b.feet - 190, b.x + 48, b.feet, b.i, "bot"]);
             }
         }
 
         // what a poked bot says, over its own name tag (under the menu, which always stays readable)
-        if (!inForm() && !fly) for (const [b, line] of talk) bubble(ctx, b.x, b.feet - 132, line);
+        if (!inBox() && !fly) for (const [b, line] of talk) bubble(ctx, b.x, b.feet - 132, line);
         ctx.drawImage(vignette(), 0, 0);
         const intro = G.introT0 ? Math.min(1, (t - G.introT0) / 0.9) : 1;  // the logo drops in and bounces
         const back = 1 + 2.7 * Math.pow(intro - 1, 3) + 1.7 * Math.pow(intro - 1, 2);  // ease out with an overshoot
         const drop = -Math.round((1 - back) * 330 / 3) * 3;
         const small = inForm() || G.step === "mode";  // smaller above the name and PIN boxes and the longer menu
         const logo = img(small ? d.logoSmall : d.logo);
-        if (logo) ctx.drawImage(logo, 0, Math.round(Math.sin(t * 1.6) * 2) * 3 - (small ? 0 : 6) + drop);
+        const boxed = G.step === "online" || G.step === "join";  // (the online box has its own title)
+        if (logo && !boxed) ctx.drawImage(logo, 0, Math.round(Math.sin(t * 1.6) * 2) * 3 - (small ? 0 : 6) + drop);
 
         ctx.setTransform(1, 0, 0, 1, 0, 0);
         if (fly) {  // into the arcade: everything else gone, fade to black at the end
             ctx.fillStyle = `rgba(0, 0, 0, ${Math.max(0, (fly - 0.55) / 0.45)})`; ctx.fillRect(0, 0, 960, 540);
         } else if (!G.attractDone) {
             if (intro >= 1 && Math.floor(t * 2.2) % 2 === 0) text(ctx, "PRESS ENTER", 480, 270, 2, "#ffe94a");
-            text(ctx, "CLICK A BOT (OR 1-4) TO MAKE IT DANCE  -  M: MUSIC", 18, 516, 1, "#b9b0e8", "left", 2);
         } else {
-            if (inForm()) drawForm(ctx, t); else drawMenu(ctx, t);
-            text(ctx, inForm() ? "TYPE  -  ARROWS: MOVE  -  ENTER: OK  -  ESC: BACK"
-                               : "ARROWS: CHOOSE  -  ENTER: OK  -  1-4: POKE A BOT  -  M: MUSIC", 18, 516, 1, "#b9b0e8", "left", 2);
+            if (inForm()) drawForm(ctx, t);
+            else if (G.step === "online") drawOnline(ctx, t);
+            else if (G.step === "join") drawJoin(ctx, t);
+            else drawMenu(ctx, t);
+            // (no key hints on the screen: How to play has them)
         }
 
         if (G.missing.size && t - G.lastNeed > 1.5) { G.lastNeed = t; G.send("need", Array.from(G.missing)); }
     }
 
     function drawMenu(ctx, t) {
-        const mode = G.step === "mode", items = MENUS[G.step], y0 = mode ? 196 : 222, gap = mode ? 44 : 46;
+        const mode = G.step === "mode", items = MENUS[G.step], y0 = mode ? 188 : 222, gap = mode ? 42 : 46;  // (LOG OUT clear of the name tags)
         if (mode) text(ctx, `HELLO, ${G.data.signedIn}!`, 480, y0 - 42, 2, "#3ad6ff");
         items.forEach(([label], i) => {
             const y = y0 + i * gap, chosen = i === G.sel, s = 2, w = textWidth(label, s);
@@ -469,6 +534,78 @@ export default function (component) {
                 coin(ctx, 480 + w / 2 + 34, y + 14, t + 0.4);
             }
             G.hits.push([480 - w / 2 - 40, y - 6, 480 + w / 2 + 40, y + 36, i, "item"]);
+        });
+    }
+    function box(ctx, left, top, right, bottom) {  // the dark box with the cyan and pink edges (as the forms)
+        ctx.fillStyle = "rgba(10, 7, 28, 0.92)"; ctx.fillRect(left, top, right - left, bottom - top);
+        ctx.strokeStyle = "#3ad6ff"; ctx.lineWidth = 4; ctx.strokeRect(left + 2, top + 2, right - left - 4, bottom - top - 4);
+        ctx.strokeStyle = "rgba(255, 79, 163, 0.7)"; ctx.lineWidth = 2; ctx.strokeRect(left + 9, top + 9, right - left - 18, bottom - top - 18);
+    }
+    function button(ctx, x, y, w, h, label, chosen, s = 2, fill = null) {  // a chunky white button; yellow when chosen
+        ctx.fillStyle = "#16122b"; ctx.fillRect(x + 4, y + 5, w, h);  // its shadow
+        ctx.fillStyle = "#16122b"; ctx.fillRect(x - 3, y - 3, w + 6, h + 6);
+        ctx.fillStyle = chosen ? "#ffe94a" : (fill || "#ffffff"); ctx.fillRect(x, y, w, h);
+        text(ctx, label, x + w / 2, y + Math.round((h - G.data.font.h * s) / 2) + 2, s, "#16122b", "center", 0);
+    }
+    function dancer(ctx, b, x, feet, t, i) {  // you, dancing on the spot in the online box: big, with your name tag
+        const d = G.data, [cw, ch] = d.cell, [fx, fy] = d.feet, tick = Math.floor(t * 2), k = 3, tk = 2;  // (sizes)
+        const beatF = t * 2.4 + i * 0.7, beat = Math.floor(beatF) % 8;
+        const hop = Math.round(Math.abs(Math.sin(beatF * Math.PI)) * 2) * 6;
+        const dir = beat === 5 ? "left" : beat === 6 ? "right" : "down";
+        let pose = beat % 2 ? 1 : 2;
+        if (dir === "down" && beat === 3 && beatF % 1 < 0.35) pose = 3;
+        ctx.fillStyle = "rgba(0, 0, 0, 0.35)";
+        ctx.beginPath(); ctx.ellipse(x, feet + 3, 52 - hop / 3, 12, 0, 0, Math.PI * 2); ctx.fill();
+        const sheet = img(b.sheet);
+        if (sheet) {
+            const col = d.dirs.indexOf(dir) * d.poses + pose, row = tick % b.rows;
+            ctx.drawImage(sheet, col * cw, row * ch, cw, ch, x - fx * k, feet - hop - fy * k, cw * k, ch * k);
+        }
+        const tag = img(b.tags[tick % b.tags.length]);  // (the tag's own animation: it changes on every beat)
+        if (tag) ctx.drawImage(tag, x - b.anchor[0] * tk, feet - hop - 74 * k - b.anchor[1] * tk, tag.width * tk, tag.height * tk);
+    }
+    function drawOnline(ctx, t) {  // PLAY ONLINE: you, dancing, and the four buttons (coins spin by the chosen one)
+        const left = 196, top = 34, right = 764, bottom = 506;
+        box(ctx, left, top, right, bottom);
+        text(ctx, "PLAY ONLINE", 480, top + 22, 3, "#ffe94a");
+        text(ctx, "EACH FRIEND ON THEIR OWN PHONE OR LAPTOP", 480, top + 78, 1, "#d9d4ff", "center", 2);
+        text(ctx, "UP TO 4 PLAYERS  -  NO BOTS", 480, top + 100, 1, "#7cff3a", "center", 2);
+        if (G.data.me) dancer(ctx, G.data.me, 300, 470, t, 2);
+        MENUS.online.forEach(([label], i) => {
+            const x = 404, y = 168 + i * 68, w = 316, h = 50, chosen = i === G.sel;
+            const busy = i === 0 && G.pending && G.pending.kind === "lobby";
+            button(ctx, x, y, w, h, busy ? "..." : label, chosen);
+            if (chosen) { coin(ctx, x - 24, y + h / 2, t); coin(ctx, x + w + 24, y + h / 2, t + 0.4); }
+            G.hits.push([x - 6, y - 6, x + w + 6, y + h + 6, i, "item"]);
+        });
+        if (G.error) text(ctx, G.error, 562, 448, 1, "#ff6b7a", "center", 2);
+    }
+    function drawJoin(ctx, t) {  // JOIN A LOBBY: the code in four boxes, and letters to pick with the arrows or a click
+        const left = 196, top = 34, right = 764, bottom = 506, n = data.codeLength;
+        box(ctx, left, top, right, bottom);
+        text(ctx, "JOIN A LOBBY", 480, top + 22, 3, "#ffe94a");
+        text(ctx, "TYPE YOUR FRIEND'S CODE", 480, top + 78, 1, "#d9d4ff", "center", 2);
+        for (let i = 0; i < n; i++) {  // the code so far
+            const x = 480 - n * 38 + i * 76 + 4, y = 136, here = i === G.code.length;
+            ctx.fillStyle = "#1b1546"; ctx.fillRect(x, y, 64, 64);
+            ctx.strokeStyle = here ? "#ffe94a" : "#3a2f6b"; ctx.lineWidth = here ? 4 : 3; ctx.strokeRect(x + 2, y + 2, 60, 60);
+            if (i < G.code.length) text(ctx, G.code[i], x + 32, y + 12, 3, "#ffffff");
+            else if (here && Math.floor(t * 2.5) % 2 === 0) { ctx.fillStyle = "#ffe94a"; ctx.fillRect(x + 16, y + 50, 32, 4); }
+        }
+        if (G.error) text(ctx, G.error, 480, 212, 1, "#ff6b7a", "center", 2);
+        const keys = padKeys(), cols = 5, kw = 70, kh = 42, gap = 10, letters = data.codeLetters.length;
+        const width = cols * kw + (cols - 1) * gap, x0 = 480 - width / 2, y0 = 236;
+        keys.forEach((label, i) => {
+            let x, y, w;
+            if (i < letters) { x = x0 + (i % cols) * (kw + gap); y = y0 + Math.floor(i / cols) * (kh + gap); w = kw; }
+            else {
+                const third = (width - 2 * gap) / 3, k = i - letters;
+                x = x0 + k * (third + gap); y = y0 + Math.ceil(letters / cols) * (kh + gap) + 4; w = third;
+            }
+            const ready = label === "JOIN" && G.code.length === n;
+            const busy = label === "JOIN" && G.pending && G.pending.kind === "lobby";
+            button(ctx, x, y, w, kh, busy ? "..." : label, i === G.pad, 2, ready ? "#7cff3a" : null);
+            G.hits.push([x - 4, y - 4, x + w + 4, y + kh + 4, i, "pad"]);
         });
     }
     function coin(ctx, x, y, t) {
@@ -532,10 +669,11 @@ export default function (component) {
 """
 
 _title = st.components.v2.component("arcade_title", css=TITLE_CSS, js=TITLE_JS)
-EVENTS = ("howto", "submit", "play", "logout", "entered", "need")
+EVENTS = ("howto", "submit", "play", "lobby", "logout", "entered", "need")
 
 
 def mount(data: dict, key: str = "arcade_title"):
-    """Show the title screen. Returns the component result: result.howto, .submit, .play, .logout, .entered, .need."""
+    """Show the title screen. Returns the component result: result.howto, .submit, .play, .lobby, .logout, .entered,
+    .need."""
     callbacks = {f"on_{name}_change": (lambda: None) for name in EVENTS}
     return _title(key=key, data=data, width="stretch", **callbacks)

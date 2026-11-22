@@ -60,8 +60,7 @@ def test_an_account_signs_in_and_then_chooses_offline_or_online(session):
     _account("Bruno", "2468")
     _send(title._sign_in, {"mode": "login", "name": "bruno", "pin": "2468"}, 1)
     assert session.screen == "title" and session.player["name"] == "BRUNO"
-    _send(title._play, {"where": "online", "n": 2})
-    assert session.screen == "online"
+    # (PLAY ONLINE only opens the online box of this same screen: nothing to send, no new picture)
     assert not session.get("_toasts") and session.title_welcome  # the welcome waits for the first room
     title.welcome()
     assert session["_toasts"][-1]["text"] == "Welcome back, BRUNO!" and session.title_welcome is None
@@ -96,16 +95,57 @@ def test_the_pixel_font_has_the_new_menu_words():
     assert {"play", "logout"} <= set(title_view.EVENTS)
 
 
-def test_the_screens_of_the_title_menu_are_drawn_on_the_titles_own_background():
-    from arcade import bots
-    from arcade.art import create, online as online_art
+def test_the_character_maker_is_drawn_on_the_titles_own_background():
+    from arcade.art import create
     from arcade.logic import looks
 
     still = title_layers.still()
-    me = {"name": "ANA", "look": bots.look(bots.get("JOHN")), "tag": None}
-    menu, _ = online_art.menu_picture(me, [{"label": "CREATE LOBBY", "action": "create"}], 0)
-    join, _ = online_art.join_picture("", "ABD", 0)
     maker, _ = create.creator_picture("ANA", {k: next(iter(o)) for k, o in looks.ROWS}, None)
-    for picture in (menu, join, maker):
-        for corner in ((5, 5), (5, 530), (950, 300)):  # around the box: the title screen shows
-            assert picture.convert("RGB").getpixel(corner) == still.getpixel(corner)
+    for corner in ((5, 5), (5, 530), (950, 300)):  # around the box: the title screen shows
+        assert maker.convert("RGB").getpixel(corner) == still.getpixel(corner)
+
+
+def test_create_lobby_flies_into_the_lobbys_room(session, monkeypatch):
+    from arcade import online
+    from arcade.logic.lobby import Lobbies
+
+    from arcade.screens import online_room
+
+    lobbies = Lobbies()
+    monkeypatch.setattr(online, "lobbies", lambda: lobbies)
+    monkeypatch.setattr(online_room, "S", session)
+    _account("Fred", "5555")
+    _send(title._sign_in, {"mode": "login", "name": "Fred", "pin": "5555"}, 1)
+    _send(title._lobby, {"action": "create"}, 2)
+    code = session.lobby_code
+    assert lobbies.get(code).names() == ["FRED"] and session.title_enter == 2  # the flight, then the room
+    _send(title._walk_in)
+    assert session.screen == "lobby"
+
+
+def test_a_wrong_code_is_shown_in_the_join_box(session, monkeypatch):
+    from arcade import online
+    from arcade.logic.lobby import Lobbies
+
+    monkeypatch.setattr(online, "lobbies", lambda: Lobbies())
+    _account("Gil", "6666")
+    _send(title._sign_in, {"mode": "login", "name": "Gil", "pin": "6666"}, 1)
+    _send(title._lobby, {"action": "join", "code": "ZZZZ"}, 3)
+    assert session.title_error == {"text": "There is no lobby with that code.", "n": 3} and not session.lobby_code
+
+
+def test_leaving_a_lobby_goes_back_to_offline_or_online(session, monkeypatch):
+    from arcade import online
+    from arcade.logic.lobby import Lobbies
+    from arcade.screens import online as online_screens
+
+    lobbies = Lobbies()
+    monkeypatch.setattr(online, "lobbies", lambda: lobbies)
+    monkeypatch.setattr(online_screens, "S", session)
+    _account("Hugo", "7777")
+    _send(title._sign_in, {"mode": "login", "name": "Hugo", "pin": "7777"}, 1)
+    session.lobby_code = lobbies.create(online.card(session.player))
+    online_screens.leave()
+    assert session.screen == "title" and session.title_start["step"] == "mode" and session.player["name"] == "HUGO"
+    online_screens.leave("That lobby has closed.")
+    assert session.title_start["step"] == "online" and session.title_notice["text"] == "That lobby has closed."

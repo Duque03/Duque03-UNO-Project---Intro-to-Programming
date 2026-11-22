@@ -471,7 +471,7 @@ def hub_scene(actors, coins, prompts=(), champ_locked=True, glow=None, t=0, hud=
             small = prompt.get("small")
             scale = 2
             tw, th = text_size(prompt["text"], scale)
-            key_w = (text_size(prompt["key"], 2)[0] + 12 + 8) if prompt.get("key") else 0
+            key_w = 0  # (no key printed on the bubble: E, or a click, is all it takes; How to play says so)
             lock_w = 30 if prompt.get("lock") else 0
             w = tw + key_w + lock_w + 24
             h = 34 + (CHAR_H * 1 + 6 if small else 0)
@@ -485,8 +485,6 @@ def hub_scene(actors, coins, prompts=(), champ_locked=True, glow=None, t=0, hud=
                 lock(big, cursor, y + 5, 2, "#6b6880")
                 cursor += lock_w - 8
             draw_text(big, (cursor, y + 17), prompt["text"], scale, INK, "lm")
-            if prompt.get("key"):
-                key_icon(big, cursor + tw + 8, y + 5, prompt["key"], 2, "#ffe94a")
             if small:
                 draw_text(big, (x0 + 12, y + 31), small, 1, "#4a4660", "lt")
             if prompt.get("action"):
@@ -495,9 +493,7 @@ def hub_scene(actors, coins, prompts=(), champ_locked=True, glow=None, t=0, hud=
 
     if hud:
         draw_coin_counter(big, coins)
-    if hint:
-        draw_text(big, (14, SCREEN_H - 10), "WALK: W A S D OR CLICK", 1, "#b9b3ee", "lb", shadow=INK)
-    return big, regions
+    return big, regions  # (no key hints on the screen: How to play has them)
 
 
 def draw_coin_counter(img, coins: int):
@@ -854,13 +850,12 @@ def sparkle(img, cx, cy, size: int = 3) -> None:
 
 
 def _footer_hint(img, cx, y, key="ENTER", text="CONTINUE"):
-    """A key and what it does, centred on cx. Returns the area around it (left, top, right, bottom), for clicks."""
+    """What clicking here (or Enter) does, centred on cx: just the word, no key printed. Returns the area around it
+    (left, top, right, bottom), for clicks."""
     tw = text_size(text, 2)[0]
-    kw = text_size(key, 2)[0] + 12
-    x = cx - (tw + kw + 10) // 2
-    key_icon(img, x, y, key, 2, "#ffe94a")
-    draw_text(img, (x + kw + 10, y + 12), text, 2, INK, "lm")
-    return (x - 8, y - 8, x + kw + 10 + tw + 8, y + 32)
+    x = cx - tw // 2
+    draw_text(img, (x, y + 12), text, 2, INK, "lm")
+    return (x - 12, y - 8, x + tw + 12, y + 32)
 
 
 def coin_pyramid(img, cx, bottom, rows=4, unit=3):
@@ -971,14 +966,7 @@ def draw_button(img, box, label, scale=3, fill="#ffffff", ink=INK, key=None):
     """A chunky pixel button painted on a picture. Returns its box for click regions."""
     panel(img, box, fill, ink, bw=3, shadow=True)
     cx, cy = (box[0] + box[2]) // 2, (box[1] + box[3]) // 2
-    if key:
-        tw = text_size(label, scale)[0]
-        kw = text_size(key, 2)[0] + 12
-        x = cx - (tw + kw + 12) // 2
-        draw_text(img, (x, cy + 1), label, scale, ink, "lm")
-        key_icon(img, x + tw + 12, cy - 13, key, 2, "#ffe94a")
-    else:
-        draw_text(img, (cx, cy + 1), label, scale, ink, "mm")
+    draw_text(img, (cx, cy + 1), label, scale, ink, "mm")  # (key is not printed: arrows and Enter, or a click)
     return tuple(int(v) for v in box)
 
 

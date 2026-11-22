@@ -12,9 +12,21 @@ import time
 
 import streamlit as st
 
-from arcade import accounts, catalog, db, hubmap, room, sound, state, title_view, ui
+from arcade import (
+    accounts,
+    catalog,
+    db,
+    hubmap,
+    online,
+    room,
+    sound,
+    state,
+    title_view,
+    ui,
+)
 from arcade import player as player_model
 from arcade.logic import championship
+from arcade.logic.lobby import LobbyError
 from arcade.player import InvalidName
 from arcade.screens import howto
 from arcade.state import S
@@ -58,14 +70,36 @@ def _sign_in(value: dict, number: int) -> None:
 
 
 def _play(value: dict) -> None:
-    """PLAY OFFLINE (fly into the arcade first) or PLAY ONLINE (the online menu: create or join a lobby)."""
+    """PLAY OFFLINE: fly into the arcade first. (PLAY ONLINE only changes what the title screen draws.)"""
     if S.player is None:
         return
-    if isinstance(value, dict) and value.get("where") == "online":
-        S.screen = "online"  # the online menu, on the title's own background (the welcome waits for the online room)
-        sound.play("start")
-        st.rerun()
+    S.title_target = "hub"
     S.title_enter = value["n"]  # the browser flies into the arcade (and plays the start sound), then sends "entered"
+    st.rerun()
+
+
+def _lobby(value: dict, number: int) -> None:
+    """CREATE LOBBY, or JOIN with a code: then fly in, into the lobby's room. A refusal (wrong code, full) goes back to
+    the browser, which shows it in the box."""
+    if S.player is None or not isinstance(value, dict):
+        return
+    card = online.card(S.player)
+    try:
+        if value.get("action") == "create":
+            code = online.lobbies().create(card)
+        elif value.get("action") == "join":
+            code = online.lobbies().join(_text(value.get("code"), 8), card)
+        else:
+            return
+    except LobbyError as problem:
+        S.title_error = {"text": str(problem), "n": number}
+        sound.play("lose")
+        st.rerun()
+    S.title_error = None
+    S.lobby_code = code
+    S.title_target = "lobby"
+    S.title_enter = number  # fly in (as into the arcade), then "entered": the room of the lobby
+    sound.play("coin")
     st.rerun()
 
 
@@ -80,9 +114,14 @@ def welcome() -> None:
 
 
 def _walk_in() -> None:
-    """The flight into the arcade is over: the player walks in by the door."""
+    """The flight into the arcade is over: the player walks in by the door (of the arcade, or of the lobby's room)."""
     if S.player is None:
         return
+    if S.pop("title_target", None) == "lobby" and S.get("lobby_code"):
+        from arcade.screens import online_room  # (online_room uses this module)
+
+        online_room.enter()  # (the welcome pops up there)
+        st.rerun()
     S.hub["pos"], S.hub["dir"], S.hub["walk"] = hubmap.SPAWN, "up", None
     state.reset_bots()
     S.match = S.game = S.result = S.champ = None
@@ -122,11 +161,13 @@ def render() -> None:
     events = title_view.mount(title_view.scene(sent, error=S.get("title_error"), ack=S.get("title_ack", 0),
                                                last_name=S.get("last_name") or "", champion=_champion(),
                                                enter=S.get("title_enter", 0),
-                                               signed_in=S.player["name"] if S.get("player") else ""))
+                                               signed_in=S.player["name"] if S.get("player") else "",
+                                               me=online.card(S.player) if S.get("player") else None,
+                                               start=S.get("title_start"), notice=S.get("title_notice")))
     if events.need:  # the browser lost some pictures (it was reloaded): send them again
         sent.difference_update(key for key in events.need if isinstance(key, str))
         st.rerun()
-    for name in ("howto", "submit", "play", "logout", "entered"):
+    for name in ("howto", "submit", "play", "lobby", "logout", "entered"):
         value = getattr(events, name)
         if value is None:
             continue
@@ -142,6 +183,8 @@ def render() -> None:
             _walk_in()
         elif name == "play":
             _play(value)
+        elif name == "lobby":
+            _lobby(value, number)
         elif name == "logout":
             _log_out()
         else:

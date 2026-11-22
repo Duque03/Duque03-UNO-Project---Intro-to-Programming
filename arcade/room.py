@@ -451,11 +451,10 @@ export default function (component) {
         const bx = sx / data.scale, by = sy / data.scale;
         for (const spot of data.boxes) {
             const [l, t, r, b] = spot.box;
-            if (bx >= l && bx <= r && by >= t && by <= b) { G.target = { x: spot.stand[0], y: spot.stand[1], face: "up" }; return; }
+            if (bx >= l && bx <= r && by >= t && by <= b) { G.target = walkTo(spot.stand[0], spot.stand[1], "up"); return; }
         }
-        const map = G.maps[data.map];
         const [wl, wt, wr, wb] = G.objects[data.map].walk_area;
-        G.target = { x: Math.max(wl, Math.min(wr, bx)), y: Math.max(wt, Math.min(wb, by)), face: null };
+        G.target = walkTo(Math.max(wl, Math.min(wr, bx)), Math.max(wt, Math.min(wb, by)), null);
     };
     const onMove = (event) => {
         const box = canvas.getBoundingClientRect();
@@ -627,6 +626,57 @@ export default function (component) {
         ctx.fillStyle = "#f3ead2"; ctx.fillRect(x + 13, y + 10, 6, h - 20); ctx.fillRect(x + w - 19, y + 10, 6, h - 20);
     }
 
+    // A click walks the player there around the tables and the walls (not in a straight line that stops at the first
+    // table): the shortest way over the floor map, cut down to a few straight lines (one per corner).
+    const STEPS = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]];
+    function route(tx, ty) {
+        const map = G.maps[G.data.map];
+        if (!map) return null;
+        const W = map.w, H = map.h, ok = (x, y) => x >= 0 && y >= 0 && x < W && y < H && !map.blocked[y * W + x];
+        const sx = Math.round(G.x), sy = Math.round(G.y);
+        let gx = Math.round(tx), gy = Math.round(ty);
+        if (!ok(sx, sy)) return null;
+        if (!ok(gx, gy)) { const near = nearestFloor(gx, gy); if (!near) return null; [gx, gy] = near; }
+        const start = sy * W + sx, goal = gy * W + gx, prev = new Int32Array(W * H).fill(-1), queue = new Int32Array(W * H);
+        let head = 0, tail = 0;
+        queue[tail++] = start; prev[start] = start;
+        while (head < tail && prev[goal] === -1) {
+            const c = queue[head++], cx = c % W, cy = (c - cx) / W;
+            for (const [dx, dy] of STEPS) {
+                const nx = cx + dx, ny = cy + dy;
+                if (!ok(nx, ny) || (dx && dy && (!ok(cx + dx, cy) || !ok(cx, cy + dy)))) continue;  // (no cut corners)
+                const n = ny * W + nx;
+                if (prev[n] === -1) { prev[n] = c; queue[tail++] = n; }
+            }
+        }
+        if (prev[goal] === -1) return null;
+        const cells = [];
+        for (let c = goal; c !== start; c = prev[c]) cells.push([c % W, Math.floor(c / W)]);
+        cells.reverse();
+        if (ok(Math.round(tx), Math.round(ty)) && cells.length) cells[cells.length - 1] = [tx, ty];  // exactly there
+        const clear = (a, b) => {  // a straight walk from a to b stays on the floor
+            const n = Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) * 3);
+            for (let i = 1; i <= n; i++) {
+                if (!ok(Math.round(a[0] + (b[0] - a[0]) * i / n), Math.round(a[1] + (b[1] - a[1]) * i / n))) return false;
+            }
+            return true;
+        };
+        const points = [];
+        let from = [G.x, G.y], i = 0;
+        while (i < cells.length) {
+            let j = cells.length - 1;
+            while (j > i && !clear(from, cells[j])) j--;
+            points.push(cells[j]); from = cells[j]; i = j + 1;
+        }
+        return points;
+    }
+    function walkTo(x, y, face) {  // the walk target: the first corner, the others in `rest`
+        const way = route(x, y);
+        if (!way || !way.length) return { x, y, face };  // (no way found: straight there, as far as it goes)
+        const [first, ...rest] = way;
+        return { x: first[0], y: first[1], face, rest };
+    }
+
     function nearestFloor(x, y) {  // the closest spot where the player may stand (walls and furniture only)
         for (let r = 1; r <= 90; r++) {
             for (let dy = -r; dy <= r; dy++) {
@@ -691,7 +741,11 @@ export default function (component) {
             faceKey = KEYS[G.keys[G.keys.length - 1]];
         } else if (G.target) {
             const dx = G.target.x - G.x, dy = G.target.y - G.y, dist = Math.hypot(dx, dy);
-            if (dist < 0.8) {
+            if (dist < 0.8 && G.target.rest && G.target.rest.length) {  // a corner of the way: on to the next one
+                [G.target.x, G.target.y] = G.target.rest.shift();
+                const nx = G.target.x - G.x, ny = G.target.y - G.y, nd = Math.hypot(nx, ny) || 1;
+                vx = nx / nd; vy = ny / nd;
+            } else if (dist < 0.8) {
                 G.x = G.target.x; G.y = G.target.y;
                 if (G.target.face) G.dir = G.target.face;
                 G.target = null;

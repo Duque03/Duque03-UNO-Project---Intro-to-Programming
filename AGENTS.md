@@ -119,7 +119,12 @@ changing these files, and change them in a small pull request of their own.
   An accepted sign-in runs `state.start_session` at once (a new player goes to `screens/create.py`, which comes back
   to the title); with a player signed in (`signed_in`) the menu is PLAY OFFLINE / PLAY ONLINE / HOW TO PLAY / LOG OUT
   (`play`, `logout`). After PLAY OFFLINE Python sends `enter`: the browser flies into the arcade and then sends
-  `entered`, and only then does the player walk in. The best player shown dancing comes from
+  `entered`, and only then does the player walk in. The online menu (`online` step: CREATE LOBBY / JOIN A LOBBY /
+  PLAY OFFLINE / GO BACK) and the join box (`join` step) are steps of the same browser view, so moving between them
+  sends nothing; only CREATE LOBBY and JOIN send `lobby` (numbered, once: a second press waits for the answer), and
+  `screens/title.py` makes or joins the lobby and flies the player into it (`title_target = "lobby"`). Other screens
+  open the title on a step with `screens/online.to_title(step, notice)` (the pause menu's PLAY ONLINE, leaving a
+  lobby with `online.leave`, which goes back to the `mode` step). The best player shown dancing comes from
   `championship.best_player(db.all_players())`, looked up at most once a minute.
 - **Screens fade in with a browser animation** (`ui._fade_style`), never with pictures sent one by one: those
   stutter. Do not add animations made of several pictures to the table screens. The fade only plays after
@@ -128,6 +133,18 @@ changing these files, and change them in a small pull request of their own.
   the previous picture behind everything (`ui.backdrop`, `_last_src`: kept by `ui.show`, or by `ui.remember` for a
   screen the browser draws, like the room before it opens the pause menu or the store), so the page never shows black
   while the new screen makes its picture. The screens of the title menu draw on `title_layers.still()`.
+- **Nothing may move place on the page from one screen to the next.** The backdrop box is always the first thing in
+  `game_frame` (empty when the screen did not change) and the toast box always the second (made in `app.py` before
+  the screen, filled after it): an element that moves index is rebuilt by the browser (a black blink), and a box that
+  moves index showed the old screen's picture inside it. The CSS also takes the old screen out as soon as the new
+  picture, room or title is on the page (Streamlit keeps it until the run ends, which doubled the picture), and makes
+  every game picture fill the frame from its first frame. Check changes with the browser glitch scripts (every frame).
+- **`app.py` calls `ui.fresh_page()` first, on every full run.** Streamlit 1.67 leaves "where the next element goes"
+  pointing inside a fragment's container after the fragment runs; when a full run follows in the same thread (quick
+  clicks, a busy server), the whole page was written again inside `game_frame` (a doubled picture, blinks, even a
+  white page). `tests/test_page_layout.py` checks it. Keep it the first line.
+- **No key hints on the screen** (Miguel's call): no key badges in prompts, buttons or bubbles and no "ARROWS: CHOOSE
+  - ENTER: OK" lines. The keys still work (hidden buttons, `ui.keys`), and How to play lists them.
 - **Cards that move on the UNO table are drawn by the browser** (`arcade/table_anim.py`), on a see-through canvas laid
   over the picture (`ui.Slot.overlay`, CSS `game_screen_anim`). Python sends one plan (a picture of the table before
   the move, the card pictures, where each card starts and lands and when), shows the real picture behind it and waits
@@ -174,6 +191,9 @@ changing these files, and change them in a small pull request of their own.
   messages arrive as the `chat` event, numbered like E and Esc. The room looks at the lobby every `LOOK_EVERY` seconds
   (a fragment); a table screen (`screens/online_table.py`) only watches its own table's version
   (`lobbies.version(code, game)`), so walking and chatting in the room do not redraw a game.
+- **A click in the room walks round the furniture**: `ROOM_JS` `route()` finds the shortest way over the floor map
+  (a breadth-first search, no cut corners) and keeps only its corners; `G.target` is the next corner and
+  `G.target.rest` the others. Any key, or a bot in the way, ends the walk (`G.target = null`).
 - **`ROOM_JS` listens to the page only once** (`G.handlers`): Streamlit calls the component's function again on every
   run, and a listener added each time would make every key fire several times (a key that toggles would undo itself).
 - **Every screen is drawn inside one container, `game_frame`** (app.py), which `ui.py` makes fill the window: the
@@ -184,7 +204,8 @@ changing these files, and change them in a small pull request of their own.
   picture (for the tables: `common.corner_buttons` for RULES / PAUSE / LEAVE, the deck, the pile, PASS).
 - **Little messages go through `ui.toast(text)`, never `st.toast`**: the browser's font is not the game's. `ui.toast`
   paints the message in the game's pixel font and keeps it for a few seconds across reruns; `app.py` shows the ones
-  still up on every run, after the screen (`ui.render_toasts`, laid on the picture at the top right). `delay` makes one
+  still up on every run, after the screen, in the box `app.py` made before it (`ui.render_toasts(box)`, laid on the
+  picture at the top right). `delay` makes one
   wait before it pops up (the welcome waits for the arcade to fade in).
 - **A screen that raises never leaves a black page**: `app.py` catches it and `state.recover` writes the traceback to
   the log (Streamlit Cloud: Manage app > Logs), shows "Oops! Something went wrong. Back to the arcade.", clears the
@@ -219,6 +240,9 @@ changing these files, and change them in a small pull request of their own.
   hours with no visitors), open lobbies are gone. Saved players are not: they are in the database.
 - Online moves reach the other players within about a second, because each browser asks the server once a second.
   In the online room the others are seen where they were up to about a second ago, gliding there.
+- Keys pressed very quickly while the server is still drawing the last one can count once (Streamlit joins two
+  presses of the same hidden button that arrive during one run). The room and the title menus are drawn in the
+  browser, so there every press counts; the picture menus (pause, store, tables) may skip one on a slow server.
 - The chat filter is a list of words (English and Portuguese, `logic/chat.py`): it catches the usual rude words, not
   every way of spelling them. Messages are not saved anywhere: they live in the lobby (server memory) and are gone with
   it.

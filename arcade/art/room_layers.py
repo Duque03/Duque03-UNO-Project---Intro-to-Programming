@@ -21,12 +21,27 @@ from __future__ import annotations
 import json
 from functools import lru_cache
 
-from PIL import Image, ImageChops, ImageFilter
+from PIL import Image, ImageChops
 
 from arcade import hubmap
 from arcade.art import effects, lighting, sprites
-from arcade.art.pixel import CHAR_H, draw_text, key_icon, lock, panel, text_size, upscale
-from arcade.art.scenes import INK, TABLE_ORIGIN, _hub_background, _lay, blink, draw_coin_counter, table_sprite
+from arcade.art.pixel import (
+    CHAR_H,
+    draw_text,
+    lock,
+    panel,
+    text_size,
+    upscale,
+)
+from arcade.art.scenes import (
+    INK,
+    TABLE_ORIGIN,
+    _hub_background,
+    _lay,
+    blink,
+    draw_coin_counter,
+    table_sprite,
+)
 from arcade.config import GLOW, SCALE, SCREEN_H, SCREEN_W
 
 DIRECTIONS = ["down", "up", "left", "right"]
@@ -81,7 +96,6 @@ def top_layer(champ_locked: bool) -> Image.Image:
         lock(top, 43 * SCALE - 10, 46 * SCALE, 3)
     for key in TABLES:
         _draw_label(top, key, False)
-    draw_text(top, (14, SCREEN_H - 10), "WALK: W A S D   -   USE: E   -   PAUSE: ESC", 1, "#b9b3ee", "lb", shadow=INK)
     return top
 
 
@@ -189,7 +203,7 @@ def bubble(text: str, key: str | None = None, locked: bool = False, small: str |
     """One prompt bubble, drawn as in hub_scene. Returns (picture, (width, height) of the box)."""
     scale = 2
     tw, _ = text_size(text, scale)
-    key_w = (text_size(key, 2)[0] + 12 + 8) if key else 0
+    key_w = 0  # (no key printed on the bubble)
     lock_w = 30 if locked else 0
     w = tw + key_w + lock_w + 24
     h = 34 + (CHAR_H * 1 + 6 if small else 0)
@@ -204,8 +218,6 @@ def bubble(text: str, key: str | None = None, locked: bool = False, small: str |
         lock(img, cursor, y + 5, 2, "#6b6880")
         cursor += lock_w - 8
     draw_text(img, (cursor, y + 17), text, scale, INK, "lm")
-    if key:
-        key_icon(img, cursor + tw + 8, y + 5, key, 2, "#ffe94a")
     if small:
         draw_text(img, (x0 + 12, y + 31), small, 1, "#4a4660", "lt")
     return img, (w, h), pad

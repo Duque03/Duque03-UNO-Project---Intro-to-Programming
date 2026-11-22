@@ -204,7 +204,8 @@ def test_the_online_room_takes_players_to_their_table_and_back(app, monkeypatch)
     app.run()
     assert not app.exception, app.exception
     _press(app, "pause_leave_lobby")
-    assert app.session_state["screen"] == "online" and "TESTER" not in lobbies.get(code).names()
+    assert app.session_state["screen"] == "title" and "TESTER" not in lobbies.get(code).names()
+    assert app.session_state["title_start"]["step"] == "mode"  # back to the choice of offline or online
 
 
 def test_space_says_uno_offline_with_no_time_limit(app):
