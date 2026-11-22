@@ -112,7 +112,7 @@ def render() -> None:
         st.rerun()
     lobby = everyone.table_of(me)  # this player's table (called lobby here: it has what the whole lobby used to have)
     if lobby is None:  # the table is free again: back in the room
-        online_room.enter()
+        online_room.enter(curtain=True)
         st.rerun()
     S["_track"] = lobby.game  # the game's own music (arcade/music.py)
     S.setdefault("online_flash", "")
@@ -147,13 +147,13 @@ def _bar_end(bar, lobby, me: str, over: bool, action=None) -> None:
             back = ui.button("Lobby", "otable_lobby", "Enter", type="primary")
         if back or action == ("lobby",):
             online.lobbies().done(S.lobby_code, me)
-            online_room.enter()
+            online_room.enter(curtain=True)
             st.rerun()
     with bar[-1]:
         out = ui.button("Leave", "otable_leave", "Esc")
     if out or action == ("leave",):
         online.lobbies().quit_table(S.lobby_code, me)
-        online_room.enter()
+        online_room.enter(curtain=True)
         st.rerun()
 
 

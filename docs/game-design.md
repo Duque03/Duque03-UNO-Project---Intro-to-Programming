@@ -35,11 +35,12 @@ Numbers live in `arcade/config.py`.
   | Wardrobe | Left / Right choose an item, Up / Down change tab. E or Enter equips it, U takes it off, Esc goes back. |
 
   The title screen and the arcade room already work both ways (sections 1 and 2).
-- Only going into a game, to the scoreboard or coming back into the room goes through black, the way other games do
-  it: the old screen darkens (about 0.3 s), then the new one comes up from black (about 0.4 s), with its messages.
-  From the room or the title, which darken by themselves (the zoom into a table, the flight into the arcade), the new
-  screen comes up straight from that black: the old picture never shows again in between. Menus
-  that open over the room or a table (the opponent picker, the pause menu, the store, How to play) and the screens of
+- Going into a game and out of it (the three games, offline and online, and the championship's scoreboard), a
+  purple **ARCADE MASTERS** screen comes down over the old screen (about 0.25 s), the new screen is made behind it,
+  and it lifts (about 0.35 s) once the new screen has really drawn, after at least about 0.75 s: like a loading
+  screen, so nothing in between is ever seen. Going into the arcade from the title (the flight) goes through black.
+  The opponent picker is drawn over the room itself, which keeps moving behind it. Menus
+  that open over the room or a table (the pause menu, the store, How to play) and the screens of
   the title menu are a plain cut: the previous picture stays until the new one is there, never a black flash. The
   screens opened from the title menu (making your character, the online menu, joining a lobby, How to play) are
   drawn on the title screen's own background, so only their box comes up. The online menu and the join box are drawn
@@ -100,7 +101,7 @@ Numbers live in `arcade/config.py`.
   the store, the prize machine or the dance pad, look around, and move on. Now and then two of them sit down at a
   table nobody is using and play together for a while (never at the table the player stands at). When the player
   picks them for a game, they stop what they are doing and walk to the table; anyone else sitting there leaves.
-- **Talking**: next to a bot, the prompt **TALK [E]** appears (it replaces PLAY / SHOP there). E (or a click on it)
+- **Talking**: next to a bot, the prompt **TALK [E]** appears (but at a table, the store or the cup, PLAY / SHOP / START stay: E does that even with a bot there). E (or a click on it)
   makes the player say something and the bot answer, in speech bubbles above their heads, one after the other: thirty
   little exchanges per bot, in its own voice, all thirty before any repeats. DEAN is a formal, kind dean who loses a
   lot; MANHOSA a sly, strict security officer; JOHN painfully ordinary (and the best player there); BARK is a dog and
@@ -115,10 +116,11 @@ Numbers live in `arcade/config.py`.
 
 ## 3. Playing a table (free play)
 
-- Pressing E opens **CHOOSE YOUR OPPONENT**: the four bots, from the easiest on the left to the hardest on the
-  right, with their level, its stars and its coins.
-  Checkers and Connect Four: pick 1. UNO: pick 3 (each plays at its own level). Click a card or press 1-4;
-  clicking a picked bot takes it back. **PLAY** (Enter) starts once enough bots are picked; Esc goes back.
+- Pressing E opens **CHOOSE YOUR OPPONENT** over the room (the room keeps moving, dimmed, behind it): the four
+  bots, from the easiest on the left to the hardest on the right, with their level, its stars and its coins.
+  Checkers and Connect Four: pick 1. UNO: pick 3 (each plays at its own level). Left / Right move the yellow frame,
+  Space (or Enter) picks, 1-4 or a click picks that bot; picking it again takes it back. **PLAY** (Enter) starts
+  once enough bots are picked; **BACK** (Esc) closes it.
 - Levels: **easy** (anyone who thinks a little wins), **medium** (a bit of strategy is enough), **hard** (you must
   know what you are doing), **expert** (only the best win). Settings per level in `config.py`. An easy Connect Four
   bot sometimes misses a four it could make or one it should stop; hard and expert never do.

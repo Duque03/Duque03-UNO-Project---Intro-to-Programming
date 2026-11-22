@@ -273,7 +273,10 @@ def render_music(track: str | None = None) -> None:
     """Tell the browser which tune this screen wants, and how loud. Call at the START of every run, so a new screen
     changes the music at once (a table's first run can take seconds: the deal, the roulette).
     track: the tune, when the screen knows better than its name (an online table plays its game's tune)."""
-    track = track or music.track_for(st.session_state.get("screen", "title"), st.session_state.get("_track"))
+    screen = st.session_state.get("screen", "title")
+    if screen == "curtain":  # (the curtain plays the tune of the screen it opens)
+        screen = st.session_state.get("_curtain_target") or screen
+    track = track or music.track_for(screen, st.session_state.get("_track"))
     st.session_state["_track"] = track
     player = st.session_state.get("player") or {}
     volume = MUSIC_LEVELS.get(player.get("music", "high"), 1.0)

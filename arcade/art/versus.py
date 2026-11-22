@@ -1,4 +1,8 @@
-"""The "choose your opponent" panel shown when the player presses E at a table."""
+"""The "choose your opponent" panel shown when the player presses E at a table.
+
+It is drawn by the browser over the live room (arcade/room.py, from the pieces at the end of this file), so the room
+keeps moving behind it and no new picture is made for each key press. panel_picture() draws the same panel as one
+picture (kept for the tests and as a reference of the layout)."""
 
 from __future__ import annotations
 
@@ -84,3 +88,45 @@ def panel_picture(background, title: str, cards: list[dict], picked: list[str], 
                        fill="#c8f7c5" if prize is not None else "#8d8aa6")
     regions += [(back, ("back",))] + ([(play, ("play",))] if prize is not None else [])
     return img, regions
+
+
+# ---- The picker drawn over the live room (arcade/room.py): the pieces, painted once and sent once.
+BUTTON_W, BUTTON_H, BUTTONS_Y = 220, 38, 474
+BACK_BOX = (SCREEN_W // 2 - 250, BUTTONS_Y, SCREEN_W // 2 - 30, BUTTONS_Y + BUTTON_H)
+PLAY_BOX = (SCREEN_W // 2 + 30, BUTTONS_Y, SCREEN_W // 2 + 250, BUTTONS_Y + BUTTON_H)
+LINE_Y = 440
+
+
+def card_left(count: int) -> int:
+    return (SCREEN_W - (count * CARD_W + (count - 1) * GAP)) // 2
+
+
+def frame_piece(title: str) -> Image.Image:
+    """The panel and its title, see-through around it (the room shows, dimmed, behind)."""
+    img = Image.new("RGBA", (SCREEN_W, SCREEN_H), (0, 0, 0, 0))
+    panel(img, (40, 24, SCREEN_W - 40, SCREEN_H - 24), "#0f0b2a", "#3ad6ff", bw=4)
+    draw_text(img, (SCREEN_W // 2, 46), title, 4, "#ffe94a", "mt", shadow="#16122b")
+    return img
+
+
+def card_piece(cardinfo: dict, picked: bool, t: int = 0) -> Image.Image:
+    """One bot's card with its coins underneath (30 pixels more), see-through around the coins."""
+    img = Image.new("RGBA", (CARD_W, CARD_H + 30), (0, 0, 0, 0))
+    img.paste(card(cardinfo, picked, 0, t), (0, 0))
+    coin(img, CARD_W // 2 - 40, CARD_H + 10, 2)
+    draw_text(img, (CARD_W // 2 - 20, CARD_H + 10), f"+{LEVEL_COINS[cardinfo['level']]}", 2, "#ffe94a", "lt")
+    return img
+
+
+def line_piece(text: str, colour: str) -> Image.Image:
+    """A line of text (PICK 2 MORE, WIN AND GET 15 COINS), centred, see-through around it."""
+    img = Image.new("RGBA", (SCREEN_W - 120, 30), (0, 0, 0, 0))
+    draw_text(img, (img.width // 2, 0), text, 3, colour, "mt", shadow="#16122b")
+    return img
+
+
+def button_piece(label: str, enabled: bool = True) -> Image.Image:
+    img = Image.new("RGBA", (BUTTON_W + 8, BUTTON_H + 8), (0, 0, 0, 0))
+    fill = "#ffffff" if label == "BACK" else ("#c8f7c5" if enabled else "#8d8aa6")
+    draw_button(img, (0, 0, BUTTON_W, BUTTON_H), label, 2, fill=fill)
+    return img

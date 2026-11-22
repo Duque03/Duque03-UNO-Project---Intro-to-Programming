@@ -29,6 +29,7 @@ SCREENS = {
     "online": online.render_menu,
     "lobby": online_room.render,  # the online room: friends walk about, chat and sit down at the tables
     "online_table": online_table.render,
+    "curtain": ui.render_curtain,  # the ARCADE MASTERS curtain going into a game or out of it (ui.curtain_to)
 }
 
 ui.fresh_page()  # first of all: a full run always starts at the top of the page (see ui.fresh_page)
