@@ -194,7 +194,13 @@ def test_the_online_room_takes_players_to_their_table_and_back(app, monkeypatch)
     assert app.session_state["screen"] == "online_table" and app.session_state["online_game"] == "connect4"
     app.run()  # (the table itself, with the roulette)
     assert not app.exception, app.exception
-    _press(app, "otable_leave")
+    _press(app, "otable_pause")  # Esc: the pause menu, and the game goes on meanwhile
+    assert app.session_state["screen"] == "pause" and app.session_state["paused_from"] == "online_table"
+    assert lobbies.get(code).tables["connect4"].result is None
+    _press(app, "pause_resume")
+    assert app.session_state["screen"] == "online_table"
+    _press(app, "otable_pause")
+    _press(app, "pause_leave_table")  # LEAVE TABLE: the game ends for the other player, back in the room
     assert app.session_state["screen"] == "lobby"
     assert lobbies.get(code).tables["connect4"].result == {"winner": None, "left": "TESTER"}
 

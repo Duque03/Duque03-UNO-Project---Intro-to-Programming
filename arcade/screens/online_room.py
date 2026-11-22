@@ -170,23 +170,35 @@ def _interact(code: str, me: str, lobby, hub: dict) -> None:
         online.lobbies().stand(code, me)
         sound.play("blip")
         return
-    try:
-        chair = online.lobbies().sit(code, me, near)
-    except LobbyError as problem:
+    # The player first walks to the chair, and only sits (which can start the game) once there: before, a game with
+    # someone already waiting started at once and the player never reached the table.
+    table = lobby.tables.get(near)
+    problem = ("Finish your game first." if lobby.table_of(me) is not None
+               else "A game is being played there." if table is None or table.table is not None
+               else "That table is full." if None not in table.chairs else None)
+    if problem:
         sound.play("lose")
-        ui.toast(str(problem))
+        ui.toast(problem)
         st.rerun()
     sound.play("table")
-    place, face = chairs(near)[chair]
+    place, face = chairs(near)[table.chairs.index(None)]
     S["_cut_count"] = S.get("_cut_count", 0) + 1
-    hub["walk"] = {"id": S["_cut_count"], "to": place, "dir": face, "from": tuple(hub["pos"])}
+    hub["walk"] = {"id": S["_cut_count"], "to": place, "dir": face, "from": tuple(hub["pos"]), "game": near}
 
 
 def _finish_walk(code: str, me: str, hub: dict) -> None:
-    """The walk to the chair is over: the player sits there (the others see them on it)."""
+    """The walk to the chair is over: now the player sits (the others see them on it, and a full table starts)."""
     walk, hub["walk"] = hub["walk"], None
-    hub["pos"], hub["dir"] = walk["to"], walk["dir"]  # (not marked as synced: the browser must jump onto the chair,
-    online.lobbies().move(code, me, walk["to"], walk["dir"])  # its walk was only a cutscene's)
+    place, face = walk["to"], walk["dir"]
+    if walk.get("game"):
+        try:
+            chair = online.lobbies().sit(code, me, walk["game"])
+            place, face = chairs(walk["game"])[chair]  # (another chair if someone took that one meanwhile)
+        except LobbyError as problem:  # taken, or a game started there meanwhile: stay standing there
+            sound.play("lose")
+            ui.toast(str(problem))
+    hub["pos"], hub["dir"] = place, face  # (not marked as synced: the browser must jump onto the chair,
+    online.lobbies().move(code, me, place, face)  # its walk was only a cutscene's)
 
 
 def _say(code: str, me: str, value) -> None:
