@@ -22,10 +22,10 @@ button to wake it up and wait about a minute.
 
 | Name | Student number | GitHub |
 |---|---|---|
-| _to be added_ | _to be added_ | [Duque03](https://github.com/Duque03) |
-| _to be added_ | _to be added_ | [LouisBlondeau00](https://github.com/LouisBlondeau00) |
-| _to be added_ | _to be added_ | [ccostamacedo](https://github.com/ccostamacedo) |
-| _to be added_ | _to be added_ | _to be added_ |
+| Miguel Duque | 56616 | [Duque03](https://github.com/Duque03) |
+| Caetano Macedo | 56575 | [ccostamacedo](https://github.com/ccostamacedo) |
+| Louis Blondeau | 83928 | [LouisBlondeau00](https://github.com/LouisBlondeau00) |
+| Guillaume Nickels | 81751 | |
 
 ## Objectives
 
