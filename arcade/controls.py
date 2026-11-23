@@ -35,7 +35,7 @@ TABS = [
     {
         "key": "checkers",
         "label": "CHECKERS",
-        "goal": "YOU ARE RED AND MOVE FIRST. CAPTURES ARE MANDATORY. TAKE OR BLOCK ALL ENEMY PIECES.",
+        "goal": "THE STARTING SIDE IS CHOSEN AT RANDOM. CAPTURES ARE MANDATORY. TAKE OR BLOCK ALL ENEMY PIECES.",
         "rows": [
             ("ARROWS", "MOVE THE BLUE CURSOR"),
             ("SPACE / CLICK", "PICK A RED PIECE"),
