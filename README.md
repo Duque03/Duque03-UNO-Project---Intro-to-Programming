@@ -109,6 +109,7 @@ arcade/db.py           saves and loads players (SQLite on a laptop, PostgreSQL o
 arcade/accounts.py     names and PINs (PINs are only stored as salted hashes)
 tests/                 tests for the rules and the screens (accepted and rejected actions)
 tools/                 the two simulators
+specs/                 the plan of a task, written before building it (why, what to change, how to check it)
 docs/game-design.md    what the game must do
 docs/deployment.md     how the app and its database are deployed
 AGENTS.md              rules for everyone who changes this repository
