@@ -25,7 +25,7 @@ button to wake it up and wait about a minute.
 | Miguel Duque | 56616 | [Duque03](https://github.com/Duque03) |
 | Caetano Macedo | 56575 | [ccostamacedo](https://github.com/ccostamacedo) |
 | Louis Blondeau | 83928 | [LouisBlondeau00](https://github.com/LouisBlondeau00) |
-| Guillaume Nickels | 81751 | |
+| Guillaume Nickels | 81751 | [guillaumepaulnickels](https://github.com/guillaumepaulnickels) |
 
 ## Objectives
 
