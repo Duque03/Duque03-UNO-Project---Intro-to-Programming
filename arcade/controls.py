@@ -35,7 +35,7 @@ TABS = [
     {
         "key": "checkers",
         "label": "CHECKERS",
-        "goal": "YOU ARE RED AND MOVE FIRST. CAPTURES ARE MANDATORY. TAKE OR BLOCK ALL ENEMY PIECES.",
+        "goal": "THE STARTING SIDE IS CHOSEN AT RANDOM. CAPTURES ARE MANDATORY. TAKE OR BLOCK ALL ENEMY PIECES.",
         "rows": [
             ("ARROWS", "MOVE THE BLUE CURSOR"),
             ("SPACE / CLICK", "PICK A RED PIECE"),
@@ -47,7 +47,7 @@ TABS = [
     {
         "key": "connect4",
         "label": "CONNECT 4",
-        "goal": "YOU ARE RED AND PLAY FIRST. GET FOUR IN A ROW: ACROSS, UP OR DIAGONAL.",
+        "goal": "THE STARTING SIDE IS CHOSEN AT RANDOM. GET FOUR IN A ROW: ACROSS, UP OR DIAGONAL.",
         "rows": [
             ("LEFT RIGHT", "CHOOSE A COLUMN"),
             ("SPACE / CLICK", "DROP YOUR DISC IN IT"),

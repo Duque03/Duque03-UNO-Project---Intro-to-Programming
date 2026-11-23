@@ -1092,7 +1092,7 @@ def howto_panel(img, tabs, current):
         kx = x0 + 40 + _HOWTO_KEY_W - tw - 16  # keys are right-aligned against the descriptions
         key_icon(out, kx, y, key, 2, "#ffffff")
         draw_text(out, (text_x, y + 9), what, 2, INK, "lm")
-        y += 40
+        y += 32 if current == "uno" else 40
     back = draw_button(out, (SCREEN_W // 2 - 80, y1 - 54, SCREEN_W // 2 + 80, y1 - 16), "BACK", 2)
     regions.append((back, ("back",)))
     return out, regions
