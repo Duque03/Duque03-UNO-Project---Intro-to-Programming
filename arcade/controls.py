@@ -47,7 +47,7 @@ TABS = [
     {
         "key": "connect4",
         "label": "CONNECT 4",
-        "goal": "YOU ARE RED AND PLAY FIRST. GET FOUR IN A ROW: ACROSS, UP OR DIAGONAL.",
+        "goal": "THE STARTING SIDE IS CHOSEN AT RANDOM. GET FOUR IN A ROW: ACROSS, UP OR DIAGONAL.",
         "rows": [
             ("LEFT RIGHT", "CHOOSE A COLUMN"),
             ("SPACE / CLICK", "DROP YOUR DISC IN IT"),
